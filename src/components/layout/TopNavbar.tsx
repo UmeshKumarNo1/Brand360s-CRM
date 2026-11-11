@@ -25,8 +25,9 @@ export function TopNavbar({
     : userEmail.slice(0, 2).toUpperCase();
 
   return (
-    <header className="h-[76px] px-6 sm:px-8 flex items-center justify-between sticky top-0 z-20 bg-transparent">
-      {/* Search Input Bar */}
+    <header className="h-[76px] sticky top-0 z-20 bg-transparent w-full">
+      <div className="w-full max-w-[1500px] mx-auto px-6 sm:px-8 h-full flex items-center justify-between">
+        {/* Search Input Bar */}
       <div className="flex items-center gap-3 flex-1 max-w-lg">
         <button
           onClick={onMobileMenuToggle}
@@ -119,6 +120,7 @@ export function TopNavbar({
             </div>
           )}
         </div>
+      </div>
       </div>
     </header>
   );

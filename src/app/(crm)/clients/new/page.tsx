@@ -205,7 +205,7 @@ export default function NewClientPage() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6 pb-20 font-sans">
+    <div className="max-w-4xl mx-auto space-y-6 pb-20 font-sans">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#E2E8F0]">
         <div className="flex items-center gap-3.5">
@@ -226,9 +226,9 @@ export default function NewClientPage() {
         </div>
 
         {/* Pure Progress Bar */}
-        <div className="bg-white border border-[#E2E8F0] rounded-xl px-4 py-2 shadow-2xs flex items-center gap-3 self-start sm:self-auto min-w-[220px]">
+        <div className="bg-white border border-[#E2E8F0] rounded-xl px-4 py-2 shadow-2xs flex items-center gap-3 self-start sm:self-auto min-w-[200px]">
           <span className="text-xs font-semibold text-slate-600 shrink-0">Progress:</span>
-          <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
+          <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden min-w-[80px]">
             <div
               className="bg-[#0481A2] h-full rounded-full transition-all duration-300"
               style={{ width: `${progressPercentage}%` }}
@@ -246,7 +246,7 @@ export default function NewClientPage() {
         </div>
       )}
 
-      {/* SINGLE BOX CONTAINER (Everything in one card, no steps, no accordions) */}
+      {/* SINGLE BOX CONTAINER */}
       <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-sm overflow-hidden">
         <form action={formAction} className="p-6 sm:p-8 space-y-8 text-xs text-slate-700">
           {/* Hidden metadata */}
@@ -283,37 +283,41 @@ export default function NewClientPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">
-                  Company Legal Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  name="company_name"
-                  required
-                  type="text"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="e.g. Acme Technologies Private Limited"
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] transition-colors"
-                />
+            <div className="space-y-4 pt-1">
+              {/* Company Legal Name & Trade Name */}
+              <div className="flex flex-wrap items-start gap-4">
+                <div className="w-full sm:w-auto sm:min-w-[340px] max-w-md">
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    Company Legal Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    name="company_name"
+                    required
+                    type="text"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="e.g. Acme Technologies Private Limited"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] transition-colors"
+                  />
+                </div>
+
+                <div className="w-full sm:w-auto sm:min-w-[240px] max-w-xs">
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    Trade Name, if different
+                  </label>
+                  <input
+                    name="trade_name"
+                    type="text"
+                    value={tradeName}
+                    onChange={(e) => setTradeName(e.target.value)}
+                    placeholder="e.g. Acme Labs"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] transition-colors"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">
-                  Trade Name, if different
-                </label>
-                <input
-                  name="trade_name"
-                  type="text"
-                  value={tradeName}
-                  onChange={(e) => setTradeName(e.target.value)}
-                  placeholder="e.g. Acme Labs"
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] transition-colors"
-                />
-              </div>
-
-              <div className="md:col-span-2">
+              {/* Registered Address */}
+              <div className="max-w-xl">
                 <label className="block font-semibold text-slate-700 mb-1.5">
                   Registered Address
                 </label>
@@ -327,8 +331,9 @@ export default function NewClientPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:col-span-2">
-                <div>
+              {/* City, State & PIN Code */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="w-44 sm:w-48">
                   <label className="block font-semibold text-slate-700 mb-1.5">City</label>
                   <input
                     name="city"
@@ -336,10 +341,11 @@ export default function NewClientPage() {
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
                     placeholder="e.g. Bengaluru"
-                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] transition-colors"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] transition-colors"
                   />
                 </div>
-                <div>
+
+                <div className="w-48 sm:w-56">
                   <label className="block font-semibold text-slate-700 mb-1.5">State</label>
                   <select
                     value={stateName}
@@ -353,7 +359,8 @@ export default function NewClientPage() {
                     ))}
                   </select>
                 </div>
-                <div>
+
+                <div className="w-28 sm:w-32">
                   <label className="block font-semibold text-slate-700 mb-1.5">PIN Code</label>
                   <input
                     name="pincode"
@@ -362,42 +369,45 @@ export default function NewClientPage() {
                     onChange={(e) => setPincode(e.target.value)}
                     placeholder="560001"
                     maxLength={10}
-                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] font-number transition-colors"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] font-number transition-colors"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">Country</label>
-                <select
-                  value={country}
-                  onChange={(e) => setCountry(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] transition-colors"
-                >
-                  <option value="India">🇮🇳 India</option>
-                  <option value="United States">🇺🇸 United States</option>
-                  <option value="United Arab Emirates">🇦🇪 United Arab Emirates</option>
-                  <option value="United Kingdom">🇬🇧 United Kingdom</option>
-                  <option value="Singapore">🇸🇬 Singapore</option>
-                  <option value="Australia">🇦🇺 Australia</option>
-                  <option value="Canada">🇨🇦 Canada</option>
-                  <option value="Other">🌐 Other</option>
-                </select>
-              </div>
+              {/* Country & Entity Structure */}
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="w-44 sm:w-48">
+                  <label className="block font-semibold text-slate-700 mb-1.5">Country</label>
+                  <select
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] transition-colors"
+                  >
+                    <option value="India">🇮🇳 India</option>
+                    <option value="United States">🇺🇸 United States</option>
+                    <option value="United Arab Emirates">🇦🇪 United Arab Emirates</option>
+                    <option value="United Kingdom">🇬🇧 United Kingdom</option>
+                    <option value="Singapore">🇸🇬 Singapore</option>
+                    <option value="Australia">🇦🇺 Australia</option>
+                    <option value="Canada">🇨🇦 Canada</option>
+                    <option value="Other">🌐 Other</option>
+                  </select>
+                </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">Entity Structure</label>
-                <select
-                  value={companyType}
-                  onChange={(e) => setCompanyType(e.target.value)}
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] transition-colors"
-                >
-                  {ENTITY_STRUCTURES.map((ent) => (
-                    <option key={ent} value={ent}>
-                      {ent}
-                    </option>
-                  ))}
-                </select>
+                <div className="w-64 sm:w-72">
+                  <label className="block font-semibold text-slate-700 mb-1.5">Entity Structure</label>
+                  <select
+                    value={companyType}
+                    onChange={(e) => setCompanyType(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] transition-colors"
+                  >
+                    {ENTITY_STRUCTURES.map((ent) => (
+                      <option key={ent} value={ent}>
+                        {ent}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
           </section>
@@ -420,66 +430,73 @@ export default function NewClientPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  name="contact_person"
-                  required
-                  type="text"
-                  value={contactPerson}
-                  onChange={(e) => setContactPerson(e.target.value)}
-                  placeholder="e.g. Rajesh Kumar"
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] transition-colors"
-                />
+            <div className="space-y-4 pt-1">
+              {/* Name & Designation */}
+              <div className="flex flex-wrap items-start gap-4">
+                <div className="w-full sm:w-auto sm:min-w-[280px] max-w-sm">
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    name="contact_person"
+                    required
+                    type="text"
+                    value={contactPerson}
+                    onChange={(e) => setContactPerson(e.target.value)}
+                    placeholder="e.g. Rajesh Kumar"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] transition-colors"
+                  />
+                </div>
+
+                <div className="w-full sm:w-auto sm:min-w-[240px] max-w-xs">
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    Designation
+                  </label>
+                  <input
+                    name="designation"
+                    type="text"
+                    value={designation}
+                    onChange={(e) => setDesignation(e.target.value)}
+                    placeholder="e.g. Managing Director / Founder"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] transition-colors"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">
-                  Designation
-                </label>
-                <input
-                  name="designation"
-                  type="text"
-                  value={designation}
-                  onChange={(e) => setDesignation(e.target.value)}
-                  placeholder="e.g. Managing Director / Founder"
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] transition-colors"
-                />
+              {/* Mobile Number & Alternate Mobile */}
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="w-48 sm:w-52">
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    Mobile Number <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    name="phone"
+                    required
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+91 98765 43210"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] font-number transition-colors"
+                  />
+                </div>
+
+                <div className="w-48 sm:w-52">
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    Alternate Mobile Number
+                  </label>
+                  <input
+                    name="alternate_phone"
+                    type="tel"
+                    value={alternatePhone}
+                    onChange={(e) => setAlternatePhone(e.target.value)}
+                    placeholder="+91 98765 00000"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] font-number transition-colors"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">
-                  Mobile Number <span className="text-red-500">*</span>
-                </label>
-                <input
-                  name="phone"
-                  required
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+91 98765 43210"
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] font-number transition-colors"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">
-                  Alternate Mobile Number
-                </label>
-                <input
-                  name="alternate_phone"
-                  type="tel"
-                  value={alternatePhone}
-                  onChange={(e) => setAlternatePhone(e.target.value)}
-                  placeholder="+91 98765 00000"
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] font-number transition-colors"
-                />
-              </div>
-
-              <div className="md:col-span-2">
+              {/* Email Address */}
+              <div className="max-w-sm">
                 <label className="block font-semibold text-slate-700 mb-1.5">
                   Email Address
                 </label>
@@ -489,7 +506,7 @@ export default function NewClientPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="rajesh@acme.com"
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] transition-colors"
+                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] transition-colors"
                 />
               </div>
             </div>
@@ -533,7 +550,7 @@ export default function NewClientPage() {
                 {additionalContacts.map((contact, idx) => (
                   <div
                     key={contact.id}
-                    className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl relative space-y-2.5 shadow-2xs"
+                    className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl relative space-y-2.5 shadow-2xs max-w-3xl"
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-slate-700 text-xs">
@@ -549,8 +566,8 @@ export default function NewClientPage() {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                      <div>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <div className="w-44 sm:w-48">
                         <input
                           type="text"
                           placeholder="Contact Name"
@@ -559,7 +576,7 @@ export default function NewClientPage() {
                           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2]"
                         />
                       </div>
-                      <div>
+                      <div className="w-36 sm:w-40">
                         <input
                           type="text"
                           placeholder="Designation"
@@ -568,7 +585,7 @@ export default function NewClientPage() {
                           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2]"
                         />
                       </div>
-                      <div>
+                      <div className="w-36 sm:w-40">
                         <input
                           type="tel"
                           placeholder="Mobile Number"
@@ -577,7 +594,7 @@ export default function NewClientPage() {
                           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] font-number"
                         />
                       </div>
-                      <div>
+                      <div className="w-44 sm:w-56">
                         <input
                           type="email"
                           placeholder="Email Address"
@@ -622,36 +639,40 @@ export default function NewClientPage() {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">
-                  Billing Name
-                </label>
-                <input
-                  name="billing_name"
-                  type="text"
-                  value={billingName}
-                  onChange={(e) => setBillingName(e.target.value)}
-                  placeholder="Entity name on invoice"
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2]"
-                />
+            <div className="space-y-4 pt-1">
+              {/* Billing Name & Contact */}
+              <div className="flex flex-wrap items-start gap-4">
+                <div className="w-full sm:w-auto sm:min-w-[320px] max-w-md">
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    Billing Name
+                  </label>
+                  <input
+                    name="billing_name"
+                    type="text"
+                    value={billingName}
+                    onChange={(e) => setBillingName(e.target.value)}
+                    placeholder="Entity name on invoice"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2]"
+                  />
+                </div>
+
+                <div className="w-full sm:w-auto sm:min-w-[240px] max-w-xs">
+                  <label className="block font-semibold text-slate-700 mb-1.5">
+                    Billing Contact
+                  </label>
+                  <input
+                    name="billing_contact"
+                    type="text"
+                    value={billingContact}
+                    onChange={(e) => setBillingContact(e.target.value)}
+                    placeholder="Person to receive invoices"
+                    className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2]"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1.5">
-                  Billing Contact
-                </label>
-                <input
-                  name="billing_contact"
-                  type="text"
-                  value={billingContact}
-                  onChange={(e) => setBillingContact(e.target.value)}
-                  placeholder="Person to receive invoices"
-                  className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2]"
-                />
-              </div>
-
-              <div className="md:col-span-2">
+              {/* Billing Address */}
+              <div className="max-w-xl">
                 <label className="block font-semibold text-slate-700 mb-1.5">
                   Billing Address
                 </label>
@@ -665,7 +686,8 @@ export default function NewClientPage() {
                 />
               </div>
 
-              <div className="md:col-span-2">
+              {/* Billing Email */}
+              <div className="max-w-sm">
                 <label className="block font-semibold text-slate-700 mb-1.5">
                   Billing Email
                 </label>
@@ -699,8 +721,8 @@ export default function NewClientPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-              <div>
+            <div className="pt-1">
+              <div className="w-60 sm:w-64">
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="font-semibold text-slate-700">GSTIN</label>
                   <label className="inline-flex items-center gap-1.5 cursor-pointer text-[11px] font-semibold text-slate-600">
@@ -752,8 +774,8 @@ export default function NewClientPage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-              <div>
+            <div className="flex flex-wrap items-center gap-4 pt-1">
+              <div className="w-64 sm:w-72">
                 <label className="block font-semibold text-slate-700 mb-1.5">
                   Salesperson Who Brought In the Client <span className="text-red-500">*</span>
                 </label>
@@ -773,7 +795,7 @@ export default function NewClientPage() {
                 </select>
               </div>
 
-              <div>
+              <div className="w-40 sm:w-44">
                 <label className="block font-semibold text-slate-700 mb-1.5">
                   Client Since Date
                 </label>
@@ -853,13 +875,13 @@ export default function NewClientPage() {
               </div>
             </div>
 
-            <div className="pt-1">
+            <div className="pt-1 max-w-xl">
               <label className="block font-semibold text-slate-700 mb-1.5">
                 Introductory Notes / Instructions (Optional)
               </label>
               <textarea
                 name="notes"
-                rows={4}
+                rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="General information, business domain, special client preferences, or operational instructions..."

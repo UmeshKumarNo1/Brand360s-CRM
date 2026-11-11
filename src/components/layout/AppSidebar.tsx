@@ -70,28 +70,28 @@ export function AppSidebar({
       style={{ minHeight: "100vh" }}
     >
       {/* Brand Header */}
-      <div className="flex items-center justify-between px-5 h-20 border-b border-[#1E3567]/50 relative z-10">
-        <Link href="/dashboard" className="flex items-center gap-3 overflow-hidden">
+      <div className="flex items-center justify-between px-4 sm:px-5 h-20 border-b border-[#1E3567]/50 relative z-10">
+        <Link href="/dashboard" className="flex items-center">
           <div className={cn(
             "relative shrink-0 flex items-center transition-all duration-300",
-            isCollapsed ? "h-9 w-9 overflow-hidden" : "h-14 w-48"
+            isCollapsed ? "h-9 w-9 overflow-hidden" : "h-10 w-auto"
           )}>
             <Image
               src="/brand360s-darkmodelogo.svg"
               alt="BRAND 360s"
-              width={220}
-              height={60}
+              width={160}
+              height={42}
               priority
               className={cn(
-                "object-contain object-left transition-all duration-300",
-                isCollapsed ? "h-9 w-auto max-w-none" : "h-13 w-auto scale-110 origin-left"
+                "object-contain transition-all duration-300",
+                isCollapsed ? "h-9 w-auto max-w-none object-left" : "h-[38px] w-auto object-left"
               )}
             />
           </div>
         </Link>
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-[#1E3567]/60 transition-colors"
+          className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-[#1E3567]/60 transition-colors shrink-0"
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}

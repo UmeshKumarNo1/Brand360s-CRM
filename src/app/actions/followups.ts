@@ -47,8 +47,7 @@ export async function fetchFollowupsAction() {
     .select(`
       *,
       client:clients!client_id (id, company_name, client_code, contact_person, client_status),
-      assigned_profile:profiles!assigned_to (id, full_name, email),
-      completer:profiles!completed_by (id, full_name)
+      assigned_profile:profiles!assigned_to (id, full_name, email)
     `)
     .order("due_date", { ascending: true })
     .order("due_time", { ascending: true, nullsFirst: false });
@@ -56,6 +55,25 @@ export async function fetchFollowupsAction() {
   if (error) {
     console.error("Error fetching follow-ups:", error);
     return [];
+  }
+
+  // Fetch completer names safely if any follow-up is completed
+  const completerIds = Array.from(
+    new Set((data || []).map((f: any) => f.completed_by).filter(Boolean))
+  ) as string[];
+
+  let completerMap: Record<string, string> = {};
+  if (completerIds.length > 0) {
+    const { data: completers } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", completerIds);
+    if (completers) {
+      completerMap = completers.reduce((acc: any, c: any) => {
+        acc[c.id] = c.full_name;
+        return acc;
+      }, {});
+    }
   }
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -86,7 +104,7 @@ export async function fetchFollowupsAction() {
       description: f.notes,
       completionNotes: f.completion_notes || null,
       completedAt: f.completed_at ? new Date(f.completed_at).toLocaleString("en-IN") : null,
-      completedByName: f.completer?.full_name || null,
+      completedByName: f.completed_by ? completerMap[f.completed_by] || null : null,
       reminderSetting: f.reminder_setting || "none",
       contactMethod: f.contact_method || "Phone",
       isOverdue,

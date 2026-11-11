@@ -1,25 +1,75 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
-import { CheckSquare, Search, Plus, CheckCircle2, Clock, Trash2, Calendar, AlertTriangle, RefreshCw, Pencil } from "lucide-react";
-import { fetchFollowupsAction, updateFollowupStatusAction, deleteFollowupAction } from "@/app/actions/followups";
+import {
+  CheckSquare,
+  Search,
+  Plus,
+  CheckCircle2,
+  Clock,
+  Trash2,
+  Calendar,
+  AlertTriangle,
+  RefreshCw,
+  Pencil,
+  Eye,
+  Play,
+  XCircle,
+  Building,
+  User,
+} from "lucide-react";
+import {
+  fetchFollowupsAction,
+  updateFollowupStatusAction,
+  deleteFollowupAction,
+  markInProgressFollowupAction,
+  cancelFollowupAction,
+  FollowupItem,
+} from "@/app/actions/followups";
+import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { CreateFollowupModal } from "@/components/followups/CreateFollowupModal";
+import { CompleteFollowupModal } from "@/components/followups/CompleteFollowupModal";
+import { FollowupDetailModal } from "@/components/followups/FollowupDetailModal";
+import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 
 export default function FollowupsPage() {
-  const [followups, setFollowups] = useState<any[]>([]);
+  const [followups, setFollowups] = useState<FollowupItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+
+  // Tabs: all | my | today | upcoming | overdue | completed
+  const [activeTab, setActiveTab] = useState<
+    "all" | "my" | "today" | "upcoming" | "overdue" | "completed"
+  >("all");
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
   const [priorityFilter, setPriorityFilter] = useState("All");
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingFollowup, setEditingFollowup] = useState<any | null>(null);
+  const [typeFilter, setTypeFilter] = useState("All");
+
+  // Modals state
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingFollowup, setEditingFollowup] = useState<FollowupItem | null>(null);
+  const [viewingFollowup, setViewingFollowup] = useState<FollowupItem | null>(null);
+  const [completingFollowup, setCompletingFollowup] = useState<FollowupItem | null>(null);
+  const [deletingFollowup, setDeletingFollowup] = useState<FollowupItem | null>(null);
 
   const { success, error: toastError } = useToast();
   const requestIdRef = useRef(0);
+
+  // Load user profile
+  useEffect(() => {
+    getCurrentUserProfileAction().then((p) => {
+      if (p) {
+        setCurrentUserId(p.id);
+        setIsAdmin(p.role === "admin");
+      }
+    });
+  }, []);
 
   const loadData = useCallback(async () => {
     const currentReqId = ++requestIdRef.current;
@@ -46,72 +96,88 @@ export default function FollowupsPage() {
     loadData();
   }, [loadData]);
 
-  const handleStatusToggle = async (id: string, currentStatus: string) => {
-    const nextStatus = currentStatus === "Completed" ? "Pending" : "Completed";
-    // Optimistic status toggle
-    setFollowups((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, status: nextStatus } : f))
-    );
-
-    try {
-      const res = await updateFollowupStatusAction(id, nextStatus);
-      if (res.error) {
-        toastError("Failed to update status", res.error);
-        loadData();
-      } else {
-        success("Follow-up updated", `Marked as ${nextStatus}.`);
-        loadData();
-      }
-    } catch {
-      toastError("Failed to update status", "Server connection error.");
+  // Status Actions
+  const handleMarkInProgress = async (id: string) => {
+    const res = await markInProgressFollowupAction(id);
+    if (res.success) {
+      success("Status Updated", "Task marked In Progress.");
       loadData();
+    } else {
+      toastError("Error", res.error || "Failed to update status.");
     }
   };
 
-  const handleDelete = async (followup: any) => {
-    if (!confirm(`Delete follow-up reminder "${followup.title}"?`)) return;
-
-    setFollowups((prev) => prev.filter((f) => f.id !== followup.id));
-
-    try {
-      const res = await deleteFollowupAction(followup.id);
-      if (res.error) {
-        toastError("Failed to delete follow-up", res.error);
-        loadData();
-      } else {
-        success("Follow-up deleted", "Reminder removed successfully.");
-      }
-    } catch {
-      toastError("Failed to delete follow-up", "Server connection error.");
+  const handleCancelTask = async (id: string) => {
+    if (!confirm("Are you sure you want to cancel this follow-up task?")) return;
+    const res = await cancelFollowupAction(id);
+    if (res.success) {
+      success("Task Cancelled", "Follow-up marked Cancelled.");
       loadData();
+    } else {
+      toastError("Error", res.error || "Failed to cancel task.");
     }
   };
 
+  const handleConfirmDelete = async () => {
+    if (!deletingFollowup) return;
+    const res = await deleteFollowupAction(deletingFollowup.id, deletingFollowup.clientId);
+    if (res.success) {
+      success("Follow-up Deleted", `"${deletingFollowup.title}" has been deleted.`);
+      loadData();
+    } else {
+      throw new Error(res.error || "Failed to delete task.");
+    }
+  };
+
+  // Dynamic calculations from database values
   const todayStr = new Date().toISOString().split("T")[0];
   const totalCount = followups.length;
-  const todayCount = followups.filter((f) => f.dueDate === todayStr && f.status !== "Completed").length;
-  const overdueCount = followups.filter((f) => f.dueDate < todayStr && f.status !== "Completed").length;
+  const myCount = followups.filter((f) => f.assignedToId === currentUserId).length;
+  const pendingCount = followups.filter((f) => f.status === "Pending" || f.status === "In Progress").length;
+  const todayCount = followups.filter(
+    (f) => f.dueDate === todayStr && f.status !== "Completed" && f.status !== "Cancelled"
+  ).length;
+  const upcomingCount = followups.filter(
+    (f) => f.dueDate > todayStr && f.status !== "Completed" && f.status !== "Cancelled"
+  ).length;
+  const overdueCount = followups.filter(
+    (f) => f.isOverdue
+  ).length;
   const completedCount = followups.filter((f) => f.status === "Completed").length;
 
-  const filteredFollowups = followups.filter((f) => {
-    if (statusFilter !== "All" && f.status !== statusFilter) return false;
-    if (priorityFilter !== "All" && f.priority !== priorityFilter) return false;
-    if (!searchQuery.trim()) return true;
-    const q = searchQuery.toLowerCase();
-    return (
-      (f.title && f.title.toLowerCase().includes(q)) ||
-      (f.companyName && f.companyName.toLowerCase().includes(q)) ||
-      (f.contactPerson && f.contactPerson.toLowerCase().includes(q)) ||
-      (f.description && f.description.toLowerCase().includes(q))
-    );
-  });
+  // Filter & Tab Logic
+  const filteredFollowups = useMemo(() => {
+    return followups.filter((f) => {
+      // Tab filter
+      if (activeTab === "my" && f.assignedToId !== currentUserId) return false;
+      if (activeTab === "today" && (f.dueDate !== todayStr || f.status === "Completed" || f.status === "Cancelled")) return false;
+      if (activeTab === "upcoming" && (f.dueDate <= todayStr || f.status === "Completed" || f.status === "Cancelled")) return false;
+      if (activeTab === "overdue" && !f.isOverdue) return false;
+      if (activeTab === "completed" && f.status !== "Completed") return false;
+
+      // Dropdown filters
+      if (priorityFilter !== "All" && f.priority !== priorityFilter) return false;
+      if (typeFilter !== "All" && f.followUpType !== typeFilter) return false;
+
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        f.title.toLowerCase().includes(q) ||
+        f.companyName.toLowerCase().includes(q) ||
+        f.contactPerson.toLowerCase().includes(q) ||
+        (f.notes && f.notes.toLowerCase().includes(q))
+      );
+    });
+  }, [followups, activeTab, currentUserId, todayStr, priorityFilter, typeFilter, searchQuery]);
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#E2E8F0]">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">Follow-ups & Reminders</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
+            Follow-ups & Reminders
+          </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
             Track pending client communications, document submissions, compliance renewals, and sales callbacks.
           </p>
@@ -127,7 +193,10 @@ export default function FollowupsPage() {
           </button>
 
           <button
-            onClick={() => setIsModalOpen(true)}
+            onClick={() => {
+              setEditingFollowup(null);
+              setIsCreateModalOpen(true);
+            }}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
           >
             <Plus size={16} />
@@ -137,167 +206,364 @@ export default function FollowupsPage() {
       </div>
 
       {/* Summary KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
-          <span className="text-xs text-slate-500 font-medium">All Follow-ups</span>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="bg-white border border-[#E2E8F0] rounded-xl p-3.5 shadow-2xs">
+          <span className="text-[11px] text-slate-500 font-medium">Total Follow-ups</span>
           <p className="text-2xl font-bold text-slate-900 mt-1">{totalCount}</p>
         </div>
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
-          <span className="text-xs text-slate-500 font-medium">Due Today</span>
+        <div className="bg-white border border-[#E2E8F0] rounded-xl p-3.5 shadow-2xs">
+          <span className="text-[11px] text-slate-500 font-medium">Pending Tasks</span>
+          <p className="text-2xl font-bold text-amber-600 mt-1">{pendingCount}</p>
+        </div>
+        <div className="bg-white border border-[#E2E8F0] rounded-xl p-3.5 shadow-2xs">
+          <span className="text-[11px] text-slate-500 font-medium">Today's Tasks</span>
           <p className="text-2xl font-bold text-[#0481A2] mt-1">{todayCount}</p>
         </div>
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
-          <span className="text-xs text-slate-500 font-medium">Overdue Reminders</span>
-          <p className={`text-2xl font-bold mt-1 ${overdueCount > 0 ? "text-rose-600" : "text-slate-900"}`}>{overdueCount}</p>
+        <div className="bg-white border border-[#E2E8F0] rounded-xl p-3.5 shadow-2xs">
+          <span className="text-[11px] text-slate-500 font-medium">Upcoming</span>
+          <p className="text-2xl font-bold text-blue-600 mt-1">{upcomingCount}</p>
         </div>
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
-          <span className="text-xs text-slate-500 font-medium">Completed</span>
+        <div className="bg-white border border-[#E2E8F0] rounded-xl p-3.5 shadow-2xs">
+          <span className="text-[11px] text-slate-500 font-medium">Overdue Reminders</span>
+          <p className={`text-2xl font-bold mt-1 ${overdueCount > 0 ? "text-rose-600" : "text-slate-900"}`}>
+            {overdueCount}
+          </p>
+        </div>
+        <div className="bg-white border border-[#E2E8F0] rounded-xl p-3.5 shadow-2xs">
+          <span className="text-[11px] text-slate-500 font-medium">Completed</span>
           <p className="text-2xl font-bold text-emerald-600 mt-1">{completedCount}</p>
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex border-b border-[#E2E8F0] overflow-x-auto text-xs font-semibold text-slate-600 gap-1">
+        <button
+          onClick={() => setActiveTab("all")}
+          className={`py-2.5 px-3.5 rounded-t-lg transition-colors cursor-pointer ${
+            activeTab === "all"
+              ? "bg-[#243E76] text-white shadow-2xs"
+              : "hover:bg-slate-100 text-slate-600"
+          }`}
+        >
+          All Follow-ups ({totalCount})
+        </button>
+        <button
+          onClick={() => setActiveTab("my")}
+          className={`py-2.5 px-3.5 rounded-t-lg transition-colors cursor-pointer ${
+            activeTab === "my"
+              ? "bg-[#243E76] text-white shadow-2xs"
+              : "hover:bg-slate-100 text-slate-600"
+          }`}
+        >
+          My Follow-ups ({myCount})
+        </button>
+        <button
+          onClick={() => setActiveTab("today")}
+          className={`py-2.5 px-3.5 rounded-t-lg transition-colors cursor-pointer ${
+            activeTab === "today"
+              ? "bg-[#0481A2] text-white shadow-2xs"
+              : "hover:bg-slate-100 text-slate-600"
+          }`}
+        >
+          Today's Follow-ups ({todayCount})
+        </button>
+        <button
+          onClick={() => setActiveTab("upcoming")}
+          className={`py-2.5 px-3.5 rounded-t-lg transition-colors cursor-pointer ${
+            activeTab === "upcoming"
+              ? "bg-blue-600 text-white shadow-2xs"
+              : "hover:bg-slate-100 text-slate-600"
+          }`}
+        >
+          Upcoming ({upcomingCount})
+        </button>
+        <button
+          onClick={() => setActiveTab("overdue")}
+          className={`py-2.5 px-3.5 rounded-t-lg transition-colors cursor-pointer ${
+            activeTab === "overdue"
+              ? "bg-rose-600 text-white shadow-2xs"
+              : "hover:bg-slate-100 text-slate-600"
+          }`}
+        >
+          Overdue ({overdueCount})
+        </button>
+        <button
+          onClick={() => setActiveTab("completed")}
+          className={`py-2.5 px-3.5 rounded-t-lg transition-colors cursor-pointer ${
+            activeTab === "completed"
+              ? "bg-emerald-600 text-white shadow-2xs"
+              : "hover:bg-slate-100 text-slate-600"
+          }`}
+        >
+          Completed ({completedCount})
+        </button>
+      </div>
+
       {/* Filter Toolbar */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex-1 min-w-[220px] relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search follow-ups by title, company, or note..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2] text-slate-800 placeholder:text-slate-400 shadow-xs"
+            placeholder="Search by title, client, or contact..."
+            className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2]"
           />
         </div>
 
         <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2] font-medium text-slate-700 shadow-xs cursor-pointer"
-        >
-          <option value="All">Status: All</option>
-          <option value="Pending">Pending</option>
-          <option value="In Progress">In Progress</option>
-          <option value="Completed">Completed</option>
-          <option value="Cancelled">Cancelled</option>
-        </select>
-
-        <select
           value={priorityFilter}
           onChange={(e) => setPriorityFilter(e.target.value)}
-          className="px-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2] font-medium text-slate-700 shadow-xs cursor-pointer"
+          className="px-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg text-slate-700 font-medium cursor-pointer"
         >
-          <option value="All">Priority: All</option>
+          <option value="All">All Priorities</option>
+          <option value="Urgent">Urgent</option>
           <option value="High">High</option>
           <option value="Medium">Medium</option>
           <option value="Low">Low</option>
         </select>
+
+        <select
+          value={typeFilter}
+          onChange={(e) => setTypeFilter(e.target.value)}
+          className="px-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg text-slate-700 font-medium cursor-pointer"
+        >
+          <option value="All">All Types</option>
+          <option value="Phone Call">Phone Call</option>
+          <option value="Email">Email</option>
+          <option value="Meeting">Meeting</option>
+          <option value="Payment Reminder">Payment Reminder</option>
+          <option value="Document Request">Document Request</option>
+          <option value="Service Update">Service Update</option>
+          <option value="Renewal Reminder">Renewal Reminder</option>
+        </select>
+
+        {(searchQuery || priorityFilter !== "All" || typeFilter !== "All") && (
+          <button
+            onClick={() => {
+              setSearchQuery("");
+              setPriorityFilter("All");
+              setTypeFilter("All");
+            }}
+            className="text-xs text-[#0481A2] hover:underline font-semibold cursor-pointer"
+          >
+            Reset Filters
+          </button>
+        )}
       </div>
 
-      {/* Error state */}
-      {errorMessage && (
+      {/* Follow-ups Responsive Table */}
+      {errorMessage ? (
         <ErrorRetryState message={errorMessage} onRetry={loadData} />
-      )}
-
-      {/* Follow-ups Table */}
-      {!errorMessage && (
-        <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm border-collapse">
+      ) : (
+        <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden">
+          <div>
+            <table className="w-full text-left border-collapse text-xs sm:text-sm">
               <thead>
-                <tr className="bg-[#F1F5F9] text-[#1E293B] border-b border-[#E2E8F0] font-semibold text-[13px]">
-                  <th className="py-3 px-4">Task / Reminder</th>
-                  <th className="py-3 px-4">Client</th>
-                  <th className="py-3 px-4">Type</th>
-                  <th className="py-3 px-4">Due Date</th>
-                  <th className="py-3 px-4">Priority</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                <tr className="bg-[#243E76] text-white font-semibold text-xs tracking-wide">
+                  <th className="py-3 px-3 w-10 text-center">No.</th>
+                  <th className="py-3 px-3.5">Follow-up Title</th>
+                  <th className="py-3 px-3">Client</th>
+                  <th className="py-3 px-3">Assigned To</th>
+                  <th className="py-3 px-3">Type</th>
+                  <th className="py-3 px-3 text-center">Priority</th>
+                  <th className="py-3 px-3 whitespace-nowrap">Due Date</th>
+                  <th className="py-3 px-3 text-center">Status</th>
+                  <th className="py-3 px-3 text-center w-28 whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#F1F5F9] text-slate-700">
+              <tbody className="divide-y divide-slate-100 text-slate-700">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400 text-xs">
-                      <div className="flex items-center justify-center gap-2">
-                        <RefreshCw size={14} className="animate-spin text-[#0481A2]" />
-                        <span>Loading follow-up tasks...</span>
-                      </div>
+                    <td colSpan={9} className="py-12 text-center text-slate-400 text-xs">
+                      <RefreshCw size={18} className="animate-spin text-[#0481A2] mx-auto mb-2" />
+                      Loading follow-up tasks...
                     </td>
                   </tr>
                 ) : filteredFollowups.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-10 text-center text-slate-400 text-xs">
-                      No follow-ups found. Click &quot;Create Follow-up&quot; to schedule a reminder.
+                    <td colSpan={9} className="py-12 text-center text-slate-400 text-xs">
+                      No follow-up tasks found for this view.
                     </td>
                   </tr>
                 ) : (
-                  filteredFollowups.map((f) => {
-                    const isOverdue = f.dueDate < todayStr && f.status !== "Completed";
+                  filteredFollowups.map((f, idx) => {
+                    const isCompleted = f.status === "Completed";
+                    const isCancelled = f.status === "Cancelled";
+
                     return (
-                      <tr key={f.id} className="hover:bg-[#F8FAFC] transition-colors">
-                        <td className="py-3 px-4">
-                          <span className={`font-semibold text-slate-900 block ${f.status === "Completed" ? "line-through text-slate-400" : ""}`}>
+                      <tr
+                        key={f.id}
+                        className={`hover:bg-slate-50/70 transition-colors ${
+                          isCompleted ? "opacity-75 bg-slate-50/30" : ""
+                        }`}
+                      >
+                        {/* No. */}
+                        <td className="py-3 px-3 text-center font-bold text-slate-800">
+                          {idx + 1}
+                        </td>
+
+                        {/* Title */}
+                        <td className="py-3 px-3.5 font-bold">
+                          <button
+                            onClick={() => setViewingFollowup(f)}
+                            className="text-[#0481A2] hover:text-[#036c88] text-left transition-colors cursor-pointer block"
+                          >
                             {f.title}
-                          </span>
-                          {f.description && (
-                            <span className="text-[11px] text-slate-500 font-normal line-clamp-1 mt-0.5">{f.description}</span>
+                          </button>
+                          {f.notes && (
+                            <span className="text-[11px] text-slate-400 font-normal line-clamp-1 mt-0.5">
+                              {f.notes}
+                            </span>
                           )}
                         </td>
-                        <td className="py-3 px-4">
-                          {f.clientId ? (
-                            <Link href={`/clients/${f.clientId}`} className="font-semibold text-[#0481A2] hover:underline">
-                              {f.companyName}
-                            </Link>
-                          ) : (
-                            <span className="text-slate-400 font-medium">General / Internal</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-slate-600">{f.type}</td>
-                        <td className="py-3 px-4">
-                          <span className={`font-medium ${isOverdue ? "text-rose-600 font-bold" : "text-slate-700"}`}>
-                            {f.dueDate}
+
+                        {/* Client */}
+                        <td className="py-3 px-3">
+                          <Link
+                            href={`/clients/${f.clientId}`}
+                            className="font-semibold text-slate-800 hover:text-[#0481A2] block truncate max-w-[150px]"
+                          >
+                            {f.companyName}
+                          </Link>
+                          <span className="text-[10px] text-slate-400 font-mono block">
+                            {f.clientCode}
                           </span>
-                          {f.dueTime && <span className="text-[10px] text-slate-400 block">{f.dueTime}</span>}
                         </td>
-                        <td className="py-3 px-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                            f.priority === "High" ? "bg-rose-50 text-rose-700" : f.priority === "Medium" ? "bg-amber-50 text-amber-700" : "bg-slate-100 text-slate-600"
-                          }`}>
+
+                        {/* Assigned To */}
+                        <td className="py-3 px-3 font-medium text-slate-700">
+                          {f.assignedToName}
+                        </td>
+
+                        {/* Type */}
+                        <td className="py-3 px-3 text-slate-600 font-normal whitespace-nowrap">
+                          {f.followUpType}
+                        </td>
+
+                        {/* Priority Badge */}
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          <span
+                            className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                              f.priority === "Urgent"
+                                ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                : f.priority === "High"
+                                ? "bg-orange-50 text-orange-700 border border-orange-200"
+                                : f.priority === "Medium"
+                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                : "bg-slate-50 text-slate-600 border border-slate-200"
+                            }`}
+                          >
                             {f.priority}
                           </span>
                         </td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${
-                            f.status === "Completed" ? "bg-emerald-50 text-emerald-700" : isOverdue ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-sky-700"
-                          }`}>
-                            {f.status === "Completed" ? "Completed" : isOverdue ? "Overdue" : f.status}
+
+                        {/* Due Date & Overdue calculation */}
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <div className="leading-tight">
+                            <span
+                              className={`font-semibold block ${
+                                f.isOverdue ? "text-rose-600" : "text-slate-800"
+                              }`}
+                            >
+                              {f.dueDate}
+                            </span>
+                            {f.isOverdue && (
+                              <span className="text-[10px] text-rose-600 font-semibold block">
+                                {f.overdueDays}d overdue
+                              </span>
+                            )}
+                            {f.dueTime && (
+                              <span className="text-[10px] text-slate-400 block font-mono">
+                                {f.dueTime}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Status Badge */}
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold ${
+                              isCompleted
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : f.status === "In Progress"
+                                ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                : isCancelled
+                                ? "bg-slate-100 text-slate-600 border border-slate-200"
+                                : f.isOverdue
+                                ? "bg-rose-50 text-rose-700 border border-rose-200"
+                                : "bg-amber-50 text-amber-700 border border-amber-200"
+                            }`}
+                          >
+                            {isCompleted ? (
+                              <CheckCircle2 size={10} />
+                            ) : (
+                              <Clock size={10} />
+                            )}
+                            {f.isOverdue ? "Overdue" : f.status}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
+
+                        {/* Actions */}
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                          <div className="inline-flex items-center justify-center gap-1">
+                            {/* View Details */}
                             <button
-                              onClick={() => setEditingFollowup(f)}
-                              className="p-1 text-slate-400 hover:text-[#0481A2] hover:bg-sky-50 rounded transition-colors cursor-pointer"
-                              title="Edit follow-up"
+                              onClick={() => setViewingFollowup(f)}
+                              className="p-1.5 rounded-lg bg-[#F0F8FA] hover:bg-[#E0F2F7] text-[#0481A2] border border-[#D5EBF1] transition-all shadow-2xs cursor-pointer"
+                              title="View details"
                             >
-                              <Pencil size={15} />
+                              <Eye size={13} />
                             </button>
-                            <button
-                              onClick={() => handleStatusToggle(f.id, f.status)}
-                              className={`p-1 rounded transition-colors cursor-pointer ${
-                                f.status === "Completed" ? "text-emerald-600 hover:bg-emerald-50" : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-                              }`}
-                              title={f.status === "Completed" ? "Mark Pending" : "Mark Completed"}
-                            >
-                              <CheckCircle2 size={15} />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(f)}
-                              className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
-                              title="Delete follow-up"
-                            >
-                              <Trash2 size={15} />
-                            </button>
+
+                            {/* Mark In Progress */}
+                            {!isCompleted && !isCancelled && f.status === "Pending" && (
+                              <button
+                                onClick={() => handleMarkInProgress(f.id)}
+                                className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 transition-all shadow-2xs cursor-pointer"
+                                title="Mark In Progress"
+                              >
+                                <Play size={13} />
+                              </button>
+                            )}
+
+                            {/* Complete Task */}
+                            {!isCompleted && !isCancelled && (
+                              <button
+                                onClick={() => setCompletingFollowup(f)}
+                                className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 border border-emerald-200 transition-all shadow-2xs cursor-pointer"
+                                title="Mark Completed"
+                              >
+                                <CheckCircle2 size={13} />
+                              </button>
+                            )}
+
+                            {/* Edit */}
+                            {(isAdmin || f.assignedToId === currentUserId) && (
+                              <button
+                                onClick={() => {
+                                  setEditingFollowup(f);
+                                  setIsCreateModalOpen(true);
+                                }}
+                                className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 transition-all shadow-2xs cursor-pointer"
+                                title="Edit Follow-up"
+                              >
+                                <Pencil size={13} />
+                              </button>
+                            )}
+
+                            {/* Delete (Admin or user's pending task) */}
+                            {(isAdmin || (f.assignedToId === currentUserId && f.status === "Pending")) && (
+                              <button
+                                onClick={() => setDeletingFollowup(f)}
+                                className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all shadow-2xs cursor-pointer"
+                                title="Delete Task"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -310,22 +576,56 @@ export default function FollowupsPage() {
         </div>
       )}
 
-      <CreateFollowupModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => loadData()}
-      />
-
-      {editingFollowup && (
+      {/* Create / Edit Modal */}
+      {isCreateModalOpen && (
         <CreateFollowupModal
-          isOpen={!!editingFollowup}
-          mode="edit"
-          initialData={editingFollowup}
-          onClose={() => setEditingFollowup(null)}
-          onSuccess={() => {
+          isOpen={isCreateModalOpen}
+          onClose={() => {
+            setIsCreateModalOpen(false);
             setEditingFollowup(null);
-            loadData();
           }}
+          onSuccess={() => loadData()}
+          mode={editingFollowup ? "edit" : "create"}
+          initialData={editingFollowup}
+          isAdmin={isAdmin}
+        />
+      )}
+
+      {/* Complete Modal */}
+      {completingFollowup && (
+        <CompleteFollowupModal
+          isOpen={!!completingFollowup}
+          onClose={() => setCompletingFollowup(null)}
+          onSuccess={() => loadData()}
+          followup={completingFollowup}
+        />
+      )}
+
+      {/* View Detail Modal */}
+      {viewingFollowup && (
+        <FollowupDetailModal
+          isOpen={!!viewingFollowup}
+          onClose={() => setViewingFollowup(null)}
+          followup={viewingFollowup}
+          onEdit={(f) => {
+            setEditingFollowup(f);
+            setIsCreateModalOpen(true);
+          }}
+          onComplete={(f) => {
+            setCompletingFollowup(f);
+          }}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deletingFollowup && (
+        <DeleteConfirmationModal
+          isOpen={!!deletingFollowup}
+          onClose={() => setDeletingFollowup(null)}
+          onConfirm={handleConfirmDelete}
+          title="Delete Follow-up Task"
+          recordName={deletingFollowup.title}
+          consequences="This follow-up task and reminder will be permanently removed from the system. This action cannot be undone."
         />
       )}
     </div>

@@ -68,19 +68,19 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Contract Value</span>
-          <p className="text-xl font-bold text-slate-900 mt-1">{formatINR(client.contractValue)}</p>
+          <p className="text-xl font-bold text-slate-900 mt-1 font-sans font-number">{formatINR(client.contractValue)}</p>
         </div>
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Payments Received</span>
-          <p className="text-xl font-bold text-emerald-600 mt-1">{formatINR(client.paymentsReceived)}</p>
+          <p className="text-xl font-bold text-emerald-600 mt-1 font-sans font-number">{formatINR(client.paymentsReceived)}</p>
         </div>
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Balance Receivable</span>
-          <p className="text-xl font-bold text-slate-900 mt-1">{formatINR(client.balanceReceivable)}</p>
+          <p className="text-xl font-bold text-slate-900 mt-1 font-sans font-number">{formatINR(client.balanceReceivable)}</p>
         </div>
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Next Due Date</span>
-          <p className="text-xl font-bold text-rose-600 mt-1">{client.nextPaymentDueDate}</p>
+          <p className="text-xl font-bold text-rose-600 mt-1 font-sans">{client.nextPaymentDueDate}</p>
         </div>
       </div>
 

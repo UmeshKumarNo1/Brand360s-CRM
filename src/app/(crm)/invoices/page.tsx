@@ -141,23 +141,23 @@ export default function InvoicesPage() {
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 sm:gap-4">
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Total Invoiced</span>
-          <p className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{formatINR(totalInvoiced)}</p>
+          <p className="text-xl sm:text-2xl font-bold text-slate-900 mt-1 font-sans font-number">{formatINR(totalInvoiced)}</p>
         </div>
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Total Paid</span>
-          <p className="text-xl sm:text-2xl font-bold text-emerald-600 mt-1">{formatINR(totalPaid)}</p>
+          <p className="text-xl sm:text-2xl font-bold text-emerald-600 mt-1 font-sans font-number">{formatINR(totalPaid)}</p>
         </div>
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Outstanding</span>
-          <p className="text-xl sm:text-2xl font-bold text-amber-600 mt-1">{formatINR(totalOutstanding)}</p>
+          <p className="text-xl sm:text-2xl font-bold text-amber-600 mt-1 font-sans font-number">{formatINR(totalOutstanding)}</p>
         </div>
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Overdue Amount</span>
-          <p className={`text-xl sm:text-2xl font-bold mt-1 ${totalOverdue > 0 ? "text-rose-600" : "text-slate-900"}`}>{formatINR(totalOverdue)}</p>
+          <p className={`text-xl sm:text-2xl font-bold mt-1 font-sans font-number ${totalOverdue > 0 ? "text-rose-600" : "text-slate-900"}`}>{formatINR(totalOverdue)}</p>
         </div>
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs col-span-2 sm:col-span-1">
           <span className="text-xs text-slate-500 font-medium">Active Invoices</span>
-          <p className="text-xl sm:text-2xl font-bold text-[#0481A2] mt-1">{activeInvoiceCount}</p>
+          <p className="text-xl sm:text-2xl font-bold text-[#0481A2] mt-1 font-sans font-number">{activeInvoiceCount}</p>
         </div>
       </div>
 

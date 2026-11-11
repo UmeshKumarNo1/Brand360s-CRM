@@ -34,6 +34,28 @@ h1, h2, h3, h4, h5, h6, .font-heading, [data-heading] {
   font-family: var(--font-merriweather), 'Merriweather', Georgia, serif;
 }
 
+/* Numbers and prices requirement: Nunito for all numbers, prices, currency, metrics across all pages */
+.font-number,
+.font-price,
+.font-amount,
+.font-sans,
+[data-number],
+.tabular-nums,
+table td,
+table th,
+.kpi-value,
+.stat-value {
+  font-family: var(--font-nunito), 'Nunito', system-ui, -apple-system, sans-serif !important;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Ensure numbers inside headings (e.g. stat cards, KPIs, currency) strictly use Nunito */
+h1 .font-sans, h2 .font-sans, h3 .font-sans, h4 .font-sans, h5 .font-sans, h6 .font-sans,
+h1 .font-number, h2 .font-number, h3 .font-number, h4 .font-number, h5 .font-number, h6 .font-number,
+h1 [data-number], h2 [data-number], h3 [data-number], h4 [data-number], h5 [data-number], h6 [data-number] {
+  font-family: var(--font-nunito), 'Nunito', system-ui, -apple-system, sans-serif !important;
+}
+
 /* Custom scrollbars */
 ::-webkit-scrollbar {
   width: 6px;

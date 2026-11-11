@@ -196,19 +196,19 @@ export default function PaymentsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Total Verified Receipts</span>
-          <p className="text-xl sm:text-2xl font-bold text-emerald-600 mt-1">{formatINR(totalCollected)}</p>
+          <p className="text-xl sm:text-2xl font-bold text-emerald-600 mt-1 font-sans font-number">{formatINR(totalCollected)}</p>
           <span className="text-[11px] text-slate-400 mt-0.5 block">{payments.length} transactions</span>
         </div>
 
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Scheduled Milestones</span>
-          <p className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">{formatINR(totalScheduled)}</p>
+          <p className="text-xl sm:text-2xl font-bold text-slate-900 mt-1 font-sans font-number">{formatINR(totalScheduled)}</p>
           <span className="text-[11px] text-slate-400 mt-0.5 block">{installments.length} installments defined</span>
         </div>
 
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Outstanding to Collect</span>
-          <p className="text-xl sm:text-2xl font-bold text-sky-700 mt-1">{formatINR(totalInstallmentRemaining)}</p>
+          <p className="text-xl sm:text-2xl font-bold text-sky-700 mt-1 font-sans font-number">{formatINR(totalInstallmentRemaining)}</p>
           <span className="text-[11px] text-slate-400 mt-0.5 block">Pending & partial milestones</span>
         </div>
 

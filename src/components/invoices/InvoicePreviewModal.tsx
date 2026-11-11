@@ -545,7 +545,7 @@ export function InvoicePreviewModal({
                                 {pay.status || "Verified"}
                               </span>
                             </td>
-                            <td className="py-1.5 px-2.5 text-right font-bold text-emerald-700 font-mono">
+                            <td className="py-1.5 px-2.5 text-right font-bold text-emerald-700 font-sans font-number">
                               +{formatINR(allocAmt)}
                             </td>
                           </tr>

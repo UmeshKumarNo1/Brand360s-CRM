@@ -34,13 +34,13 @@ export function StatCard({
       </div>
 
       <div>
-        <h3 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 mb-1.5 truncate">
+        <div className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 mb-1.5 truncate font-sans font-number">
           {value}
-        </h3>
-        <div className="flex items-center gap-1.5 text-xs">
+        </div>
+        <div className="flex items-center gap-1.5 text-xs font-sans">
           <span 
             className={cn(
-              "font-semibold flex items-center text-[11px]",
+              "font-semibold flex items-center text-[11px] font-sans font-number",
               isWarning 
                 ? "text-red-600" 
                 : isPositive 
@@ -51,7 +51,7 @@ export function StatCard({
             {isPositive ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
             {change}
           </span>
-          <span className="text-slate-400 text-[11px] truncate">{description}</span>
+          <span className="text-slate-400 text-[11px] truncate font-sans">{description}</span>
         </div>
       </div>
     </div>

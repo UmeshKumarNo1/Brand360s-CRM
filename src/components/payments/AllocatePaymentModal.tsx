@@ -226,8 +226,8 @@ export function AllocatePaymentModal({
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600">
               Outstanding Invoices ({invoices.filter((i) => i.balanceDue > 0).length})
             </h4>
-            <span className="text-[11px] text-slate-500">
-              Allocating: <strong className="text-[#077EA1] font-mono">{formatINR(currentTotalAllocating)}</strong>
+            <span className="text-[11px] text-slate-500 font-sans">
+              Allocating: <strong className="text-[#0481A2] font-sans font-number font-semibold">{formatINR(currentTotalAllocating)}</strong>
             </span>
           </div>
 
@@ -279,17 +279,17 @@ export function AllocatePaymentModal({
                             {inv.status}
                           </span>
                         </div>
-                        <div className="flex items-center gap-3 text-[11px] text-slate-500">
+                        <div className="flex items-center gap-3 text-[11px] text-slate-500 font-sans">
                           <span>Date: {inv.issueDate}</span>
                           <span>Due: {inv.dueDate}</span>
-                          <span>Total: <strong>{formatINR(inv.totalAmount)}</strong></span>
-                          <span>Paid: <strong className="text-emerald-600">{formatINR(inv.amountPaid)}</strong></span>
+                          <span>Total: <strong className="font-sans font-number">{formatINR(inv.totalAmount)}</strong></span>
+                          <span>Paid: <strong className="text-emerald-600 font-sans font-number">{formatINR(inv.amountPaid)}</strong></span>
                         </div>
                       </div>
 
                       <div className="text-right shrink-0">
-                        <span className="text-[10px] uppercase font-bold text-slate-400 block">Balance Due</span>
-                        <span className="text-sm font-bold text-rose-600 font-mono">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 block font-sans">Balance Due</span>
+                        <span className="text-sm font-bold text-rose-600 font-sans font-number">
                           {formatINR(inv.balanceDue)}
                         </span>
                       </div>
@@ -300,13 +300,13 @@ export function AllocatePaymentModal({
                         <button
                           type="button"
                           onClick={() => handleAutoFill(inv.id, inv.balanceDue)}
-                          className="text-[11px] font-semibold text-[#077EA1] hover:underline cursor-pointer"
+                          className="text-[11px] font-semibold text-[#0481A2] hover:underline cursor-pointer font-sans"
                         >
                           Fill Full Balance
                         </button>
 
                         <div className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500 font-medium">Allocate ₹</span>
+                          <span className="text-xs text-slate-500 font-medium font-sans">Allocate ₹</span>
                           <input
                             type="number"
                             step="any"
@@ -315,7 +315,7 @@ export function AllocatePaymentModal({
                             value={allocationInputs[inv.id] || ""}
                             onChange={(e) => handleInputChange(inv.id, e.target.value, inv.balanceDue)}
                             placeholder="0.00"
-                            className="w-28 px-2.5 py-1 text-xs border border-slate-300 rounded-lg text-right font-mono focus:outline-none focus:border-[#077EA1] bg-white font-semibold"
+                            className="w-28 px-2.5 py-1 text-xs border border-slate-300 rounded-lg text-right font-sans font-number focus:outline-none focus:border-[#0481A2] bg-white font-semibold"
                           />
                         </div>
                       </div>

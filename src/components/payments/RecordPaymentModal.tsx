@@ -339,7 +339,7 @@ export function RecordPaymentModal({
                             </div>
                             <div className="text-right">
                               <span>Outstanding Balance: </span>
-                              <strong className="text-rose-600 font-mono">{formatINR(selectedInv.balanceDue)}</strong>
+                              <strong className="text-rose-600 font-sans font-number font-semibold">{formatINR(selectedInv.balanceDue)}</strong>
                             </div>
                           </div>
                         )}
@@ -358,7 +358,7 @@ export function RecordPaymentModal({
                                 handleUpdateLine(line.id, line.invoiceId, val);
                               }}
                               placeholder="0.00"
-                              className="w-28 px-2 py-1 text-xs border border-slate-200 rounded text-right font-mono font-semibold focus:outline-none focus:border-[#077EA1]"
+                              className="w-28 px-2 py-1 text-xs border border-slate-200 rounded text-right font-sans font-number font-semibold focus:outline-none focus:border-[#0481A2]"
                             />
                             {selectedInv && (
                               <button
@@ -380,10 +380,10 @@ export function RecordPaymentModal({
 
                   {/* Summary Bar */}
                   <div className="pt-2 border-t border-slate-200 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-500">
-                      Total Allocated: <strong className="text-slate-900 font-mono">{formatINR(totalAllocating)}</strong>
+                    <span className="text-slate-500 font-sans">
+                      Total Allocated: <strong className="text-slate-900 font-sans font-number font-semibold">{formatINR(totalAllocating)}</strong>
                     </span>
-                    <span className={`font-semibold ${remainingUnallocated >= 0 ? "text-emerald-700" : "text-rose-600"}`}>
+                    <span className={`font-semibold font-sans font-number ${remainingUnallocated >= 0 ? "text-emerald-700" : "text-rose-600"}`}>
                       Unallocated: {formatINR(remainingUnallocated)}
                     </span>
                   </div>

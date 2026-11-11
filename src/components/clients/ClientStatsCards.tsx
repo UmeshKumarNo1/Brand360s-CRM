@@ -80,9 +80,9 @@ export function ClientStatsCards({
 
             {/* Value & Label */}
             <div className="z-10">
-              <h3 className="text-2xl font-extrabold text-[#111827] tracking-tight leading-tight">
+              <div className="text-2xl font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number">
                 {stat.value}
-              </h3>
+              </div>
               <p className="text-xs font-semibold text-slate-500 mt-0.5">
                 {stat.label}
               </p>

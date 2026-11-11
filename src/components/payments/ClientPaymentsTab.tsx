@@ -315,7 +315,7 @@ export function ClientPaymentsTab({
                   <div key={p.id} className="py-2.5 flex items-center justify-between text-xs">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900">{formatINR(Number(p.amount) || 0)}</span>
+                        <span className="font-bold text-slate-900 font-sans font-number">{formatINR(Number(p.amount) || 0)}</span>
                         <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-medium">
                           {p.payment_method}
                         </span>
@@ -393,9 +393,9 @@ export function ClientPaymentsTab({
                         <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{inv.invoiceNumber}</td>
                         <td className="py-2.5 px-3 text-slate-600">{inv.issueDate}</td>
                         <td className="py-2.5 px-3 text-slate-600">{inv.dueDate}</td>
-                        <td className="py-2.5 px-3 text-right text-slate-700">{formatINR(inv.subtotal)}</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-[#0481A2]">{formatINR(inv.totalAmount)}</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-rose-600">{formatINR(inv.balanceDue)}</td>
+                        <td className="py-2.5 px-3 text-right text-slate-700 font-sans font-number">{formatINR(inv.subtotal)}</td>
+                        <td className="py-2.5 px-3 text-right font-bold text-[#0481A2] font-sans font-number">{formatINR(inv.totalAmount)}</td>
+                        <td className="py-2.5 px-3 text-right font-bold text-rose-600 font-sans font-number">{formatINR(inv.balanceDue)}</td>
                         <td className="py-2.5 px-3 text-center">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${
                             inv.status === "Paid" ? "bg-emerald-50 text-emerald-700" : "bg-sky-50 text-sky-700"

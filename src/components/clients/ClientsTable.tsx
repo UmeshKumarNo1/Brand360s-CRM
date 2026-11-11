@@ -44,7 +44,7 @@ export function ClientsTable({ clients }: ClientsTableProps) {
                     className="hover:bg-slate-50/70 transition-colors duration-150"
                   >
                     {/* No. */}
-                    <td className="py-4 px-4 font-bold text-slate-800 text-center">
+                    <td className="py-4 px-4 font-bold text-slate-800 text-center font-sans font-number">
                       {client.no}
                     </td>
 
@@ -69,17 +69,17 @@ export function ClientsTable({ clients }: ClientsTableProps) {
                     </td>
 
                     {/* Contract Value */}
-                    <td className="py-4 px-4 text-right font-semibold text-slate-800">
+                    <td className="py-4 px-4 text-right font-semibold text-slate-800 font-sans font-number">
                       {formatINR(client.contractValue)}
                     </td>
 
                     {/* Payments Received */}
-                    <td className="py-4 px-4 text-right font-semibold text-slate-800">
+                    <td className="py-4 px-4 text-right font-semibold text-slate-800 font-sans font-number">
                       {formatINR(client.paymentsReceived)}
                     </td>
 
                     {/* Balance Receivable */}
-                    <td className="py-4 px-4 text-right font-semibold text-slate-800">
+                    <td className="py-4 px-4 text-right font-semibold text-slate-800 font-sans font-number">
                       {formatINR(client.balanceReceivable)}
                     </td>
 
@@ -90,11 +90,11 @@ export function ClientsTable({ clients }: ClientsTableProps) {
                           Paid in full
                         </span>
                       ) : (
-                        <div className="leading-tight">
-                          <span className="font-bold text-slate-900 block text-sm">
+                        <div className="leading-tight font-sans">
+                          <span className="font-bold text-slate-900 block text-sm font-sans font-number">
                             {formatINR(client.nextPaymentDueAmount)}
                           </span>
-                          <span className="text-[11px] text-slate-400 block mt-0.5 font-medium">
+                          <span className="text-[11px] text-slate-400 block mt-0.5 font-medium font-sans">
                             {client.nextPaymentDueDate}
                           </span>
                         </div>

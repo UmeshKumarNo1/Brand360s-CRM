@@ -10,9 +10,6 @@ import {
   RefreshCw, 
   Calendar, 
   BarChart3, 
-  FileText, 
-  Truck, 
-  Award,
   ChevronLeft,
   ChevronRight,
   UserCheck,
@@ -55,9 +52,6 @@ export function AppSidebar({
     { label: "Renewals", href: "/renewals", icon: RefreshCw },
     { label: "Follow-ups", href: "/follow-ups", icon: Calendar },
     { label: "Reports", href: "/reports", icon: BarChart3 },
-    { label: "Invoices", href: "/invoices", icon: FileText },
-    { label: "Vendors", href: "/vendors", icon: Truck },
-    { label: "Sales Incentives", href: "/sales-incentives", icon: Award },
   ];
 
   // Admin items

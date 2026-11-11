@@ -269,58 +269,6 @@ export default function NewClientPage() {
         </div>
       </div>
 
-      {/* Top Stepper Bar (matching image) */}
-      <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-2xs overflow-x-auto">
-        <div className="flex items-center justify-between min-w-[720px] max-w-4xl mx-auto px-4">
-          {stepsList.map((step, idx) => {
-            const isActive = activeSection === step.id;
-            const isCompleted = activeSection > step.id;
-
-            return (
-              <div key={step.id} className="flex items-center flex-1 last:flex-initial">
-                <button
-                  type="button"
-                  onClick={() => setActiveSection(step.id)}
-                  className="flex flex-col items-center gap-1.5 group cursor-pointer focus:outline-none"
-                >
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-200 ${
-                      isActive
-                        ? "bg-[#0481A2] text-white shadow-sm ring-4 ring-[#0481A2]/15"
-                        : isCompleted
-                        ? "bg-[#0481A2]/20 text-[#0481A2]"
-                        : "bg-slate-100 text-slate-400 group-hover:bg-slate-200"
-                    }`}
-                  >
-                    {isCompleted ? <Check size={14} className="stroke-[3]" /> : step.id}
-                  </div>
-                  <span
-                    className={`text-[11px] font-semibold tracking-tight transition-colors ${
-                      isActive
-                        ? "text-[#0481A2] font-bold"
-                        : isCompleted
-                        ? "text-slate-700"
-                        : "text-slate-400"
-                    }`}
-                  >
-                    {step.title}
-                  </span>
-                </button>
-
-                {/* Connecting Line */}
-                {idx < stepsList.length - 1 && (
-                  <div
-                    className={`h-[2px] flex-1 mx-2 transition-colors ${
-                      activeSection > step.id ? "bg-[#0481A2]" : "bg-slate-200"
-                    }`}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
       {state?.error && (
         <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-700 shadow-2xs">
           {state.error}

@@ -9,6 +9,21 @@ interface ClientsTableProps {
   clients: ClientRecord[];
 }
 
+function formatCreationDate(dateStr?: string) {
+  if (!dateStr || dateStr === "-") return "-";
+  try {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    }
+  } catch {}
+  return dateStr;
+}
+
 export function ClientsTable({ clients }: ClientsTableProps) {
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden">
@@ -19,8 +34,9 @@ export function ClientsTable({ clients }: ClientsTableProps) {
             <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide">
               <th className="py-3.5 px-4 w-12 text-center font-semibold">No.</th>
               <th className="py-3.5 px-5 min-w-[180px] font-semibold">Company Name</th>
+              <th className="py-3.5 px-4 min-w-[130px] font-semibold">Date of Creation</th>
               <th className="py-3.5 px-4 min-w-[130px] font-semibold">Salesperson</th>
-              <th className="py-3.5 px-5 min-w-[200px] font-semibold">Services Purchased</th>
+              <th className="py-3.5 px-5 min-w-[190px] font-semibold">Services Purchased</th>
               <th className="py-3.5 px-4 text-right min-w-[120px] font-semibold">Contract Value</th>
               <th className="py-3.5 px-4 text-right min-w-[130px] font-semibold">Payment Received</th>
               <th className="py-3.5 px-4 text-right min-w-[130px] font-semibold">Balance Receivable</th>
@@ -32,7 +48,7 @@ export function ClientsTable({ clients }: ClientsTableProps) {
           <tbody className="divide-y divide-slate-100 text-slate-700">
             {clients.length === 0 ? (
               <tr>
-                <td colSpan={9} className="py-12 text-center text-slate-400 text-sm">
+                <td colSpan={10} className="py-12 text-center text-slate-400 text-sm">
                   No client records found matching your filters.
                 </td>
               </tr>
@@ -56,6 +72,11 @@ export function ClientsTable({ clients }: ClientsTableProps) {
                       >
                         {client.companyName}
                       </Link>
+                    </td>
+
+                    {/* Date of Creation */}
+                    <td className="py-4 px-4 font-medium text-slate-600 font-sans font-number whitespace-nowrap">
+                      {formatCreationDate(client.dateOfCreation || client.createdAt)}
                     </td>
 
                     {/* Salesperson */}

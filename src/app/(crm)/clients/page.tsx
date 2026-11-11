@@ -39,6 +39,14 @@ export default function ClientsPage() {
             id: r.id,
             no: idx + 1,
             companyName: r.company_name,
+            dateOfCreation: r.created_at
+              ? new Date(r.created_at).toLocaleDateString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })
+              : "-",
+            createdAt: r.created_at || "-",
             salesperson: r.assigned_profile?.full_name || "Unassigned",
             servicesPurchased: r.services_purchased || "Company Registration",
             contractValue: Number(r.contract_value) || 0,

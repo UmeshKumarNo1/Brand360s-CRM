@@ -2,6 +2,8 @@ export interface ClientRecord {
   id: string;
   no: number;
   companyName: string;
+  dateOfCreation?: string;
+  createdAt?: string;
   salesperson: string;
   servicesPurchased: string;
   contractValue: number;
@@ -17,6 +19,8 @@ export const MOCK_CLIENTS: ClientRecord[] = [
     id: "cl-001",
     no: 1,
     companyName: "RAJA OVERSEAS",
+    dateOfCreation: "Nov 11, 2026",
+    createdAt: "2026-11-11",
     salesperson: "Employee2",
     servicesPurchased: "Annual Compliance Website",
     contractValue: 15000,
@@ -30,6 +34,8 @@ export const MOCK_CLIENTS: ClientRecord[] = [
     id: "cl-002",
     no: 2,
     companyName: "La fantasie",
+    dateOfCreation: "Nov 11, 2026",
+    createdAt: "2026-11-11",
     salesperson: "Employee1",
     servicesPurchased: "Website Development",
     contractValue: 15000,
@@ -43,6 +49,8 @@ export const MOCK_CLIENTS: ClientRecord[] = [
     id: "cl-003",
     no: 3,
     companyName: "Example Industries",
+    dateOfCreation: "Nov 10, 2026",
+    createdAt: "2026-11-10",
     salesperson: "Employee2",
     servicesPurchased: "Annual Compliance, Website",
     contractValue: 150000,
@@ -56,6 +64,8 @@ export const MOCK_CLIENTS: ClientRecord[] = [
     id: "cl-004",
     no: 4,
     companyName: "Sample Trading",
+    dateOfCreation: "Nov 08, 2026",
+    createdAt: "2026-11-08",
     salesperson: "Employee1",
     servicesPurchased: "Trademark Filing",
     contractValue: 40000,
@@ -69,6 +79,8 @@ export const MOCK_CLIENTS: ClientRecord[] = [
     id: "cl-005",
     no: 5,
     companyName: "Demo Technologies",
+    dateOfCreation: "Nov 05, 2026",
+    createdAt: "2026-11-05",
     salesperson: "Employee2",
     servicesPurchased: "Annual Compliance",
     contractValue: 80000,
@@ -82,6 +94,8 @@ export const MOCK_CLIENTS: ClientRecord[] = [
     id: "cl-006",
     no: 6,
     companyName: "Example Engineering",
+    dateOfCreation: "Nov 01, 2026",
+    createdAt: "2026-11-01",
     salesperson: "Employee1",
     servicesPurchased: "HR & Payroll",
     contractValue: 60000,

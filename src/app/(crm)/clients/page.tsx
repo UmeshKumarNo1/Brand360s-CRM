@@ -132,7 +132,7 @@ export default function ClientsPage() {
   }, [filteredClients, currentPage, pageSize]);
 
   return (
-    <div className="space-y-6 max-w-[1500px]">
+    <div className="space-y-6 w-full">
       {/* Page Header: Clients + Add Client */}
       <ClientsHeader />
 

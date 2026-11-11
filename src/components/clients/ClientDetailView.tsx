@@ -19,15 +19,21 @@ import {
   CheckSquare,
   Trash2,
   Archive,
+  RotateCcw,
+  UserCheck,
+  History,
 } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { PaymentStatusBadge } from "@/components/clients/PaymentStatusBadge";
 import { ClientPaymentsTab } from "@/components/payments/ClientPaymentsTab";
 import { ClientServicesTab } from "@/components/services/ClientServicesTab";
 import { ClientFollowupsTab } from "@/components/followups/ClientFollowupsTab";
+import { ClientActivityTab } from "@/components/clients/ClientActivityTab";
+import { ReassignClientModal } from "@/components/clients/ReassignClientModal";
 import {
   deleteClientAction,
   archiveClientAction,
+  restoreClientAction,
   checkClientDependenciesAction,
   DeleteClientCheckResult,
 } from "@/app/actions/client-delete";
@@ -42,11 +48,14 @@ interface ClientDetailViewProps {
 
 export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"overview" | "payments" | "services" | "followups">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "services" | "payments" | "followups" | "activity">("overview");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
   const [depCheck, setDepCheck] = useState<DeleteClientCheckResult | null>(null);
 
-  const { success } = useToast();
+  const { success, error: toastError } = useToast();
+
+  const isArchived = client.clientStatus === "Archived";
 
   const handleOpenDelete = async () => {
     setIsDeleteModalOpen(true);
@@ -79,6 +88,16 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
     }
   };
 
+  const handleRestoreClient = async () => {
+    const res = await restoreClientAction(client.id);
+    if (res.success) {
+      success("Client Restored", `${client.companyName} has been restored to Active.`);
+      router.refresh();
+    } else {
+      toastError("Failed to restore", res.error || "Server error.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Back button & Title */}
@@ -97,7 +116,7 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
               <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
                 {client.clientCode}
               </span>
-              {client.clientStatus === "Archived" && (
+              {isArchived && (
                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
                   Archived
                 </span>
@@ -111,6 +130,29 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Admin Reassign Quick Action */}
+          {isAdmin && (
+            <button
+              onClick={() => setIsReassignModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
+              title="Reassign Salesperson"
+            >
+              <UserCheck size={14} className="text-[#0481A2]" />
+              <span>Reassign</span>
+            </button>
+          )}
+
+          {/* Admin Restore Action (if archived) */}
+          {isAdmin && isArchived && (
+            <button
+              onClick={handleRestoreClient}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 hover:bg-teal-100 text-teal-700 border border-teal-200 text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
+            >
+              <RotateCcw size={14} />
+              <span>Restore Client</span>
+            </button>
+          )}
+
           {/* Edit Button */}
           {canEdit && (
             <Link
@@ -198,6 +240,14 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
           >
             Follow-ups
           </button>
+          <button
+            onClick={() => setActiveTab("activity")}
+            className={`py-3 px-4 border-b-2 transition-colors cursor-pointer ${
+              activeTab === "activity" ? "border-[#0481A2] text-[#0481A2]" : "border-transparent hover:text-slate-900"
+            }`}
+          >
+            Activity & Audit History
+          </button>
         </div>
 
         <div className="p-6">
@@ -264,6 +314,7 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
               isAdmin={isAdmin}
             />
           )}
+
           {activeTab === "payments" && (
             <ClientPaymentsTab
               clientId={client.id}
@@ -273,11 +324,16 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
               balanceReceivable={client.balanceReceivable}
             />
           )}
+
           {activeTab === "followups" && (
             <ClientFollowupsTab
               clientId={client.id}
               clientName={client.companyName}
             />
+          )}
+
+          {activeTab === "activity" && (
+            <ClientActivityTab clientId={client.id} />
           )}
         </div>
       </div>
@@ -311,6 +367,19 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
           requireMatchInput={depCheck ? depCheck.canDelete : false}
         />
       )}
+
+      {/* Reassign Salesperson Modal */}
+      <ReassignClientModal
+        isOpen={isReassignModalOpen}
+        onClose={() => setIsReassignModalOpen(false)}
+        onSuccess={(name) => {
+          success("Reassigned Successfully", `${client.companyName} reassigned to ${name}.`);
+          router.refresh();
+        }}
+        clientIds={[client.id]}
+        clientNames={[client.companyName]}
+        currentSalespersonName={client.salesperson}
+      />
     </div>
   );
 }

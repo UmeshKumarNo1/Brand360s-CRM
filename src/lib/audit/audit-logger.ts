@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export interface LogAuditParams {
   actorId?: string;
-  action: "DELETE" | "ARCHIVE" | "VOID" | "CANCEL" | "UPDATE" | "CREATE";
+  action: "DELETE" | "ARCHIVE" | "RESTORE" | "REASSIGN" | "VOID" | "CANCEL" | "UPDATE" | "CREATE";
   entityType:
     | "client"
     | "employee"

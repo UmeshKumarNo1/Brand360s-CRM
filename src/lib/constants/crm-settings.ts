@@ -1,0 +1,20 @@
+export const DEFAULT_CRM_SETTINGS = {
+  company_name: "BRAND 360s",
+  company_address: "Mogappair East",
+  gstin: "33AAAAA0000A1Z5",
+  pan: "ABCDE1234F",
+  cin: "U74999TN2025PTC123456",
+  company_logo: null,
+  invoice_prefix: "B360-INV-",
+  default_gst_rate: 18,
+  default_payment_terms: "Due on Receipt",
+  bank_name: "HDFC Bank",
+  account_number: "50200088991122",
+  ifsc: "HDFC0001234",
+  account_holder_name: "BRAND 360S PRIVATE LIMITED",
+  upi_id: "brand360s@hdfcbank",
+  payment_instructions: "Please include invoice number in the payment description / UTR reference.",
+  terms_conditions: "1. Goods / Services once confirmed are non-refundable. 2. Payments must be cleared by the due date. 3. Disputes are subject to Sivaganga / Chennai jurisdiction.",
+  authorized_signatory: "Managing Director",
+};
+

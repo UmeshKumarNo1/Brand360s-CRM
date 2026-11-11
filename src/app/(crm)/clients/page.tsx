@@ -8,6 +8,15 @@ import { ClientsTable } from "@/components/clients/ClientsTable";
 import { ClientPagination } from "@/components/clients/ClientPagination";
 import { ClientRecord, MOCK_CLIENTS } from "@/data/mockClients";
 import { fetchClientsAction } from "@/app/actions/clients";
+import {
+  deleteClientAction,
+  archiveClientAction,
+  checkClientDependenciesAction,
+  DeleteClientCheckResult,
+} from "@/app/actions/client-delete";
+import { getCurrentUserProfileAction } from "@/app/actions/profile";
+import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationModal";
+import { useToast } from "@/components/common/ToastProvider";
 import { RefreshCw } from "lucide-react";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 
@@ -15,6 +24,12 @@ export default function ClientsPage() {
   const [dbClients, setDbClients] = useState<ClientRecord[]>(MOCK_CLIENTS);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Deletion and Archive Modal state
+  const [selectedClientForDelete, setSelectedClientForDelete] = useState<ClientRecord | null>(null);
+  const [depCheck, setDepCheck] = useState<DeleteClientCheckResult | null>(null);
+  const [isCheckingDep, setIsCheckingDep] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSalesperson, setSelectedSalesperson] = useState("All");
@@ -24,7 +39,17 @@ export default function ClientsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
+  const { success, error: toastError } = useToast();
   const requestIdRef = useRef(0);
+
+  // Check admin status on mount
+  useEffect(() => {
+    getCurrentUserProfileAction().then((p) => {
+      if (p?.role === "admin") {
+        setIsAdmin(true);
+      }
+    });
+  }, []);
 
   const loadData = useCallback(async () => {
     const currentReqId = ++requestIdRef.current;
@@ -50,14 +75,12 @@ export default function ClientsPage() {
           }));
           setDbClients(mapped);
         } else {
-          // Fallback to MOCK_CLIENTS if Supabase table is fresh/empty
-          setDbClients(MOCK_CLIENTS);
+          setDbClients([]);
         }
       }
     } catch (err: any) {
       if (currentReqId === requestIdRef.current) {
-        // In case of any network or connection issue, gracefully use MOCK_CLIENTS
-        setDbClients(MOCK_CLIENTS);
+        setErrorMessage(err.message || "Failed to load clients. Please check your connection.");
       }
     } finally {
       if (currentReqId === requestIdRef.current) {
@@ -70,6 +93,70 @@ export default function ClientsPage() {
     loadData();
   }, [loadData]);
 
+  // Open delete / archive modal after running pre-flight dependency check
+  const handleOpenDelete = async (client: ClientRecord) => {
+    setSelectedClientForDelete(client);
+    setIsCheckingDep(true);
+    try {
+      const check = await checkClientDependenciesAction(client.id);
+      setDepCheck(check);
+    } catch {
+      setDepCheck(null);
+    } finally {
+      setIsCheckingDep(false);
+    }
+  };
+
+  const handleConfirmPermanentDelete = async () => {
+    if (!selectedClientForDelete) return;
+    const res = await deleteClientAction(selectedClientForDelete.id);
+    if (res.success) {
+      success("Client Deleted", `${selectedClientForDelete.companyName} has been permanently deleted.`);
+      loadData();
+    } else {
+      throw new Error(res.error || "Failed to delete client.");
+    }
+  };
+
+  const handleArchiveClient = async () => {
+    if (!selectedClientForDelete) return;
+    const res = await archiveClientAction(selectedClientForDelete.id);
+    if (res.success) {
+      success("Client Archived", `${selectedClientForDelete.companyName} has been archived.`);
+      loadData();
+    } else {
+      throw new Error(res.error || "Failed to archive client.");
+    }
+  };
+
+  // Filter Logic
+  const filteredClients = useMemo(() => {
+    return dbClients.filter((client) => {
+      if (searchQuery.trim() !== "") {
+        const query = searchQuery.toLowerCase();
+        const matchesName = client.companyName.toLowerCase().includes(query);
+        const matchesSalesperson = client.salesperson.toLowerCase().includes(query);
+        if (!matchesName && !matchesSalesperson) return false;
+      }
+      if (selectedSalesperson !== "All" && client.salesperson !== selectedSalesperson) {
+        return false;
+      }
+      if (selectedService !== "All" && !client.servicesPurchased.includes(selectedService)) {
+        return false;
+      }
+      if (selectedPaymentStatus !== "All" && client.paymentStatus !== selectedPaymentStatus) {
+        return false;
+      }
+      return true;
+    });
+  }, [dbClients, searchQuery, selectedSalesperson, selectedService, selectedPaymentStatus]);
+
+  const totalPages = Math.ceil(filteredClients.length / pageSize) || 1;
+  const paginatedClients = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredClients.slice(startIndex, startIndex + pageSize);
+  }, [filteredClients, currentPage, pageSize]);
+
   const handleReset = () => {
     setSearchQuery("");
     setSelectedSalesperson("All");
@@ -78,63 +165,18 @@ export default function ClientsPage() {
     setCurrentPage(1);
   };
 
-  // Multi-Filter Engine
-  const filteredClients = useMemo(() => {
-    return dbClients.filter((c) => {
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchesCompany = c.companyName.toLowerCase().includes(q);
-        const matchesSales = c.salesperson.toLowerCase().includes(q);
-        const matchesService = c.servicesPurchased.toLowerCase().includes(q);
-        if (!matchesCompany && !matchesSales && !matchesService) return false;
-      }
-
-      if (selectedSalesperson !== "All" && c.salesperson !== selectedSalesperson) {
-        return false;
-      }
-
-      if (selectedService !== "All" && !c.servicesPurchased.toLowerCase().includes(selectedService.toLowerCase())) {
-        return false;
-      }
-
-      if (selectedPaymentStatus !== "All" && c.paymentStatus !== selectedPaymentStatus) {
-        return false;
-      }
-
-      return true;
-    });
-  }, [dbClients, searchQuery, selectedSalesperson, selectedService, selectedPaymentStatus]);
-
-  // Dynamic or default stat numbers
-  const totalClientsCount = dbClients.length > 6 ? dbClients.length : 245;
-  const activeClientsCount = dbClients.length > 6 
-    ? dbClients.filter(c => c.paymentStatus !== "Overdue").length 
-    : 180;
-  const pendingFollowupsCount = 65;
-  const totalRevenueDisplay = "₹12.5L";
-
-  // Pagination Engine
-  const totalItems = filteredClients.length;
-  const totalPages = Math.ceil(totalItems / pageSize) || 1;
-  const paginatedClients = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return filteredClients.slice(start, start + pageSize);
-  }, [filteredClients, currentPage, pageSize]);
-
   return (
-    <div className="space-y-6 max-w-[1500px]">
-      {/* Page Header: Clients + Add Client */}
+    <div className="space-y-6">
       <ClientsHeader />
-
-      {/* 4 Metric Summary Cards */}
-      <ClientStatsCards 
-        totalClients={totalClientsCount}
-        activeClients={activeClientsCount}
-        pendingFollowups={pendingFollowupsCount}
-        totalRevenue={totalRevenueDisplay}
+      <ClientStatsCards
+        totalClients={dbClients.length}
+        activeClients={dbClients.filter((c) => c.paymentStatus !== "Paid in full").length}
+        pendingFollowups={dbClients.filter((c) => c.paymentStatus === "Overdue").length}
+        totalRevenue={`₹${(
+          dbClients.reduce((acc, c) => acc + (c.paymentsReceived || 0), 0) / 100000
+        ).toFixed(1)}L`}
       />
 
-      {/* Filter Toolbar matching design */}
       <ClientFilters
         searchQuery={searchQuery}
         setSearchQuery={(q) => {
@@ -159,12 +201,10 @@ export default function ClientsPage() {
         onReset={handleReset}
       />
 
-      {/* Error state */}
       {errorMessage && (
         <ErrorRetryState message={errorMessage} onRetry={loadData} />
       )}
 
-      {/* Clients Table */}
       {!errorMessage && (
         <>
           {isLoading ? (
@@ -173,10 +213,13 @@ export default function ClientsPage() {
               <p className="text-xs text-slate-500 font-medium">Loading client portfolio...</p>
             </div>
           ) : (
-            <ClientsTable clients={paginatedClients} />
+            <ClientsTable
+              clients={paginatedClients}
+              isAdmin={isAdmin}
+              onDeleteClient={handleOpenDelete}
+            />
           )}
 
-          {/* Pagination Controls */}
           {!isLoading && (
             <ClientPagination
               currentPage={currentPage}
@@ -190,6 +233,36 @@ export default function ClientsPage() {
             />
           )}
         </>
+      )}
+
+      {/* Delete / Archive Confirmation Modal */}
+      {selectedClientForDelete && (
+        <DeleteConfirmationModal
+          isOpen={!!selectedClientForDelete}
+          onClose={() => {
+            setSelectedClientForDelete(null);
+            setDepCheck(null);
+          }}
+          onConfirm={handleConfirmPermanentDelete}
+          title={
+            depCheck && !depCheck.canDelete
+              ? "Financial Records Protected: Archive Required"
+              : "Delete Client Record"
+          }
+          recordName={selectedClientForDelete.companyName}
+          consequences={
+            depCheck && !depCheck.canDelete
+              ? depCheck.reason ||
+                "This client has recorded invoices or payments. To preserve financial history, permanent deletion is blocked. Please archive instead."
+              : "Permanently deleting this client will remove their profile and all associated non-financial records. This action is irreversible."
+          }
+          isArchivingOnly={depCheck ? !depCheck.canDelete : false}
+          archiveOption={{
+            label: "Archive Client Instead",
+            onArchive: handleArchiveClient,
+          }}
+          requireMatchInput={depCheck ? depCheck.canDelete : false}
+        />
       )}
     </div>
   );

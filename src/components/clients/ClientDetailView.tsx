@@ -2,12 +2,37 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Building2, Phone, Mail, FileText, Globe, MapPin, User, Calendar, CreditCard, Edit3, Layers, CheckSquare } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Building2,
+  Phone,
+  Mail,
+  FileText,
+  Globe,
+  MapPin,
+  User,
+  Calendar,
+  CreditCard,
+  Edit3,
+  Layers,
+  CheckSquare,
+  Trash2,
+  Archive,
+} from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { PaymentStatusBadge } from "@/components/clients/PaymentStatusBadge";
 import { ClientPaymentsTab } from "@/components/payments/ClientPaymentsTab";
 import { ClientServicesTab } from "@/components/services/ClientServicesTab";
 import { ClientFollowupsTab } from "@/components/followups/ClientFollowupsTab";
+import {
+  deleteClientAction,
+  archiveClientAction,
+  checkClientDependenciesAction,
+  DeleteClientCheckResult,
+} from "@/app/actions/client-delete";
+import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationModal";
+import { useToast } from "@/components/common/ToastProvider";
 
 interface ClientDetailViewProps {
   client: any;
@@ -16,7 +41,43 @@ interface ClientDetailViewProps {
 }
 
 export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewProps) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<"overview" | "payments" | "services" | "followups">("overview");
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [depCheck, setDepCheck] = useState<DeleteClientCheckResult | null>(null);
+
+  const { success } = useToast();
+
+  const handleOpenDelete = async () => {
+    setIsDeleteModalOpen(true);
+    try {
+      const check = await checkClientDependenciesAction(client.id);
+      setDepCheck(check);
+    } catch {
+      setDepCheck(null);
+    }
+  };
+
+  const handleConfirmPermanentDelete = async () => {
+    const res = await deleteClientAction(client.id);
+    if (res.success) {
+      success("Client Deleted", `${client.companyName} has been permanently deleted.`);
+      router.push("/clients");
+      router.refresh();
+    } else {
+      throw new Error(res.error || "Failed to delete client.");
+    }
+  };
+
+  const handleArchiveClient = async () => {
+    const res = await archiveClientAction(client.id);
+    if (res.success) {
+      success("Client Archived", `${client.companyName} has been archived.`);
+      router.refresh();
+    } else {
+      throw new Error(res.error || "Failed to archive client.");
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -36,9 +97,15 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
               <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
                 {client.clientCode}
               </span>
+              {client.clientStatus === "Archived" && (
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                  Archived
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              {client.companyType} • Assigned Salesperson: <strong className="text-slate-700">{client.salesperson}</strong>
+              {client.companyType} • Assigned Salesperson:{" "}
+              <strong className="text-slate-700">{client.salesperson}</strong>
             </p>
           </div>
         </div>
@@ -53,6 +120,18 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
               <Edit3 size={14} className="text-[#0481A2]" />
               <span>Edit Details</span>
             </Link>
+          )}
+
+          {/* Admin Delete Action */}
+          {isAdmin && (
+            <button
+              onClick={handleOpenDelete}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
+              title="Delete or Archive Client"
+            >
+              <Trash2 size={14} />
+              <span>Delete</span>
+            </button>
           )}
 
           <Link
@@ -101,7 +180,7 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
               activeTab === "services" ? "border-[#0481A2] text-[#0481A2]" : "border-transparent hover:text-slate-900"
             }`}
           >
-            Services & Billing
+            Services ({client.servicesPurchased ? client.servicesPurchased.split(",").length : 0})
           </button>
           <button
             onClick={() => setActiveTab("payments")}
@@ -109,7 +188,7 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
               activeTab === "payments" ? "border-[#0481A2] text-[#0481A2]" : "border-transparent hover:text-slate-900"
             }`}
           >
-            Payments & Installments
+            Payments & Ledger
           </button>
           <button
             onClick={() => setActiveTab("followups")}
@@ -123,63 +202,58 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
 
         <div className="p-6">
           {activeTab === "overview" && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Contact Information */}
-                <div className="space-y-4">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 pb-2 border-b">
-                    Contact Information
-                  </h3>
-                  <div className="space-y-3 text-xs">
-                    <div className="flex items-center gap-3 text-slate-700">
-                      <User size={15} className="text-[#0481A2] shrink-0" />
-                      <span className="font-semibold text-slate-900">{client.contactPerson}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-slate-700">
-                      <Phone size={15} className="text-[#0481A2] shrink-0" />
-                      <span>{client.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-slate-700">
-                      <Mail size={15} className="text-[#0481A2] shrink-0" />
-                      <span>{client.email}</span>
-                    </div>
-                    {client.city && (
-                      <div className="flex items-center gap-3 text-slate-700">
-                        <MapPin size={15} className="text-[#0481A2] shrink-0" />
-                        <span>{client.city}, {client.state}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs sm:text-sm">
+              <div className="space-y-4">
+                <h3 className="font-semibold text-slate-900 text-sm border-b border-slate-100 pb-2">
+                  Company Details
+                </h3>
+                <div className="grid grid-cols-3 gap-2">
+                  <span className="text-slate-500">Legal Name:</span>
+                  <span className="col-span-2 font-medium text-slate-800">{client.companyName}</span>
 
-                {/* Tax & Identifiers */}
-                <div className="space-y-4">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 pb-2 border-b">
-                    Commercial & Tax Identifiers
-                  </h3>
-                  <div className="space-y-3 text-xs">
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">GSTIN</span>
-                      <span className="font-mono font-medium text-slate-800">{client.gst || "Not Provided"}</span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">PAN</span>
-                      <span className="font-mono font-medium text-slate-800">{client.pan || "Not Provided"}</span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-slate-100">
-                      <span className="text-slate-500">Onboarding Date</span>
-                      <span className="text-slate-800">{client.createdAt}</span>
-                    </div>
-                  </div>
+                  <span className="text-slate-500">Entity Type:</span>
+                  <span className="col-span-2 font-medium text-slate-800">{client.companyType}</span>
+
+                  <span className="text-slate-500">PAN Number:</span>
+                  <span className="col-span-2 font-mono font-medium text-slate-800">{client.panNumber || "-"}</span>
+
+                  <span className="text-slate-500">GSTIN:</span>
+                  <span className="col-span-2 font-mono font-medium text-slate-800">{client.gstNumber || "-"}</span>
+
+                  <span className="text-slate-500">Address:</span>
+                  <span className="col-span-2 font-medium text-slate-800">{client.address || "-"}</span>
+
+                  <span className="text-slate-500">Location:</span>
+                  <span className="col-span-2 font-medium text-slate-800">
+                    {[client.city, client.state, client.country].filter(Boolean).join(", ") || "-"}
+                  </span>
                 </div>
               </div>
 
-              {client.notes && (
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs space-y-1">
-                  <span className="font-semibold text-slate-800 block">Internal Notes:</span>
-                  <p className="text-slate-600 leading-relaxed">{client.notes}</p>
+              <div className="space-y-4">
+                <h3 className="font-semibold text-slate-900 text-sm border-b border-slate-100 pb-2">
+                  Primary Contact & Commercials
+                </h3>
+                <div className="grid grid-cols-3 gap-2">
+                  <span className="text-slate-500">Contact Person:</span>
+                  <span className="col-span-2 font-medium text-slate-800">{client.contactPerson}</span>
+
+                  <span className="text-slate-500">Phone:</span>
+                  <span className="col-span-2 font-medium text-slate-800">{client.phone}</span>
+
+                  <span className="text-slate-500">Email:</span>
+                  <span className="col-span-2 font-medium text-[#0481A2]">{client.email}</span>
+
+                  <span className="text-slate-500">Sales Lead:</span>
+                  <span className="col-span-2 font-medium text-slate-800">{client.salesperson}</span>
+
+                  <span className="text-slate-500">Services:</span>
+                  <span className="col-span-2 font-medium text-slate-800">{client.servicesPurchased}</span>
+
+                  <span className="text-slate-500">Notes:</span>
+                  <span className="col-span-2 font-medium text-slate-600 italic">{client.notes || "No notes"}</span>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
@@ -190,7 +264,6 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
               isAdmin={isAdmin}
             />
           )}
-
           {activeTab === "payments" && (
             <ClientPaymentsTab
               clientId={client.id}
@@ -200,7 +273,6 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
               balanceReceivable={client.balanceReceivable}
             />
           )}
-
           {activeTab === "followups" && (
             <ClientFollowupsTab
               clientId={client.id}
@@ -209,6 +281,36 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
           )}
         </div>
       </div>
+
+      {/* Delete / Archive Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <DeleteConfirmationModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setDepCheck(null);
+          }}
+          onConfirm={handleConfirmPermanentDelete}
+          title={
+            depCheck && !depCheck.canDelete
+              ? "Financial Protection: Archive Client"
+              : "Delete Client Record"
+          }
+          recordName={client.companyName}
+          consequences={
+            depCheck && !depCheck.canDelete
+              ? depCheck.reason ||
+                "This client has invoices or payments recorded. To preserve financial history, deletion is blocked. Please archive the client instead."
+              : "Permanently deleting this client will remove their record from the CRM. This action cannot be undone."
+          }
+          isArchivingOnly={depCheck ? !depCheck.canDelete : false}
+          archiveOption={{
+            label: "Archive Client",
+            onArchive: handleArchiveClient,
+          }}
+          requireMatchInput={depCheck ? depCheck.canDelete : false}
+        />
+      )}
     </div>
   );
 }

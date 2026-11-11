@@ -1,20 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { Eye } from "lucide-react";
+import { Eye, Trash2, Archive } from "lucide-react";
 import { ClientRecord } from "@/data/mockClients";
 import { formatINR } from "@/lib/utils";
 
 interface ClientsTableProps {
   clients: ClientRecord[];
+  isAdmin?: boolean;
+  onDeleteClient?: (client: ClientRecord) => void;
+  onArchiveClient?: (client: ClientRecord) => void;
 }
 
-export function ClientsTable({ clients }: ClientsTableProps) {
+export function ClientsTable({
+  clients,
+  isAdmin = false,
+  onDeleteClient,
+  onArchiveClient,
+}: ClientsTableProps) {
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse text-xs sm:text-sm">
-          {/* Navy Blue Table Header matching image */}
+          {/* Navy Blue Table Header */}
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide">
               <th className="py-3.5 px-4 w-12 text-center font-semibold">No.</th>
@@ -25,7 +33,7 @@ export function ClientsTable({ clients }: ClientsTableProps) {
               <th className="py-3.5 px-4 text-right min-w-[130px] font-semibold">Payment Received</th>
               <th className="py-3.5 px-4 text-right min-w-[130px] font-semibold">Balance Receivable</th>
               <th className="py-3.5 px-5 min-w-[160px] font-semibold">Next Payment Due</th>
-              <th className="py-3.5 px-4 text-center w-16 font-semibold"></th>
+              <th className="py-3.5 px-4 text-center w-24 font-semibold">Actions</th>
             </tr>
           </thead>
 
@@ -39,7 +47,7 @@ export function ClientsTable({ clients }: ClientsTableProps) {
             ) : (
               clients.map((client) => {
                 return (
-                  <tr 
+                  <tr
                     key={client.id}
                     className="hover:bg-slate-50/70 transition-colors duration-150"
                   >
@@ -48,9 +56,9 @@ export function ClientsTable({ clients }: ClientsTableProps) {
                       {client.no}
                     </td>
 
-                    {/* Company Name in Teal Blue (#0481A2) */}
+                    {/* Company Name */}
                     <td className="py-4 px-5 font-bold">
-                      <Link 
+                      <Link
                         href={`/clients/${client.id}`}
                         className="text-[#0481A2] hover:text-[#036c88] transition-colors"
                       >
@@ -83,7 +91,7 @@ export function ClientsTable({ clients }: ClientsTableProps) {
                       {formatINR(client.balanceReceivable)}
                     </td>
 
-                    {/* Next Payment Due: Bold Amount & Subtitle Date */}
+                    {/* Next Payment Due */}
                     <td className="py-4 px-5">
                       {client.paymentStatus === "Paid in full" || client.nextPaymentDueAmount === 0 ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -101,15 +109,28 @@ export function ClientsTable({ clients }: ClientsTableProps) {
                       )}
                     </td>
 
-                    {/* Action Eye Icon Button */}
+                    {/* Action Buttons */}
                     <td className="py-4 px-4 text-center">
-                      <Link
-                        href={`/clients/${client.id}`}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-[#F0F8FA] hover:bg-[#E0F2F7] text-[#0481A2] border border-[#D5EBF1] transition-all shadow-2xs"
-                        title="View client details"
-                      >
-                        <Eye size={16} strokeWidth={2} />
-                      </Link>
+                      <div className="inline-flex items-center justify-center gap-1.5">
+                        <Link
+                          href={`/clients/${client.id}`}
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#F0F8FA] hover:bg-[#E0F2F7] text-[#0481A2] border border-[#D5EBF1] transition-all shadow-2xs"
+                          title="View client details"
+                        >
+                          <Eye size={14} strokeWidth={2} />
+                        </Link>
+
+                        {/* Admin Delete Action */}
+                        {isAdmin && onDeleteClient && (
+                          <button
+                            onClick={() => onDeleteClient(client)}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all shadow-2xs cursor-pointer"
+                            title="Delete or Archive Client (Admin)"
+                          >
+                            <Trash2 size={13} strokeWidth={2} />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

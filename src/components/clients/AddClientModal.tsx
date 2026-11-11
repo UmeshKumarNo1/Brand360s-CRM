@@ -749,3 +749,4 @@ export function AddClientModal({ isOpen, onClose, onSuccess }: AddClientModalPro
     </div>
   );
 }
+

@@ -38,3 +38,4 @@ COMMENT ON COLUMN public.clients.billing_contact IS 'Billing primary contact per
 COMMENT ON COLUMN public.clients.billing_email IS 'Billing email address for invoicing';
 COMMENT ON COLUMN public.clients.client_since IS 'Date client relationship began (defaults to creation date)';
 COMMENT ON COLUMN public.clients.is_not_gst_registered IS 'Flag whether client is exempt or not registered for GST';
+

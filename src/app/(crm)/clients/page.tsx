@@ -3,7 +3,6 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ClientsHeader } from "@/components/clients/ClientsHeader";
-import { AddClientModal } from "@/components/clients/AddClientModal";
 import { ClientStatsCards } from "@/components/clients/ClientStatsCards";
 import { ClientFilters } from "@/components/clients/ClientFilters";
 import { ClientsTable } from "@/components/clients/ClientsTable";
@@ -18,7 +17,6 @@ export default function ClientsPage() {
   const [dbClients, setDbClients] = useState<ClientRecord[]>(MOCK_CLIENTS);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSalesperson, setSelectedSalesperson] = useState("All");
@@ -136,7 +134,7 @@ export default function ClientsPage() {
   return (
     <div className="space-y-6 max-w-[1500px]">
       {/* Page Header: Clients + Add Client */}
-      <ClientsHeader onAddClient={() => setIsAddClientModalOpen(true)} />
+      <ClientsHeader />
 
       {/* 4 Metric Summary Cards */}
       <ClientStatsCards 
@@ -203,18 +201,6 @@ export default function ClientsPage() {
           )}
         </>
       )}
-
-      {/* Add Client Modal */}
-      <AddClientModal
-        isOpen={isAddClientModalOpen}
-        onClose={() => setIsAddClientModalOpen(false)}
-        onSuccess={(newClientId, shouldAddService) => {
-          loadData();
-          if (shouldAddService) {
-            router.push(`/clients/${newClientId}?addService=true`);
-          }
-        }}
-      />
     </div>
   );
 }

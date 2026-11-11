@@ -1,13 +1,7 @@
-"use client";
-
 import Link from "next/link";
 import { Plus } from "lucide-react";
 
-interface ClientsHeaderProps {
-  onAddClient?: () => void;
-}
-
-export function ClientsHeader({ onAddClient }: ClientsHeaderProps) {
+export function ClientsHeader() {
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
@@ -20,24 +14,13 @@ export function ClientsHeader({ onAddClient }: ClientsHeaderProps) {
       </div>
 
       <div>
-        {onAddClient ? (
-          <button
-            type="button"
-            onClick={onAddClient}
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-[#0481A2] hover:bg-[#036c88] text-white text-sm font-semibold rounded-xl shadow-xs transition-all duration-150 cursor-pointer"
-          >
-            <Plus size={18} />
-            <span>Add Client</span>
-          </button>
-        ) : (
-          <Link
-            href="/clients/new"
-            className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-[#0481A2] hover:bg-[#036c88] text-white text-sm font-semibold rounded-xl shadow-xs transition-all duration-150 cursor-pointer"
-          >
-            <Plus size={18} />
-            <span>Add Client</span>
-          </Link>
-        )}
+        <Link
+          href="/clients/new"
+          className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-[#0481A2] hover:bg-[#036c88] text-white text-sm font-semibold rounded-xl shadow-xs transition-all duration-150 cursor-pointer"
+        >
+          <Plus size={18} />
+          <span>Add Client</span>
+        </Link>
       </div>
     </div>
   );

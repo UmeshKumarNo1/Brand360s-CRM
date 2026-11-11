@@ -42,7 +42,7 @@ export function AddVendorModal({ isOpen, onClose, onSuccess, vendorToEdit }: Add
       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#077EA1] flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#0481A2] flex items-center justify-center font-bold">
               <Store size={16} />
             </div>
             <div>
@@ -74,7 +74,7 @@ export function AddVendorModal({ isOpen, onClose, onSuccess, vendorToEdit }: Add
               type="text"
               defaultValue={vendorToEdit?.name || ""}
               placeholder="e.g. Apex Notary Services"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
             />
           </div>
 
@@ -84,7 +84,7 @@ export function AddVendorModal({ isOpen, onClose, onSuccess, vendorToEdit }: Add
               <select
                 name="category"
                 defaultValue={vendorToEdit?.category || "Legal & IP"}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               >
                 <option value="Legal & IP">Legal & IP</option>
                 <option value="Chartered Accountant">Chartered Accountant</option>
@@ -102,7 +102,7 @@ export function AddVendorModal({ isOpen, onClose, onSuccess, vendorToEdit }: Add
                 type="text"
                 defaultValue={vendorToEdit?.contactPerson === "-" ? "" : vendorToEdit?.contactPerson || ""}
                 placeholder="e.g. Adv. R. Verma"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
               />
             </div>
           </div>
@@ -115,7 +115,7 @@ export function AddVendorModal({ isOpen, onClose, onSuccess, vendorToEdit }: Add
                 type="text"
                 defaultValue={vendorToEdit?.phone === "-" ? "" : vendorToEdit?.phone || ""}
                 placeholder="+91 98765 43210"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
               />
             </div>
 
@@ -126,7 +126,7 @@ export function AddVendorModal({ isOpen, onClose, onSuccess, vendorToEdit }: Add
                 type="email"
                 defaultValue={vendorToEdit?.email === "-" ? "" : vendorToEdit?.email || ""}
                 placeholder="partner@example.com"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
               />
             </div>
           </div>
@@ -138,7 +138,7 @@ export function AddVendorModal({ isOpen, onClose, onSuccess, vendorToEdit }: Add
               type="text"
               defaultValue={vendorToEdit?.servicesProvided === "-" ? "" : vendorToEdit?.servicesProvided || ""}
               placeholder="e.g. Trademark searches, Stamp paper franking..."
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
             />
           </div>
 
@@ -164,7 +164,7 @@ export function AddVendorModal({ isOpen, onClose, onSuccess, vendorToEdit }: Add
             <button
               type="submit"
               disabled={isPending}
-              className="px-4 py-1.5 font-semibold text-white bg-[#077EA1] hover:bg-[#066B89] rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-70 cursor-pointer"
+              className="px-4 py-1.5 font-semibold text-white bg-[#0481A2] hover:bg-[#036c88] rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-70 cursor-pointer"
             >
               {isPending ? (
                 <>

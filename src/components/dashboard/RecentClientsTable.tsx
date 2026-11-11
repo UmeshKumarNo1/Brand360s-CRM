@@ -44,7 +44,7 @@ export function RecentClientsTable({ clients = [] }: RecentClientsTableProps) {
         </div>
         <Link 
           href="/clients" 
-          className="text-xs font-semibold text-[#077EA1] hover:text-[#066B89] flex items-center gap-1"
+          className="text-xs font-semibold text-[#0481A2] hover:text-[#036c88] flex items-center gap-1"
         >
           View All <ArrowRight size={12} />
         </Link>
@@ -65,7 +65,7 @@ export function RecentClientsTable({ clients = [] }: RecentClientsTableProps) {
             {displayList.map((c) => (
               <tr key={c.id} className="hover:bg-slate-50 transition-colors">
                 <td className="py-2.5 font-semibold">
-                  <Link href={`/clients/${c.id}`} className="text-[#077EA1] hover:underline">
+                  <Link href={`/clients/${c.id}`} className="text-[#0481A2] hover:underline">
                     {c.company_name}
                   </Link>
                 </td>

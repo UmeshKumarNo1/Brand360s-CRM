@@ -34,7 +34,7 @@ export function EditEmployeeForm({ profile }: EditEmployeeFormProps) {
           required
           type="text"
           defaultValue={profile.full_name}
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#077EA1]"
+          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0481A2]"
         />
       </div>
 
@@ -55,7 +55,7 @@ export function EditEmployeeForm({ profile }: EditEmployeeFormProps) {
           type="tel"
           defaultValue={profile.phone || ""}
           placeholder="+91 98765 43210"
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#077EA1]"
+          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0481A2]"
         />
       </div>
 
@@ -86,7 +86,7 @@ export function EditEmployeeForm({ profile }: EditEmployeeFormProps) {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full py-2 bg-[#077EA1] hover:bg-[#066B89] text-white font-semibold rounded-lg shadow-xs transition-colors flex items-center justify-center gap-1.5 disabled:opacity-70 cursor-pointer"
+        className="w-full py-2 bg-[#0481A2] hover:bg-[#036c88] text-white font-semibold rounded-lg shadow-xs transition-colors flex items-center justify-center gap-1.5 disabled:opacity-70 cursor-pointer"
       >
         {isPending ? (
           <>

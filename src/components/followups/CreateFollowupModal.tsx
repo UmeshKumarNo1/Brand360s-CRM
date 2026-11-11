@@ -107,7 +107,7 @@ export function CreateFollowupModal({
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#077EA1] flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#0481A2] flex items-center justify-center font-bold">
               <CheckSquare size={16} />
             </div>
             <div>
@@ -153,7 +153,7 @@ export function CreateFollowupModal({
                 required
                 value={clientId}
                 onChange={(e) => setClientId(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1] font-medium"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2] font-medium"
               >
                 <option value="">Select Client...</option>
                 {clients.map((c) => (
@@ -175,7 +175,7 @@ export function CreateFollowupModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Request signed MOA from director..."
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
             />
           </div>
 
@@ -187,7 +187,7 @@ export function CreateFollowupModal({
                 name="follow_up_type"
                 value={followUpType}
                 onChange={(e) => setFollowUpType(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               >
                 <option value="Call">Phone Call</option>
                 <option value="Email">Email</option>
@@ -204,7 +204,7 @@ export function CreateFollowupModal({
                 name="priority"
                 value={priority}
                 onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               >
                 <option value="High">High Priority</option>
                 <option value="Medium">Medium Priority</option>
@@ -223,7 +223,7 @@ export function CreateFollowupModal({
                 type="date"
                 value={dueDate}
                 onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               />
             </div>
 
@@ -233,7 +233,7 @@ export function CreateFollowupModal({
                 name="status"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               >
                 <option value="Pending">Pending</option>
                 <option value="In Progress">In Progress</option>
@@ -251,7 +251,7 @@ export function CreateFollowupModal({
                 name="assigned_to"
                 value={assignedTo}
                 onChange={(e) => setAssignedTo(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               >
                 <option value="">Select Employee...</option>
                 {employees.map((emp) => (
@@ -272,7 +272,7 @@ export function CreateFollowupModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Additional details regarding callback or required documentation..."
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
             />
           </div>
 
@@ -288,7 +288,7 @@ export function CreateFollowupModal({
             <button
               type="submit"
               disabled={isPending}
-              className="px-4 py-1.5 font-semibold text-white bg-[#077EA1] hover:bg-[#066B89] rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-70 cursor-pointer"
+              className="px-4 py-1.5 font-semibold text-white bg-[#0481A2] hover:bg-[#036c88] rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-70 cursor-pointer"
             >
               {isPending ? (
                 <>

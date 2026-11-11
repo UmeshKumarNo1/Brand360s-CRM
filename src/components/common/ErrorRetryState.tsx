@@ -26,7 +26,7 @@ export function ErrorRetryState({
         onClick={onRetry}
         className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
       >
-        <RefreshCw size={13} className="text-[#077EA1]" />
+        <RefreshCw size={13} className="text-[#0481A2]" />
         <span>Retry</span>
       </button>
     </div>

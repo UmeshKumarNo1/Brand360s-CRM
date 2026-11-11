@@ -39,7 +39,7 @@ export function RevenueChart({ invoiced = 3120000, received = 2480000 }: Revenue
           <h3 className="text-base font-bold text-slate-900">Monthly Revenue</h3>
           <p className="text-xs text-slate-500">Invoiced vs Received collections</p>
         </div>
-        <span className="text-xs font-semibold text-[#077EA1] bg-sky-50 px-2 py-0.5 rounded">
+        <span className="text-xs font-semibold text-[#0481A2] bg-sky-50 px-2 py-0.5 rounded">
           Last 6 Months
         </span>
       </div>

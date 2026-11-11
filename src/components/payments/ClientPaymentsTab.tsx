@@ -148,14 +148,14 @@ export function ClientPaymentsTab({
             className="p-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-600 rounded-lg shadow-2xs transition-colors cursor-pointer"
             title="Refresh financials"
           >
-            <RefreshCw size={13} className={isLoading ? "animate-spin text-[#077EA1]" : ""} />
+            <RefreshCw size={13} className={isLoading ? "animate-spin text-[#0481A2]" : ""} />
           </button>
 
           <button
             onClick={() => setIsInstallmentModalOpen(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
           >
-            <Calendar size={14} className="text-[#077EA1]" />
+            <Calendar size={14} className="text-[#0481A2]" />
             <span>+ Add Installment</span>
           </button>
 
@@ -164,7 +164,7 @@ export function ClientPaymentsTab({
               setSelectedForPayment(null);
               setIsPaymentModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#077EA1] hover:bg-[#066B89] text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
           >
             <CreditCard size={14} />
             <span>Record Payment</span>
@@ -182,7 +182,7 @@ export function ClientPaymentsTab({
           <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-xs overflow-hidden">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div className="flex items-center gap-2">
-                <Calendar size={16} className="text-[#077EA1]" />
+                <Calendar size={16} className="text-[#0481A2]" />
                 <h5 className="font-bold text-xs uppercase tracking-wider text-slate-700">
                   Installment Milestones & Schedules ({data.schedules.length})
                 </h5>
@@ -194,7 +194,7 @@ export function ClientPaymentsTab({
 
             {isLoading ? (
               <p className="py-8 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-                <RefreshCw size={13} className="animate-spin text-[#077EA1]" />
+                <RefreshCw size={13} className="animate-spin text-[#0481A2]" />
                 <span>Loading installment schedules...</span>
               </p>
             ) : data.schedules.length === 0 ? (
@@ -202,7 +202,7 @@ export function ClientPaymentsTab({
                 <p>No installment milestones defined for this client yet.</p>
                 <button
                   onClick={() => setIsInstallmentModalOpen(true)}
-                  className="text-[#077EA1] font-semibold hover:underline cursor-pointer"
+                  className="text-[#0481A2] font-semibold hover:underline cursor-pointer"
                 >
                   + Add Installment Schedule
                 </button>
@@ -294,7 +294,7 @@ export function ClientPaymentsTab({
           <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <h5 className="font-bold text-xs uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                <CreditCard size={14} className="text-[#077EA1]" />
+                <CreditCard size={14} className="text-[#0481A2]" />
                 Payment Receipts History ({data.payments.length})
               </h5>
               <span className="text-xs font-bold text-emerald-600">
@@ -304,7 +304,7 @@ export function ClientPaymentsTab({
 
             {isLoading ? (
               <p className="py-6 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-                <RefreshCw size={13} className="animate-spin text-[#077EA1]" />
+                <RefreshCw size={13} className="animate-spin text-[#0481A2]" />
                 <span>Loading payment receipts...</span>
               </p>
             ) : data.payments.length === 0 ? (
@@ -361,7 +361,7 @@ export function ClientPaymentsTab({
               </div>
               <button
                 onClick={() => setIsInvoiceModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#077EA1] hover:bg-[#066B89] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
               >
                 <Plus size={14} />
                 <span>Issue Invoice</span>
@@ -394,7 +394,7 @@ export function ClientPaymentsTab({
                         <td className="py-2.5 px-3 text-slate-600">{inv.issueDate}</td>
                         <td className="py-2.5 px-3 text-slate-600">{inv.dueDate}</td>
                         <td className="py-2.5 px-3 text-right text-slate-700">{formatINR(inv.subtotal)}</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-[#077EA1]">{formatINR(inv.totalAmount)}</td>
+                        <td className="py-2.5 px-3 text-right font-bold text-[#0481A2]">{formatINR(inv.totalAmount)}</td>
                         <td className="py-2.5 px-3 text-right font-bold text-rose-600">{formatINR(inv.balanceDue)}</td>
                         <td className="py-2.5 px-3 text-center">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${
@@ -407,7 +407,7 @@ export function ClientPaymentsTab({
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => setPreviewInvoiceId(inv.id)}
-                              className="p-1 text-slate-400 hover:text-[#077EA1] hover:bg-slate-100 rounded transition-colors cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-[#0481A2] hover:bg-slate-100 rounded transition-colors cursor-pointer"
                               title="Preview & Download PDF"
                             >
                               <Eye size={13} />
@@ -415,10 +415,10 @@ export function ClientPaymentsTab({
                             <button
                               onClick={() => handleSendInvoiceEmail(inv.id)}
                               disabled={sendingInvoiceId === inv.id}
-                              className="p-1 text-slate-400 hover:text-[#077EA1] hover:bg-slate-100 rounded transition-colors cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-[#0481A2] hover:bg-slate-100 rounded transition-colors cursor-pointer"
                               title={inv.emailSentAt ? `Sent to ${inv.emailSentTo}` : "Email Invoice"}
                             >
-                              <Mail size={13} className={sendingInvoiceId === inv.id ? "animate-pulse text-[#077EA1]" : inv.emailSentAt ? "text-emerald-600" : ""} />
+                              <Mail size={13} className={sendingInvoiceId === inv.id ? "animate-pulse text-[#0481A2]" : inv.emailSentAt ? "text-emerald-600" : ""} />
                             </button>
                           </div>
                         </td>

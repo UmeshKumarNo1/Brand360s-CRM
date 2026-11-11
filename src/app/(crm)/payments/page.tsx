@@ -168,14 +168,14 @@ export default function PaymentsPage() {
             className="p-2 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-600 rounded-lg shadow-2xs transition-colors cursor-pointer"
             title="Refresh payments"
           >
-            <RefreshCw size={15} className={isLoading ? "animate-spin text-[#077EA1]" : ""} />
+            <RefreshCw size={15} className={isLoading ? "animate-spin text-[#0481A2]" : ""} />
           </button>
 
           <button
             onClick={() => setIsCreateInstallmentModalOpen(true)}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-xs sm:text-sm font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
           >
-            <Calendar size={16} className="text-[#077EA1]" />
+            <Calendar size={16} className="text-[#0481A2]" />
             <span>+ Create Installment</span>
           </button>
 
@@ -184,7 +184,7 @@ export default function PaymentsPage() {
               setPayForInstallment(null);
               setIsRecordPaymentModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#077EA1] hover:bg-[#066B89] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
           >
             <Plus size={16} />
             <span>Record Payment</span>
@@ -230,7 +230,7 @@ export default function PaymentsPage() {
           }}
           className={`flex items-center gap-2 py-2.5 px-4 text-xs sm:text-sm font-semibold border-b-2 cursor-pointer transition-colors ${
             activeTab === "transactions"
-              ? "border-[#077EA1] text-[#077EA1]"
+              ? "border-[#0481A2] text-[#0481A2]"
               : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
@@ -245,7 +245,7 @@ export default function PaymentsPage() {
           }}
           className={`flex items-center gap-2 py-2.5 px-4 text-xs sm:text-sm font-semibold border-b-2 cursor-pointer transition-colors ${
             activeTab === "installments"
-              ? "border-[#077EA1] text-[#077EA1]"
+              ? "border-[#0481A2] text-[#0481A2]"
               : "border-transparent text-slate-500 hover:text-slate-800"
           }`}
         >
@@ -272,7 +272,7 @@ export default function PaymentsPage() {
                 ? "Search by company name, UTR, or payment method..."
                 : "Search by client name, client code, or milestone title..."
             }
-            className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#077EA1] text-slate-800 placeholder:text-slate-400 shadow-xs"
+            className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2] text-slate-800 placeholder:text-slate-400 shadow-xs"
           />
         </div>
 
@@ -280,7 +280,7 @@ export default function PaymentsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#077EA1] font-medium text-slate-700 shadow-xs cursor-pointer"
+            className="px-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2] font-medium text-slate-700 shadow-xs cursor-pointer"
           >
             <option value="All">All Verification Statuses</option>
             <option value="Verified">Verified Only</option>
@@ -291,7 +291,7 @@ export default function PaymentsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#077EA1] font-medium text-slate-700 shadow-xs cursor-pointer"
+            className="px-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2] font-medium text-slate-700 shadow-xs cursor-pointer"
           >
             <option value="All">All Milestone Statuses</option>
             <option value="Pending">Pending</option>
@@ -312,7 +312,7 @@ export default function PaymentsPage() {
         <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-xs overflow-hidden">
           {isLoading ? (
             <div className="py-12 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-              <RefreshCw size={14} className="animate-spin text-[#077EA1]" />
+              <RefreshCw size={14} className="animate-spin text-[#0481A2]" />
               <span>Loading payment receipts...</span>
             </div>
           ) : filteredPayments.length === 0 ? (
@@ -342,10 +342,10 @@ export default function PaymentsPage() {
                       <td className="py-3 px-4">
                         <Link
                           href={`/clients/${p.clientId}`}
-                          className="font-semibold text-slate-900 hover:text-[#077EA1] hover:underline flex items-center gap-1 group"
+                          className="font-semibold text-slate-900 hover:text-[#0481A2] hover:underline flex items-center gap-1 group"
                         >
                           <span>{p.companyName}</span>
-                          <ArrowUpRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#077EA1]" />
+                          <ArrowUpRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#0481A2]" />
                         </Link>
                         <span className="text-[10px] text-slate-400 font-mono">{p.clientCode}</span>
                       </td>
@@ -436,7 +436,7 @@ export default function PaymentsPage() {
         <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-xs overflow-hidden">
           {isLoading ? (
             <div className="py-12 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
-              <RefreshCw size={14} className="animate-spin text-[#077EA1]" />
+              <RefreshCw size={14} className="animate-spin text-[#0481A2]" />
               <span>Loading installments...</span>
             </div>
           ) : filteredInstallments.length === 0 ? (
@@ -444,7 +444,7 @@ export default function PaymentsPage() {
               <p>No client installment schedules found.</p>
               <button
                 onClick={() => setIsCreateInstallmentModalOpen(true)}
-                className="text-[#077EA1] font-semibold hover:underline cursor-pointer"
+                className="text-[#0481A2] font-semibold hover:underline cursor-pointer"
               >
                 + Create First Installment Milestone
               </button>
@@ -472,10 +472,10 @@ export default function PaymentsPage() {
                         <td className="py-3 px-4">
                           <Link
                             href={`/clients/${inst.clientId}`}
-                            className="font-semibold text-slate-900 hover:text-[#077EA1] hover:underline flex items-center gap-1 group"
+                            className="font-semibold text-slate-900 hover:text-[#0481A2] hover:underline flex items-center gap-1 group"
                           >
                             <span>{inst.companyName}</span>
-                            <ArrowUpRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#077EA1]" />
+                            <ArrowUpRight size={12} className="opacity-0 group-hover:opacity-100 transition-opacity text-[#0481A2]" />
                           </Link>
                           <span className="text-[10px] text-slate-400 font-mono">{inst.clientCode}</span>
                         </td>

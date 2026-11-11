@@ -50,14 +50,14 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
               href={`/clients/${client.id}/edit`}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs transition-colors"
             >
-              <Edit3 size={14} className="text-[#077EA1]" />
+              <Edit3 size={14} className="text-[#0481A2]" />
               <span>Edit Details</span>
             </Link>
           )}
 
           <Link
             href="/invoices"
-            className="px-3.5 py-1.5 bg-[#077EA1] hover:bg-[#066B89] text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
+            className="px-3.5 py-1.5 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-lg shadow-sm transition-colors"
           >
             Create Invoice
           </Link>
@@ -90,7 +90,7 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
           <button
             onClick={() => setActiveTab("overview")}
             className={`py-3 px-4 border-b-2 transition-colors cursor-pointer ${
-              activeTab === "overview" ? "border-[#077EA1] text-[#077EA1]" : "border-transparent hover:text-slate-900"
+              activeTab === "overview" ? "border-[#0481A2] text-[#0481A2]" : "border-transparent hover:text-slate-900"
             }`}
           >
             Overview
@@ -98,7 +98,7 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
           <button
             onClick={() => setActiveTab("services")}
             className={`py-3 px-4 border-b-2 transition-colors cursor-pointer ${
-              activeTab === "services" ? "border-[#077EA1] text-[#077EA1]" : "border-transparent hover:text-slate-900"
+              activeTab === "services" ? "border-[#0481A2] text-[#0481A2]" : "border-transparent hover:text-slate-900"
             }`}
           >
             Services & Billing
@@ -106,7 +106,7 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
           <button
             onClick={() => setActiveTab("payments")}
             className={`py-3 px-4 border-b-2 transition-colors cursor-pointer ${
-              activeTab === "payments" ? "border-[#077EA1] text-[#077EA1]" : "border-transparent hover:text-slate-900"
+              activeTab === "payments" ? "border-[#0481A2] text-[#0481A2]" : "border-transparent hover:text-slate-900"
             }`}
           >
             Payments & Installments
@@ -114,7 +114,7 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
           <button
             onClick={() => setActiveTab("followups")}
             className={`py-3 px-4 border-b-2 transition-colors cursor-pointer ${
-              activeTab === "followups" ? "border-[#077EA1] text-[#077EA1]" : "border-transparent hover:text-slate-900"
+              activeTab === "followups" ? "border-[#0481A2] text-[#0481A2]" : "border-transparent hover:text-slate-900"
             }`}
           >
             Follow-ups
@@ -132,20 +132,20 @@ export function ClientDetailView({ client, isAdmin, canEdit }: ClientDetailViewP
                   </h3>
                   <div className="space-y-3 text-xs">
                     <div className="flex items-center gap-3 text-slate-700">
-                      <User size={15} className="text-[#077EA1] shrink-0" />
+                      <User size={15} className="text-[#0481A2] shrink-0" />
                       <span className="font-semibold text-slate-900">{client.contactPerson}</span>
                     </div>
                     <div className="flex items-center gap-3 text-slate-700">
-                      <Phone size={15} className="text-[#077EA1] shrink-0" />
+                      <Phone size={15} className="text-[#0481A2] shrink-0" />
                       <span>{client.phone}</span>
                     </div>
                     <div className="flex items-center gap-3 text-slate-700">
-                      <Mail size={15} className="text-[#077EA1] shrink-0" />
+                      <Mail size={15} className="text-[#0481A2] shrink-0" />
                       <span>{client.email}</span>
                     </div>
                     {client.city && (
                       <div className="flex items-center gap-3 text-slate-700">
-                        <MapPin size={15} className="text-[#077EA1] shrink-0" />
+                        <MapPin size={15} className="text-[#0481A2] shrink-0" />
                         <span>{client.city}, {client.state}</span>
                       </div>
                     )}

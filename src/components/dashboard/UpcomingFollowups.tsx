@@ -32,7 +32,7 @@ export function UpcomingFollowups() {
         <h3 className="text-base font-bold text-slate-900">Upcoming Follow-ups</h3>
         <Link 
           href="/follow-ups" 
-          className="text-xs font-semibold text-[#077EA1] hover:text-[#066B89] flex items-center gap-1"
+          className="text-xs font-semibold text-[#0481A2] hover:text-[#036c88] flex items-center gap-1"
         >
           View All <ArrowRight size={12} />
         </Link>

@@ -191,21 +191,6 @@ export function AppSidebar({
           />
         </svg>
       </div>
-
-      {/* User Footer Indicator */}
-      {!isCollapsed && (
-        <div className="p-3 border-t border-[#1B2F5B]/70 bg-[#0B1730]/60 relative z-10 backdrop-blur-xs">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-[#243E76] text-white text-xs font-bold flex items-center justify-center border border-[#3B5998]">
-              {initials}
-            </div>
-            <div className="text-xs truncate">
-              <p className="font-semibold text-white truncate">{userFullName}</p>
-              <p className="text-slate-400 text-[11px] truncate capitalize">{userRole}</p>
-            </div>
-          </div>
-        </div>
-      )}
     </aside>
   );
 }

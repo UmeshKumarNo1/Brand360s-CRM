@@ -239,16 +239,6 @@ export default function NewClientPage() {
     setBillingEmail(email);
   };
 
-  const stepsList = [
-    { id: 1, key: "company", title: "Company", fullTitle: "1. Company Details", desc: "Enter company information", icon: Building2 },
-    { id: 2, key: "contact", title: "Contact", fullTitle: "2. Primary Contact", desc: "Add primary contact for this client", icon: User },
-    { id: 3, key: "additional", title: "Additional Contacts", fullTitle: "3. Additional Contacts", desc: "Add more contacts (e.g. directors, finance managers, coordinators)", icon: Users },
-    { id: 4, key: "billing", title: "Billing & GST", fullTitle: "4. Billing Details & GST", desc: "Enter billing and GST information for invoicing", icon: Receipt },
-    { id: 5, key: "ownership", title: "Ownership", fullTitle: "5. Client Ownership", desc: "Ownership and association details", icon: UserCheck },
-    { id: 6, key: "status", title: "Status", fullTitle: "6. Client Status", desc: "Current status of the client", icon: ShieldCheck },
-    { id: 7, key: "notes", title: "Introductory Notes", fullTitle: "7. Introductory Notes", desc: "Add any additional notes about the company", icon: FileText },
-  ];
-
   return (
     <div className="max-w-[1450px] mx-auto space-y-6 pb-16 font-sans">
       {/* Header: Back button + Title */}
@@ -1113,16 +1103,16 @@ export default function NewClientPage() {
             </div>
           </div>
 
-          {/* Right Column: Client Registration Progress Sidebar (cols 4 / 3) */}
+          {/* Right Column: Client Registration Progress Sidebar */}
           <div className="lg:col-span-4 xl:col-span-3 space-y-4">
-            <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 shadow-xs space-y-6">
+            <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 shadow-xs space-y-6 sticky top-6">
               <h2 className="font-serif font-heading font-bold text-base text-[#1B3260]">
                 Client Registration Progress
               </h2>
 
-              {/* Circular Gauge */}
-              <div className="flex flex-col items-center justify-center py-2">
-                <div className="relative w-28 h-28 flex items-center justify-center">
+              {/* Circular Progress Gauge */}
+              <div className="flex flex-col items-center justify-center py-4">
+                <div className="relative w-32 h-32 flex items-center justify-center">
                   <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
                     {/* Background circle */}
                     <circle
@@ -1148,79 +1138,26 @@ export default function NewClientPage() {
                     />
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                    <span className="text-xl font-bold font-number text-[#1B3260]">
+                    <span className="text-2xl font-bold font-number text-[#1B3260]">
                       {progressPercentage}%
                     </span>
-                    <span className="text-[10px] text-slate-400 font-medium">Complete</span>
+                    <span className="text-[11px] text-slate-400 font-medium">Complete</span>
                   </div>
                 </div>
-                <span className="text-xs font-semibold text-slate-500 mt-2">Complete</span>
               </div>
 
-              {/* Vertical Stepper List (matching image) */}
-              <div className="space-y-4 pt-2">
-                {stepsList.map((step, idx) => {
-                  const isActive = activeSection === step.id;
-                  const isCompleted = activeSection > step.id;
-
-                  return (
-                    <button
-                      key={step.id}
-                      type="button"
-                      onClick={() => setActiveSection(step.id)}
-                      className="flex items-center gap-3 w-full text-left group cursor-pointer"
-                    >
-                      <div className="relative flex items-center justify-center">
-                        <div
-                          className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
-                            isActive
-                              ? "bg-[#0481A2] text-white ring-4 ring-[#0481A2]/15"
-                              : isCompleted
-                              ? "bg-[#0481A2] text-white"
-                              : "border-2 border-slate-300 bg-white"
-                          }`}
-                        >
-                          {isActive ? (
-                            <div className="w-2 h-2 bg-white rounded-full" />
-                          ) : isCompleted ? (
-                            <Check size={11} className="stroke-[3]" />
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`text-xs font-bold font-number ${
-                            isActive ? "text-[#0481A2]" : isCompleted ? "text-slate-800" : "text-slate-400"
-                          }`}
-                        >
-                          {step.id}
-                        </span>
-                        <span
-                          className={`text-xs transition-colors ${
-                            isActive
-                              ? "font-bold text-[#0481A2]"
-                              : isCompleted
-                              ? "font-semibold text-slate-800"
-                              : "text-slate-500 group-hover:text-slate-800"
-                          }`}
-                        >
-                          {step.title}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Illustration & Helper Banner (matching image) */}
-              <div className="bg-gradient-to-b from-[#EBF5F8] to-[#E3F2F6] border border-[#CDE5EC] rounded-2xl p-4 text-center space-y-2">
-                <div className="w-12 h-12 mx-auto rounded-xl bg-white shadow-2xs flex items-center justify-center text-[#0481A2]">
-                  <FileText size={24} />
+              {/* Progress Linear Bar & Step Status */}
+              <div className="space-y-2 pt-3 border-t border-slate-100">
+                <div className="flex justify-between text-xs font-semibold text-slate-600">
+                  <span>Step {activeSection} of 7</span>
+                  <span className="text-[#0481A2] font-number">{progressPercentage}%</span>
                 </div>
-                <p className="text-xs font-semibold text-slate-700 leading-snug">
-                  Add all required details to register the client
-                </p>
+                <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className="bg-[#0481A2] h-full rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${progressPercentage}%` }}
+                  />
+                </div>
               </div>
             </div>
           </div>

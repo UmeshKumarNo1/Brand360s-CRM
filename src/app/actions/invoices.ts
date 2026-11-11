@@ -559,7 +559,7 @@ export async function sendInvoiceEmailAction(
                 </tr>
                 <tr>
                   <td style="padding: 12px; font-weight: bold; border-bottom: 1px solid #e2e8f0;">Total Amount Due:</td>
-                  <td style="padding: 12px; text-align: right; font-weight: bold; color: #077ea1; border-bottom: 1px solid #e2e8f0;">₹${Number(invoice.total_amount).toLocaleString("en-IN")}</td>
+                  <td style="padding: 12px; text-align: right; font-weight: bold; color: #0481A2; border-bottom: 1px solid #e2e8f0;">₹${Number(invoice.total_amount).toLocaleString("en-IN")}</td>
                 </tr>
                 <tr style="background: #f8fafc;">
                   <td style="padding: 12px; border-bottom: 1px solid #e2e8f0;">Payment Due Date:</td>

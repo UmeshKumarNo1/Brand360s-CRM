@@ -4,7 +4,7 @@ export default function PlaceholderPage({ title, description }: { title: string;
       <h2 className="text-xl font-bold text-slate-800">{title}</h2>
       <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">{description}</p>
       <div className="pt-2">
-        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-sky-50 text-[#077EA1]">
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-sky-50 text-[#0481A2]">
           Ready for Phase 3/4 integration
         </span>
       </div>

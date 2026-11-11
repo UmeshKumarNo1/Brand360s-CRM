@@ -103,12 +103,12 @@ export function ClientFollowupsTab({ clientId, clientName }: ClientFollowupsTabP
             className="p-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-600 rounded-lg shadow-2xs transition-colors cursor-pointer"
             title="Refresh follow-ups"
           >
-            <RefreshCw size={13} className={isLoading ? "animate-spin text-[#077EA1]" : ""} />
+            <RefreshCw size={13} className={isLoading ? "animate-spin text-[#0481A2]" : ""} />
           </button>
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#077EA1] hover:bg-[#066B89] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
           >
             <Plus size={14} />
             <span>Add Follow-up</span>
@@ -138,7 +138,7 @@ export function ClientFollowupsTab({ clientId, clientName }: ClientFollowupsTabP
                 <tr>
                   <td colSpan={6} className="py-8 text-center text-slate-400">
                     <div className="flex items-center justify-center gap-2">
-                      <RefreshCw size={13} className="animate-spin text-[#077EA1]" />
+                      <RefreshCw size={13} className="animate-spin text-[#0481A2]" />
                       <span>Loading follow-ups...</span>
                     </div>
                   </td>
@@ -185,7 +185,7 @@ export function ClientFollowupsTab({ clientId, clientName }: ClientFollowupsTabP
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => setEditingFollowup(f)}
-                            className="p-1 text-slate-400 hover:text-[#077EA1] hover:bg-sky-50 rounded transition-colors cursor-pointer"
+                            className="p-1 text-slate-400 hover:text-[#0481A2] hover:bg-sky-50 rounded transition-colors cursor-pointer"
                             title="Edit follow-up"
                           >
                             <Pencil size={13} />

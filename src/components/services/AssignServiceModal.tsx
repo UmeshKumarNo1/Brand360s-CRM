@@ -61,7 +61,7 @@ export function AssignServiceModal({
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#077EA1] flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#0481A2] flex items-center justify-center font-bold">
               <Layers size={16} />
             </div>
             <div>
@@ -89,7 +89,7 @@ export function AssignServiceModal({
             <label className="block font-semibold text-slate-700 mb-1">Pick from Services Catalog</label>
             <select
               onChange={(e) => handleCatalogChange(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
             >
               <option value="">Select a catalog template or enter custom...</option>
               {catalog.map((c) => (
@@ -109,7 +109,7 @@ export function AssignServiceModal({
                 type="text"
                 defaultValue={selectedCatalogItem?.name || ""}
                 placeholder="e.g. GST Registration"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
               />
             </div>
 
@@ -124,7 +124,7 @@ export function AssignServiceModal({
                     category: e.target.value,
                   })
                 }
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               >
                 <option value="Company Incorporation">Company Incorporation</option>
                 <option value="GST & Tax Filing">GST & Tax Filing</option>
@@ -144,7 +144,7 @@ export function AssignServiceModal({
                 type="number"
                 step="any"
                 defaultValue={selectedCatalogItem?.default_service_fee || 0}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
               />
             </div>
 
@@ -155,7 +155,7 @@ export function AssignServiceModal({
                 type="number"
                 step="any"
                 defaultValue={selectedCatalogItem?.default_govt_fee || 0}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
               />
             </div>
           </div>
@@ -165,7 +165,7 @@ export function AssignServiceModal({
               <label className="block font-semibold text-slate-700 mb-1">Assigned Executive</label>
               <select
                 name="assigned_employee_id"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               >
                 <option value="">Unassigned</option>
                 {salespeople.map((p) => (
@@ -181,7 +181,7 @@ export function AssignServiceModal({
               <select
                 name="service_status"
                 defaultValue="Pending"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               >
                 <option value="Pending">Pending (Not Started)</option>
                 <option value="Processing">Processing / In Progress</option>
@@ -199,7 +199,7 @@ export function AssignServiceModal({
                 name="start_date"
                 type="date"
                 defaultValue={new Date().toISOString().split("T")[0]}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               />
             </div>
 
@@ -209,7 +209,7 @@ export function AssignServiceModal({
                 name="expected_completion_date"
                 type="date"
                 defaultValue={new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               />
             </div>
           </div>
@@ -235,7 +235,7 @@ export function AssignServiceModal({
             <button
               type="submit"
               disabled={isPending}
-              className="px-4 py-1.5 font-semibold text-white bg-[#077EA1] hover:bg-[#066B89] rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-70 cursor-pointer"
+              className="px-4 py-1.5 font-semibold text-white bg-[#0481A2] hover:bg-[#036c88] rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-70 cursor-pointer"
             >
               {isPending ? (
                 <>

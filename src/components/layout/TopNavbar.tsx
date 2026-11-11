@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Bell, HelpCircle, User, LogOut, Settings as SettingsIcon, Menu } from "lucide-react";
+import { Search, Bell, LogOut, Settings as SettingsIcon, Menu } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 
 interface TopNavbarProps {
@@ -14,8 +14,8 @@ interface TopNavbarProps {
 export function TopNavbar({ 
   onMobileMenuToggle,
   userEmail = "user@brand360s.co",
-  userRole = "Employee",
-  userName = "User"
+  userRole = "Administrator",
+  userName = "Uki0070411"
 }: TopNavbarProps) {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
@@ -25,8 +25,9 @@ export function TopNavbar({
     : userEmail.slice(0, 2).toUpperCase();
 
   return (
-    <header className="h-[68px] bg-white border-b border-[#E2E8F0] px-4 sm:px-6 flex items-center justify-between sticky top-0 z-20">
-      <div className="flex items-center gap-3 flex-1 max-w-md">
+    <header className="h-[76px] px-6 sm:px-8 flex items-center justify-between sticky top-0 z-20 bg-transparent">
+      {/* Search Input Bar */}
+      <div className="flex items-center gap-3 flex-1 max-w-lg">
         <button
           onClick={onMobileMenuToggle}
           className="lg:hidden p-2 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100"
@@ -34,45 +35,38 @@ export function TopNavbar({
           <Menu size={20} />
         </button>
 
-        {/* Global Search Bar */}
-        <div className="relative w-full">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        {/* Global Search Pill Bar matching design */}
+        <div className="relative w-full max-w-md">
+          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             placeholder="Search clients, invoices, services..."
-            className="w-full pl-9 pr-12 py-2 text-sm bg-slate-50 border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#077EA1] focus:ring-1 focus:ring-[#077EA1] transition-all text-slate-800 placeholder:text-slate-400"
+            className="w-full pl-10 pr-12 py-2.5 text-sm bg-white border border-[#E2E8F0] rounded-full focus:outline-none focus:border-[#0481A2] focus:ring-2 focus:ring-[#0481A2]/20 transition-all text-slate-800 placeholder:text-slate-400 shadow-2xs"
           />
-          <kbd className="absolute right-2.5 top-1/2 -translate-y-1/2 hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-medium text-slate-400 bg-white border border-slate-200 rounded">
-            ⌘K
+          <kbd className="absolute right-3.5 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 rounded-md">
+            ⌘ K
           </kbd>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 sm:gap-4">
-        {/* Help Icon */}
-        <button 
-          className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors relative"
-          title="Help & Documentation"
-        >
-          <HelpCircle size={18} />
-        </button>
-
-        {/* Notifications Icon */}
+      {/* Right controls: Notifications & User profile */}
+      <div className="flex items-center gap-3 sm:gap-5">
+        {/* Notifications Icon with red badge */}
         <div className="relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors relative"
+            className="p-2.5 text-slate-600 hover:text-[#243E76] hover:bg-white rounded-full transition-colors relative"
             title="Notifications"
           >
-            <Bell size={18} />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
+            <Bell size={19} />
+            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-slate-200 py-2 z-50 text-xs">
-              <div className="px-4 py-2 border-b border-slate-100 font-semibold text-slate-800 flex justify-between items-center">
-                <span>Notifications</span>
-                <span className="text-[10px] bg-red-50 text-red-600 px-1.5 py-0.5 rounded font-medium">System Alert</span>
+            <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 text-xs">
+              <div className="px-4 py-2.5 border-b border-slate-100 font-semibold text-slate-800 flex justify-between items-center">
+                <span className="font-heading">Notifications</span>
+                <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-medium">Alerts</span>
               </div>
               <div className="p-4 text-center text-slate-500">
                 No pending notifications
@@ -81,34 +75,35 @@ export function TopNavbar({
           )}
         </div>
 
-        <div className="h-6 w-px bg-slate-200 mx-1" />
+        {/* Separator line */}
+        <div className="h-6 w-px bg-slate-200/80" />
 
         {/* User Profile */}
         <div className="relative">
           <button
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className="flex items-center gap-2.5 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+            className="flex items-center gap-3 p-1 rounded-xl hover:bg-white/60 transition-colors"
           >
-            <div className="w-8 h-8 rounded-full bg-[#243E76] text-white text-xs font-bold flex items-center justify-center">
+            <div className="w-9 h-9 rounded-full bg-[#243E76] text-white text-xs font-bold flex items-center justify-center shadow-xs">
               {initials}
             </div>
-            <div className="hidden md:block text-left text-xs">
-              <p className="font-semibold text-slate-800 leading-tight">{userName}</p>
-              <p className="text-slate-500 text-[11px] font-medium">{userRole}</p>
+            <div className="hidden md:block text-left">
+              <p className="font-bold text-slate-800 text-sm leading-tight">{userName}</p>
+              <p className="text-slate-400 text-xs font-medium">{userRole}</p>
             </div>
           </button>
 
           {showProfileMenu && (
-            <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 z-50 text-xs">
-              <div className="px-3 py-2 border-b border-slate-100">
-                <p className="font-semibold text-slate-800">{userName}</p>
-                <p className="text-slate-500 text-[11px] truncate">{userEmail}</p>
-                <span className="inline-block mt-1 px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-semibold">
+            <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 text-xs">
+              <div className="px-4 py-2.5 border-b border-slate-100">
+                <p className="font-bold text-slate-800 text-sm">{userName}</p>
+                <p className="text-slate-400 text-xs truncate">{userEmail}</p>
+                <span className="inline-block mt-1.5 px-2 py-0.5 bg-blue-50 text-[#243E76] rounded-md text-[10px] font-semibold">
                   {userRole}
                 </span>
               </div>
               {userRole === "Administrator" && (
-                <a href="/settings" className="flex items-center gap-2 px-3 py-2 text-slate-700 hover:bg-slate-50">
+                <a href="/settings" className="flex items-center gap-2 px-4 py-2.5 text-slate-700 hover:bg-slate-50 transition-colors">
                   <SettingsIcon size={14} /> Account Settings
                 </a>
               )}
@@ -117,7 +112,7 @@ export function TopNavbar({
                 onClick={async () => {
                   await logoutAction();
                 }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-red-600 hover:bg-red-50 text-left font-medium cursor-pointer"
+                className="w-full flex items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 text-left font-medium cursor-pointer transition-colors"
               >
                 <LogOut size={14} /> Sign out
               </button>

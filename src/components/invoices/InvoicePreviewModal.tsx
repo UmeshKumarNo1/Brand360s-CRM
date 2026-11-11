@@ -128,7 +128,7 @@ export function InvoicePreviewModal({
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
         <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8 max-w-sm w-full text-center space-y-3">
-          <Loader2 size={24} className="animate-spin text-[#077EA1] mx-auto" />
+          <Loader2 size={24} className="animate-spin text-[#0481A2] mx-auto" />
           <h3 className="text-sm font-bold text-slate-800">Loading Invoice Preview...</h3>
           <p className="text-xs text-slate-500">Retrieving GST invoice data and client details</p>
           <button
@@ -171,7 +171,7 @@ export function InvoicePreviewModal({
                     .finally(() => setIsLoading(false));
                 }
               }}
-              className="px-3.5 py-1.5 text-xs font-semibold bg-[#077EA1] text-white hover:bg-[#066B89] rounded-lg cursor-pointer"
+              className="px-3.5 py-1.5 text-xs font-semibold bg-[#0481A2] text-white hover:bg-[#036c88] rounded-lg cursor-pointer"
             >
               Retry
             </button>
@@ -278,7 +278,7 @@ export function InvoicePreviewModal({
               onClick={() => setShowEmailInput(!showEmailInput)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
             >
-              <Mail size={13} className="text-[#077EA1]" />
+              <Mail size={13} className="text-[#0481A2]" />
               <span>Email</span>
             </button>
 
@@ -293,7 +293,7 @@ export function InvoicePreviewModal({
             <button
               onClick={handleDownloadPDF}
               disabled={isDownloading}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#077EA1] hover:bg-[#066B89] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
             >
               <Download size={13} />
               <span>{isDownloading ? "Generating..." : "Download PDF"}</span>
@@ -315,13 +315,13 @@ export function InvoicePreviewModal({
                 defaultValue={client.email || ""}
                 onChange={(e) => setCustomEmail(e.target.value)}
                 placeholder="client-billing@company.com"
-                className="flex-1 max-w-sm px-2.5 py-1 border border-slate-300 rounded bg-white text-xs focus:outline-none focus:border-[#077EA1]"
+                className="flex-1 max-w-sm px-2.5 py-1 border border-slate-300 rounded bg-white text-xs focus:outline-none focus:border-[#0481A2]"
               />
             </div>
             <button
               onClick={handleSendEmail}
               disabled={isSendingEmail}
-              className="px-3 py-1 bg-[#077EA1] text-white rounded text-xs font-semibold hover:bg-[#066B89] transition-colors cursor-pointer"
+              className="px-3 py-1 bg-[#0481A2] text-white rounded text-xs font-semibold hover:bg-[#036c88] transition-colors cursor-pointer"
             >
               {isSendingEmail ? "Dispatching..." : "Send Now"}
             </button>
@@ -373,7 +373,7 @@ export function InvoicePreviewModal({
             {/* Client / Bill To & Ship To Details */}
             <div className="grid grid-cols-2 gap-6 p-4 bg-slate-50 rounded-lg border border-slate-100 text-xs">
               <div>
-                <span className="font-bold text-[#077EA1] uppercase tracking-wider text-[10px] block mb-1">
+                <span className="font-bold text-[#0481A2] uppercase tracking-wider text-[10px] block mb-1">
                   Billed To
                 </span>
                 <h4 className="font-bold text-slate-900 text-sm">{client?.companyName || client?.company_name || "Client Company"}</h4>
@@ -383,7 +383,7 @@ export function InvoicePreviewModal({
               </div>
 
               <div className="space-y-1">
-                <span className="font-bold text-[#077EA1] uppercase tracking-wider text-[10px] block mb-1">
+                <span className="font-bold text-[#0481A2] uppercase tracking-wider text-[10px] block mb-1">
                   Client Tax Identification
                 </span>
                 <p><strong>GSTIN:</strong> {client?.gstNumber || client?.gst_number || "Unregistered"}</p>
@@ -440,7 +440,7 @@ export function InvoicePreviewModal({
                 <p><strong>A/C Name:</strong> {settingsData.account_holder_name}</p>
                 <p><strong>A/C No:</strong> <span className="font-mono font-bold">{settingsData.account_number}</span></p>
                 <p><strong>IFSC Code:</strong> <span className="font-mono">{settingsData.ifsc}</span></p>
-                <p><strong>UPI ID:</strong> <span className="font-mono text-[#077EA1] font-bold">{settingsData.upi_id}</span></p>
+                <p><strong>UPI ID:</strong> <span className="font-mono text-[#0481A2] font-bold">{settingsData.upi_id}</span></p>
               </div>
 
               {/* Financial Calculation Column */}

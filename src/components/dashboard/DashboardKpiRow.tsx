@@ -33,7 +33,7 @@ export function DashboardKpiRow({
       isPositive: true,
       description: "this month",
       icon: UserPlus,
-      iconColor: "text-[#077EA1]",
+      iconColor: "text-[#0481A2]",
       iconBg: "bg-cyan-50",
     },
     {

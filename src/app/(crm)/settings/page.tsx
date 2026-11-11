@@ -51,7 +51,7 @@ export default function SettingsPage() {
 
       {isLoading ? (
         <div className="p-12 text-center text-slate-400 text-xs">
-          <Loader2 size={18} className="animate-spin text-[#077EA1] mx-auto mb-2" />
+          <Loader2 size={18} className="animate-spin text-[#0481A2] mx-auto mb-2" />
           <span>Loading settings...</span>
         </div>
       ) : (
@@ -59,7 +59,7 @@ export default function SettingsPage() {
           {/* Section 1: Business Identity & GST */}
           <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-              <Building2 size={18} className="text-[#077EA1]" />
+              <Building2 size={18} className="text-[#0481A2]" />
               <h3 className="text-sm font-bold text-slate-900">Company Information & Tax Registration</h3>
             </div>
 
@@ -70,7 +70,7 @@ export default function SettingsPage() {
                   name="company_name"
                   required
                   defaultValue={settings?.company_name || ""}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
                 />
               </div>
 
@@ -79,7 +79,7 @@ export default function SettingsPage() {
                 <input
                   name="cin"
                   defaultValue={settings?.cin || ""}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
                 />
               </div>
 
@@ -89,7 +89,7 @@ export default function SettingsPage() {
                   name="gstin"
                   required
                   defaultValue={settings?.gstin || ""}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1] font-mono uppercase"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2] font-mono uppercase"
                 />
               </div>
 
@@ -99,7 +99,7 @@ export default function SettingsPage() {
                   name="pan"
                   required
                   defaultValue={settings?.pan || ""}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1] font-mono uppercase"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2] font-mono uppercase"
                 />
               </div>
 
@@ -110,7 +110,7 @@ export default function SettingsPage() {
                   required
                   rows={2}
                   defaultValue={settings?.company_address || ""}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
                 />
               </div>
             </div>
@@ -119,7 +119,7 @@ export default function SettingsPage() {
           {/* Section 2: Bank & Settlement Details */}
           <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-              <Landmark size={18} className="text-[#077EA1]" />
+              <Landmark size={18} className="text-[#0481A2]" />
               <h3 className="text-sm font-bold text-slate-900">Bank Settlement & UPI</h3>
             </div>
 
@@ -129,7 +129,7 @@ export default function SettingsPage() {
                 <input
                   name="bank_name"
                   defaultValue={settings?.bank_name || ""}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
                 />
               </div>
 
@@ -138,7 +138,7 @@ export default function SettingsPage() {
                 <input
                   name="account_holder_name"
                   defaultValue={settings?.account_holder_name || ""}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
                 />
               </div>
 
@@ -147,7 +147,7 @@ export default function SettingsPage() {
                 <input
                   name="account_number"
                   defaultValue={settings?.account_number || ""}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1] font-mono"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2] font-mono"
                 />
               </div>
 
@@ -156,7 +156,7 @@ export default function SettingsPage() {
                 <input
                   name="ifsc"
                   defaultValue={settings?.ifsc || ""}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1] font-mono uppercase"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2] font-mono uppercase"
                 />
               </div>
 
@@ -165,7 +165,7 @@ export default function SettingsPage() {
                 <input
                   name="upi_id"
                   defaultValue={settings?.upi_id || ""}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
                 />
               </div>
 
@@ -174,7 +174,7 @@ export default function SettingsPage() {
                 <input
                   name="authorized_signatory"
                   defaultValue={settings?.authorized_signatory || ""}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
                 />
               </div>
             </div>
@@ -183,7 +183,7 @@ export default function SettingsPage() {
           {/* Section 3: Invoice Terms & Defaults */}
           <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs space-y-4">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-              <FileText size={18} className="text-[#077EA1]" />
+              <FileText size={18} className="text-[#0481A2]" />
               <h3 className="text-sm font-bold text-slate-900">Invoice Defaults & Terms</h3>
             </div>
 
@@ -194,7 +194,7 @@ export default function SettingsPage() {
                   name="default_gst_rate"
                   type="number"
                   defaultValue={settings?.default_gst_rate ?? 18}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
                 />
               </div>
 
@@ -203,7 +203,7 @@ export default function SettingsPage() {
                 <input
                   name="default_payment_terms"
                   defaultValue={settings?.default_payment_terms || "Due on Receipt"}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
                 />
               </div>
 
@@ -212,7 +212,7 @@ export default function SettingsPage() {
                 <input
                   name="payment_instructions"
                   defaultValue={settings?.payment_instructions || ""}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
                 />
               </div>
 
@@ -222,7 +222,7 @@ export default function SettingsPage() {
                   name="terms_conditions"
                   rows={3}
                   defaultValue={settings?.terms_conditions || ""}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
                 />
               </div>
             </div>
@@ -232,7 +232,7 @@ export default function SettingsPage() {
             <button
               type="submit"
               disabled={isPending}
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#077EA1] hover:bg-[#066B89] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer disabled:opacity-70"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer disabled:opacity-70"
             >
               {isPending ? (
                 <>

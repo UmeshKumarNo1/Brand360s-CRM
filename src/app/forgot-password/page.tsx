@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { forgotPasswordAction } from "@/app/actions/auth";
 import { Mail, ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
 
@@ -11,9 +12,15 @@ export default function ForgotPasswordPage() {
   return (
     <div className="min-h-screen bg-[#0F172A] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center">
-        <div className="inline-flex items-center space-x-2 font-black tracking-tight text-3xl">
-          <span className="text-white">BRAND</span>
-          <span className="text-[#00A3C4]">360s</span>
+        <div className="flex justify-center mb-4">
+          <Image
+            src="/brand360s-darkmodelogo.svg"
+            alt="BRAND 360s"
+            width={200}
+            height={60}
+            className="h-12 w-auto object-contain"
+            priority
+          />
         </div>
         <h2 className="mt-4 text-xl font-bold text-slate-100">
           Reset your password
@@ -37,7 +44,7 @@ export default function ForgotPasswordPage() {
               <div className="pt-2">
                 <Link
                   href="/login"
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#077EA1] hover:underline"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#0481A2] hover:underline"
                 >
                   <ArrowLeft size={14} /> Back to Sign In
                 </Link>
@@ -62,7 +69,7 @@ export default function ForgotPasswordPage() {
                     name="email"
                     required
                     placeholder="name@brand360s.co"
-                    className="w-full pl-10 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:border-[#077EA1] focus:ring-1 focus:ring-[#077EA1] text-slate-900 placeholder:text-slate-400"
+                    className="w-full pl-10 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] text-slate-900 placeholder:text-slate-400"
                   />
                 </div>
               </div>
@@ -70,7 +77,7 @@ export default function ForgotPasswordPage() {
               <button
                 type="submit"
                 disabled={isPending}
-                className="w-full py-2.5 px-4 bg-[#077EA1] hover:bg-[#066B89] text-white text-sm font-semibold rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
+                className="w-full py-2.5 px-4 bg-[#0481A2] hover:bg-[#036c88] text-white text-sm font-semibold rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 disabled:opacity-70 cursor-pointer"
               >
                 {isPending ? (
                   <>

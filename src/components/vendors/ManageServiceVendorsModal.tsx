@@ -121,7 +121,7 @@ export function ManageServiceVendorsModal({
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#077EA1] flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#0481A2] flex items-center justify-center font-bold">
               <Store size={16} />
             </div>
             <div>
@@ -152,7 +152,7 @@ export function ManageServiceVendorsModal({
 
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
               <span className="text-[11px] text-slate-500 font-medium block">Total Vendor Cost</span>
-              <span className="text-base font-bold text-[#077EA1] mt-0.5 block">
+              <span className="text-base font-bold text-[#0481A2] mt-0.5 block">
                 {formatINR(totalVendorCost)}
               </span>
             </div>
@@ -186,7 +186,7 @@ export function ManageServiceVendorsModal({
             <div className="p-4 bg-sky-50/50 border border-sky-200 rounded-xl space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-sky-100">
                 <h5 className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <Edit2 size={13} className="text-[#077EA1]" />
+                  <Edit2 size={13} className="text-[#0481A2]" />
                   <span>Edit: {editingAssignment.vendor?.name}</span>
                 </h5>
                 <button
@@ -212,7 +212,7 @@ export function ManageServiceVendorsModal({
                       min="0"
                       required
                       defaultValue={editingAssignment.agreed_cost}
-                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
                     />
                   </div>
 
@@ -223,7 +223,7 @@ export function ManageServiceVendorsModal({
                     <select
                       name="payment_status"
                       defaultValue={editingAssignment.payment_status}
-                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
                     >
                       <option value="Pending">Pending</option>
                       <option value="Partially Paid">Partially Paid</option>
@@ -254,7 +254,7 @@ export function ManageServiceVendorsModal({
                   <button
                     type="submit"
                     disabled={isEditPending}
-                    className="px-3.5 py-1 font-semibold text-white bg-[#077EA1] hover:bg-[#066B89] rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                    className="px-3.5 py-1 font-semibold text-white bg-[#0481A2] hover:bg-[#036c88] rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                   >
                     {isEditPending ? (
                       <>
@@ -334,7 +334,7 @@ export function ManageServiceVendorsModal({
                   onClose();
                   onOpenAssignVendor();
                 }}
-                className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#077EA1] hover:bg-[#066B89] text-white font-semibold rounded text-[11px] transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#0481A2] hover:bg-[#036c88] text-white font-semibold rounded text-[11px] transition-colors cursor-pointer"
               >
                 <Plus size={13} />
                 <span>Assign Another Vendor</span>
@@ -349,7 +349,7 @@ export function ManageServiceVendorsModal({
                     onClose();
                     onOpenAssignVendor();
                   }}
-                  className="text-[#077EA1] font-semibold hover:underline cursor-pointer"
+                  className="text-[#0481A2] font-semibold hover:underline cursor-pointer"
                 >
                   + Assign First Vendor
                 </button>
@@ -371,7 +371,7 @@ export function ManageServiceVendorsModal({
                       <td className="py-2.5 px-3">
                         <button
                           onClick={() => setViewingAssignment(a)}
-                          className="font-semibold text-slate-900 hover:text-[#077EA1] hover:underline text-left cursor-pointer"
+                          className="font-semibold text-slate-900 hover:text-[#0481A2] hover:underline text-left cursor-pointer"
                         >
                           {a.vendor?.name || "Vendor"}
                         </button>

@@ -30,9 +30,9 @@ export function TasksAlerts({ overdueCount = 0 }: TasksAlertsProps) {
       count: 0,
       href: "/follow-ups?filter=today",
       icon: CalendarCheck,
-      iconColor: "text-[#077EA1]",
+      iconColor: "text-[#0481A2]",
       iconBg: "bg-sky-50",
-      badgeColor: "bg-sky-100 text-[#077EA1]",
+      badgeColor: "bg-sky-100 text-[#0481A2]",
     },
     {
       id: "3",

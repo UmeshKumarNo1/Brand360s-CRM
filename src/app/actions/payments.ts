@@ -113,6 +113,7 @@ export async function fetchAllInstallmentsAction() {
     .select(`
       id,
       client_id,
+      invoice_id,
       title,
       installment_number,
       amount,
@@ -121,45 +122,168 @@ export async function fetchAllInstallmentsAction() {
       status,
       paid_date,
       notes,
+      cancel_reason,
+      cancelled_at,
+      cancelled_by,
       created_at,
       client:clients!client_id (
         id,
         company_name,
         client_code,
         contract_value,
-        balance_receivable
+        balance_receivable,
+        assigned_salesperson,
+        created_by
+      ),
+      invoice:invoices!invoice_id (
+        id,
+        invoice_number,
+        total_amount,
+        amount_paid,
+        balance_due,
+        status
+      ),
+      installment_allocations:installment_payment_allocations (
+        id,
+        allocated_amount,
+        created_at,
+        payment:payments!payment_id (
+          id,
+          payment_date,
+          payment_method,
+          transaction_ref,
+          status,
+          recorded_by,
+          recorder:profiles!recorded_by (full_name)
+        )
       )
     `)
     .order("due_date", { ascending: true });
 
   if (error) {
-    console.error("Error fetching installments:", error);
-    return [];
+    // If migration 010 columns or tables are still pending in DB, fallback gracefully
+    console.warn("Retrying installments query with basic schema:", error.message);
+    const { data: basicSchedules, error: basicErr } = await supabase
+      .from("payment_schedules")
+      .select(`
+        id,
+        client_id,
+        title,
+        installment_number,
+        amount,
+        amount_paid,
+        due_date,
+        status,
+        paid_date,
+        notes,
+        created_at,
+        client:clients!client_id (
+          id,
+          company_name,
+          client_code,
+          contract_value,
+          balance_receivable
+        )
+      `)
+      .order("due_date", { ascending: true });
+
+    if (basicErr) {
+      console.error("Error fetching installments fallback:", basicErr);
+      return [];
+    }
+
+    return (basicSchedules || []).map((s: any) => {
+      const amount = Number(s.amount) || 0;
+      const amountPaid = Number(s.amount_paid) || 0;
+      const remaining = Math.max(0, amount - amountPaid);
+      const today = new Date().toISOString().split("T")[0];
+      const isOverdue = s.due_date < today && s.status !== "Paid in full" && remaining > 0;
+
+      let computedStatus = s.status || "Upcoming";
+      if (s.status === "Cancelled") {
+        computedStatus = "Cancelled";
+      } else if (amountPaid >= amount && amount > 0) {
+        computedStatus = "Paid in full";
+      } else if (isOverdue) {
+        computedStatus = "Overdue";
+      } else if (amountPaid > 0) {
+        computedStatus = "Partially Paid";
+      } else if (s.due_date === today) {
+        computedStatus = "Due";
+      } else {
+        computedStatus = "Upcoming";
+      }
+
+      return {
+        id: s.id,
+        clientId: s.client?.id || s.client_id,
+        companyName: s.client?.company_name || "Unknown Company",
+        clientCode: s.client?.client_code || "B360-1000",
+        invoiceId: null,
+        invoiceNumber: null,
+        invoiceTotal: null,
+        invoiceBalance: null,
+        title: s.title || `Milestone ${s.installment_number || 1}`,
+        installmentNumber: s.installment_number || 1,
+        amount,
+        amountPaid,
+        remaining,
+        dueDate: s.due_date,
+        status: computedStatus,
+        paidDate: s.paid_date,
+        notes: s.notes,
+        cancelReason: null,
+        cancelledAt: null,
+        allocations: [],
+        createdAt: s.created_at,
+      };
+    });
   }
+
+  const today = new Date().toISOString().split("T")[0];
 
   return (schedules || []).map((s: any) => {
     const amount = Number(s.amount) || 0;
     const amountPaid = Number(s.amount_paid) || 0;
     const remaining = Math.max(0, amount - amountPaid);
-    const today = new Date().toISOString().split("T")[0];
-    const isOverdue = s.due_date < today && s.status !== "Paid in full" && remaining > 0;
+    const isOverdue = s.due_date < today && s.status !== "Paid in full" && s.status !== "Cancelled" && remaining > 0;
 
-    let computedStatus = s.status;
-    if (amountPaid >= amount && amount > 0) {
+    let computedStatus = s.status || "Upcoming";
+    if (s.status === "Cancelled") {
+      computedStatus = "Cancelled";
+    } else if (amountPaid >= amount && amount > 0) {
       computedStatus = "Paid in full";
     } else if (isOverdue) {
       computedStatus = "Overdue";
     } else if (amountPaid > 0) {
       computedStatus = "Partially Paid";
+    } else if (s.due_date === today) {
+      computedStatus = "Due";
     } else {
-      computedStatus = "Pending";
+      computedStatus = "Upcoming";
     }
+
+    const allocations = (s.installment_allocations || []).map((ia: any) => ({
+      id: ia.id,
+      amount: Number(ia.allocated_amount) || 0,
+      createdAt: ia.created_at,
+      paymentId: ia.payment?.id,
+      paymentDate: ia.payment?.payment_date,
+      paymentMethod: ia.payment?.payment_method,
+      transactionRef: ia.payment?.transaction_ref,
+      status: ia.payment?.status,
+      recordedBy: ia.payment?.recorder?.full_name || "System",
+    }));
 
     return {
       id: s.id,
       clientId: s.client?.id || s.client_id,
       companyName: s.client?.company_name || "Unknown Company",
       clientCode: s.client?.client_code || "B360-1000",
+      invoiceId: s.invoice?.id || s.invoice_id || null,
+      invoiceNumber: s.invoice?.invoice_number || null,
+      invoiceTotal: s.invoice ? Number(s.invoice.total_amount) : null,
+      invoiceBalance: s.invoice ? Number(s.invoice.balance_due) : null,
       title: s.title || `Milestone ${s.installment_number || 1}`,
       installmentNumber: s.installment_number || 1,
       amount,
@@ -169,6 +293,9 @@ export async function fetchAllInstallmentsAction() {
       status: computedStatus,
       paidDate: s.paid_date,
       notes: s.notes,
+      cancelReason: s.cancel_reason,
+      cancelledAt: s.cancelled_at,
+      allocations,
       createdAt: s.created_at,
     };
   });
@@ -284,6 +411,7 @@ export async function createInstallmentAction(
   if (!user) return { error: "Authentication required." };
 
   const clientId = formData.get("client_id") as string;
+  const invoiceId = (formData.get("invoice_id") as string) || null;
   const title = (formData.get("title") as string)?.trim() || "Installment";
   const amount = parseFloat(formData.get("amount") as string);
   const dueDate = formData.get("due_date") as string;
@@ -301,12 +429,13 @@ export async function createInstallmentAction(
 
   const installmentNumber = (count || 0) + 1;
   const today = new Date().toISOString().split("T")[0];
-  const initialStatus = dueDate < today ? "Overdue" : "Pending";
+  const initialStatus = dueDate < today ? "Overdue" : dueDate === today ? "Due" : "Upcoming";
 
   const { error } = await supabase
     .from("payment_schedules")
     .insert({
       client_id: clientId,
+      invoice_id: invoiceId,
       title,
       installment_number: installmentNumber,
       amount,
@@ -337,6 +466,7 @@ export async function updateInstallmentAction(
 
   const installmentId = formData.get("installment_id") as string;
   const clientId = formData.get("client_id") as string;
+  const invoiceId = (formData.get("invoice_id") as string) || null;
   const title = (formData.get("title") as string)?.trim();
   const amount = parseFloat(formData.get("amount") as string);
   const dueDate = formData.get("due_date") as string;
@@ -349,32 +479,44 @@ export async function updateInstallmentAction(
   // Fetch current schedule to re-evaluate status against updated amount/date
   const { data: current } = await supabase
     .from("payment_schedules")
-    .select("amount_paid")
+    .select("amount_paid, status")
     .eq("id", installmentId)
     .single();
+
+  if (current?.status === "Cancelled") {
+    return { error: "Cancelled installments cannot be modified." };
+  }
 
   const amountPaid = Number(current?.amount_paid) || 0;
   const today = new Date().toISOString().split("T")[0];
 
-  let newStatus = "Pending";
+  let newStatus = "Upcoming";
   if (amountPaid >= amount) {
     newStatus = "Paid in full";
   } else if (amountPaid > 0) {
-    newStatus = dueDate < today ? "Overdue" : "Partially Paid";
+    newStatus = "Partially Paid";
   } else if (dueDate < today) {
     newStatus = "Overdue";
+  } else if (dueDate === today) {
+    newStatus = "Due";
+  }
+
+  const updatePayload: any = {
+    title,
+    amount,
+    due_date: dueDate,
+    status: newStatus,
+    notes,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (invoiceId !== undefined) {
+    updatePayload.invoice_id = invoiceId;
   }
 
   const { error } = await supabase
     .from("payment_schedules")
-    .update({
-      title,
-      amount,
-      due_date: dueDate,
-      status: newStatus,
-      notes,
-      updated_at: new Date().toISOString(),
-    })
+    .update(updatePayload)
     .eq("id", installmentId);
 
   if (error) {
@@ -396,6 +538,48 @@ export async function deleteInstallmentAction(installmentId: string, clientId: s
   const { error } = await supabase
     .from("payment_schedules")
     .delete()
+    .eq("id", installmentId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (clientId) revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/payments");
+  revalidatePath("/clients");
+  return { success: true };
+}
+
+export async function cancelInstallmentAction(
+  installmentId: string,
+  clientId: string,
+  cancelReason: string
+) {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Authentication required." };
+
+  // Check admin role
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "admin") {
+    return { error: "Only administrators can cancel installment schedules." };
+  }
+
+  const { error } = await supabase
+    .from("payment_schedules")
+    .update({
+      status: "Cancelled",
+      cancel_reason: cancelReason || "Cancelled by admin",
+      cancelled_at: new Date().toISOString(),
+      cancelled_by: user.id,
+      updated_at: new Date().toISOString(),
+    })
     .eq("id", installmentId);
 
   if (error) {
@@ -679,16 +863,32 @@ export async function allocatePaymentToInvoicesAction(
       };
     }
 
-    // Try RPC first for atomicity if present in database
-    const { data: rpcData, error: rpcError } = await supabase.rpc("allocate_payment_to_invoice", {
+    // Try RPC first for atomicity (reconcile_and_allocate_payment or allocate_payment_to_invoice)
+    let allocatedSuccess = false;
+
+    const { data: recData, error: recError } = await supabase.rpc("reconcile_and_allocate_payment", {
       p_payment_id: paymentId,
       p_invoice_id: item.invoiceId,
       p_amount: allocAmount,
     });
 
-    if (!rpcError && rpcData && rpcData.success) {
-      results.push(rpcData);
+    if (!recError && recData && recData.success) {
+      results.push(recData);
+      allocatedSuccess = true;
     } else {
+      const { data: rpcData, error: rpcError } = await supabase.rpc("allocate_payment_to_invoice", {
+        p_payment_id: paymentId,
+        p_invoice_id: item.invoiceId,
+        p_amount: allocAmount,
+      });
+
+      if (!rpcError && rpcData && rpcData.success) {
+        results.push(rpcData);
+        allocatedSuccess = true;
+      }
+    }
+
+    if (!allocatedSuccess) {
       // Fallback to transactional client-side steps if RPC isn't executed in DB yet
       const { data: insertedAlloc, error: allocErr } = await supabase
         .from("invoice_payment_allocations")
@@ -737,6 +937,66 @@ export async function allocatePaymentToInvoicesAction(
           updated_at: new Date().toISOString(),
         })
         .eq("id", item.invoiceId);
+
+      // Distribute to client installments fallback
+      const { data: clientInstallments } = await supabase
+        .from("payment_schedules")
+        .select("id, amount, amount_paid, due_date, status, invoice_id")
+        .eq("client_id", payment.client_id)
+        .neq("status", "Cancelled")
+        .order("due_date", { ascending: true });
+
+      let unallocatedRem = allocAmount;
+      if (clientInstallments && clientInstallments.length > 0) {
+        for (const inst of clientInstallments) {
+          if (unallocatedRem <= 0) break;
+          const instAmt = Number(inst.amount) || 0;
+          const instPaid = Number(inst.amount_paid) || 0;
+          const instRem = Math.max(0, instAmt - instPaid);
+
+          if (instRem > 0) {
+            const take = Math.min(unallocatedRem, instRem);
+            const newInstPaid = instPaid + take;
+            let instStat = "Upcoming";
+            if (newInstPaid >= instAmt) {
+              instStat = "Paid in full";
+            } else if (newInstPaid > 0) {
+              instStat = "Partially Paid";
+            } else if (inst.due_date < today) {
+              instStat = "Overdue";
+            } else if (inst.due_date === today) {
+              instStat = "Due";
+            }
+
+            await supabase
+              .from("payment_schedules")
+              .update({
+                amount_paid: newInstPaid,
+                status: instStat,
+                invoice_id: inst.invoice_id || item.invoiceId,
+                paid_date: newInstPaid >= instAmt ? today : null,
+                updated_at: new Date().toISOString(),
+              })
+              .eq("id", inst.id);
+
+            // Record installment allocation entry if table exists
+            try {
+              await supabase
+                .from("installment_payment_allocations")
+                .insert({
+                  installment_id: inst.id,
+                  payment_id: paymentId,
+                  invoice_allocation_id: insertedAlloc.id,
+                  allocated_amount: take,
+                });
+            } catch (err: any) {
+              console.warn("Could not insert installment_payment_allocations record:", err);
+            }
+
+            unallocatedRem -= take;
+          }
+        }
+      }
 
       results.push(insertedAlloc);
     }

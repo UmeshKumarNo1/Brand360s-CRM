@@ -124,7 +124,7 @@ export function RecordPaymentModal({
       const remainingPayment = Math.max(
         0,
         (parseFloat(amountValue) || 0) -
-          allocationLines.reduce((sum, l) => sum + (Number(l.amount) || 0), 0)
+        allocationLines.reduce((sum, l) => sum + (Number(l.amount) || 0), 0)
       );
       const suggestedAmount = Math.min(nextAvailable.balanceDue, remainingPayment);
 
@@ -169,7 +169,7 @@ export function RecordPaymentModal({
               <p className="text-[11px] text-slate-500">Log client collection and allocate to tax invoices</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="text-slate-400 hover:text-slate-700 p-1 rounded-md transition-colors"
           >

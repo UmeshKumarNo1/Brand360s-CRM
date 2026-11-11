@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Edit2, X, Loader2, IndianRupee, Calendar } from "lucide-react";
-import { updateInstallmentAction } from "@/app/actions/payments";
+import { updateInstallmentAction, fetchClientInvoicesForAllocationAction } from "@/app/actions/payments";
 
 interface EditInstallmentModalProps {
   isOpen: boolean;
@@ -12,6 +12,8 @@ interface EditInstallmentModalProps {
     id: string;
     clientId?: string;
     client_id?: string;
+    invoiceId?: string | null;
+    invoice_id?: string | null;
     title: string;
     amount: number;
     amount_paid?: number;
@@ -28,6 +30,17 @@ export function EditInstallmentModal({
   installment,
 }: EditInstallmentModalProps) {
   const [state, formAction, isPending] = useActionState(updateInstallmentAction, null);
+  const [invoices, setInvoices] = useState<any[]>([]);
+
+  const clientId = installment?.clientId || installment?.client_id || "";
+  const dueDate = installment?.dueDate || installment?.due_date || "";
+  const defaultInvoiceId = installment?.invoiceId || installment?.invoice_id || "";
+
+  useEffect(() => {
+    if (clientId && isOpen) {
+      fetchClientInvoicesForAllocationAction(clientId).then((invs) => setInvoices(invs || []));
+    }
+  }, [clientId, isOpen]);
 
   useEffect(() => {
     if (state?.success) {
@@ -37,9 +50,6 @@ export function EditInstallmentModal({
   }, [state, onSuccess, onClose]);
 
   if (!isOpen || !installment) return null;
-
-  const clientId = installment.clientId || installment.client_id || "";
-  const dueDate = installment.dueDate || installment.due_date || "";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
@@ -83,6 +93,24 @@ export function EditInstallmentModal({
               defaultValue={installment.title}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
             />
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Link to Tax Invoice <span className="text-slate-400 font-normal">(Optional)</span>
+            </label>
+            <select
+              name="invoice_id"
+              defaultValue={defaultInvoiceId}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+            >
+              <option value="">No linked invoice (General contract milestone)</option>
+              {invoices.map((inv) => (
+                <option key={inv.id} value={inv.id}>
+                  {inv.invoiceNumber} — Balance ₹{inv.balanceDue} ({inv.status})
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

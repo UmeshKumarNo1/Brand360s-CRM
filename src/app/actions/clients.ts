@@ -32,38 +32,74 @@ export async function createClientAction(
 
   const isAdmin = currentProfile?.role === "admin";
 
-  // Extract Form Data
-  const company_name = formData.get("company_name") as string;
+  // Section 1: Company Details
+  const company_name = (formData.get("company_name") as string)?.trim();
+  const trade_name = (formData.get("trade_name") as string)?.trim() || null;
   const company_type = (formData.get("company_type") as string) || "Private Limited (Pvt Ltd)";
-  const contact_person = formData.get("contact_person") as string;
-  const email = formData.get("email") as string;
-  const phone = formData.get("phone") as string;
-  const alternate_phone = (formData.get("alternate_phone") as string) || null;
-  const website = (formData.get("website") as string) || null;
-  const address = (formData.get("address") as string) || null;
-  const city = (formData.get("city") as string) || null;
-  const state = (formData.get("state") as string) || null;
-  const pincode = (formData.get("pincode") as string) || null;
-  const country = (formData.get("country") as string) || "India";
-  const gst_number = (formData.get("gst_number") as string) || null;
-  const pan_number = (formData.get("pan_number") as string) || null;
-  const services_purchased = (formData.get("services_purchased") as string) || "Company Registration";
-  const notes = (formData.get("notes") as string) || null;
+  const address = (formData.get("address") as string)?.trim() || null;
+  const city = (formData.get("city") as string)?.trim() || null;
+  const state = (formData.get("state") as string)?.trim() || null;
+  const pincode = (formData.get("pincode") as string)?.trim() || null;
+  const country = (formData.get("country") as string)?.trim() || "India";
+
+  // Section 2: Primary Contact
+  const contact_person = (formData.get("contact_person") as string)?.trim();
+  const designation = (formData.get("designation") as string)?.trim() || null;
+  const phone = (formData.get("phone") as string)?.trim();
+  const alternate_phone = (formData.get("alternate_phone") as string)?.trim() || null;
+  const email = (formData.get("email") as string)?.trim() || null;
+
+  // Section 3: Additional Contacts (JSON stringified)
+  let additional_contacts: any[] = [];
+  try {
+    const rawContacts = formData.get("additional_contacts") as string;
+    if (rawContacts) {
+      additional_contacts = JSON.parse(rawContacts);
+    }
+  } catch (err) {
+    console.error("Error parsing additional contacts:", err);
+  }
+
+  // Section 4: Billing Details & GST
+  const billing_name = (formData.get("billing_name") as string)?.trim() || null;
+  const billing_address = (formData.get("billing_address") as string)?.trim() || null;
+  const billing_contact = (formData.get("billing_contact") as string)?.trim() || null;
+  const billing_email = (formData.get("billing_email") as string)?.trim() || null;
+  const is_not_gst_registered = formData.get("is_not_gst_registered") === "true";
+  const raw_gst_number = (formData.get("gst_number") as string)?.trim() || null;
+  const gst_number = is_not_gst_registered ? "Not GST-registered" : raw_gst_number;
+
+  // Section 5: Client Ownership
+  let assigned_salesperson = (formData.get("assigned_salesperson") as string) || user.id;
+  if (!isAdmin && !assigned_salesperson) {
+    assigned_salesperson = user.id;
+  }
+  const client_since = (formData.get("client_since") as string) || new Date().toISOString().split("T")[0];
+
+  // Section 6: Client Status
+  const client_status = (formData.get("client_status") as string) || "Active";
+
+  // Section 7: Notes
+  const notes = (formData.get("notes") as string)?.trim() || null;
+
+  // Optional Commercials (if passed or default)
+  const services_purchased = (formData.get("services_purchased") as string) || "General";
   const contract_value = parseFloat(formData.get("contract_value") as string) || 0;
   const payments_received = parseFloat(formData.get("payments_received") as string) || 0;
   const balance_receivable = Math.max(0, contract_value - payments_received);
 
-  // If Admin, can assign to any employee selected; if Employee, always assign to self
-  let assigned_salesperson = user.id;
-  if (isAdmin) {
-    const selectedSalesperson = formData.get("assigned_salesperson") as string;
-    if (selectedSalesperson) {
-      assigned_salesperson = selectedSalesperson;
-    }
+  // Validation
+  if (!company_name) {
+    return { error: "Company Legal Name is required." };
   }
-
-  if (!company_name || !contact_person || !email || !phone) {
-    return { error: "Please fill in all required fields (Company name, contact person, email, and phone)." };
+  if (!contact_person) {
+    return { error: "Primary Contact Full Name is required." };
+  }
+  if (!phone) {
+    return { error: "Primary Contact Mobile Number is required." };
+  }
+  if (!assigned_salesperson) {
+    return { error: "Salesperson Who Brought In the Client is required." };
   }
 
   // Determine Payment Status
@@ -74,35 +110,105 @@ export async function createClientAction(
     payment_status = "Partially Paid";
   }
 
-  const { data, error } = await supabase
+  // Primary payload with all enhanced fields
+  const primaryPayload: Record<string, any> = {
+    company_name,
+    trade_name,
+    company_type,
+    contact_person,
+    designation,
+    email: email || `${phone.replace(/\D/g, "")}@client.brand360s.in`,
+    phone,
+    alternate_phone,
+    address,
+    city,
+    state,
+    pincode,
+    country,
+    gst_number,
+    is_not_gst_registered,
+    billing_name,
+    billing_address,
+    billing_contact,
+    billing_email,
+    additional_contacts,
+    client_since,
+    client_status,
+    services_purchased,
+    contract_value,
+    payments_received,
+    balance_receivable,
+    next_payment_due_amount: balance_receivable > 0 ? balance_receivable : 0,
+    payment_status,
+    assigned_salesperson,
+    created_by: user.id,
+    notes,
+  };
+
+  let { data, error } = await supabase
     .from("clients")
-    .insert({
-      company_name,
-      company_type,
-      contact_person,
-      email,
-      phone,
-      alternate_phone,
-      website,
-      address,
-      city,
-      state,
-      pincode,
-      country,
-      gst_number,
-      pan_number,
-      services_purchased,
-      contract_value,
-      payments_received,
-      balance_receivable,
-      next_payment_due_amount: balance_receivable > 0 ? balance_receivable : 0,
-      payment_status,
-      assigned_salesperson,
-      created_by: user.id,
-      notes,
-    })
+    .insert(primaryPayload)
     .select("id")
     .single();
+
+  // Resilient fallback if remote database hasn't executed migration 010 yet
+  if (error) {
+    const errorMsg = error.message || "";
+    if (
+      errorMsg.includes("column") ||
+      errorMsg.includes("check constraint") ||
+      errorMsg.includes("violates check constraint")
+    ) {
+      console.warn("Retrying with fallback payload due to DB schema constraints:", errorMsg);
+
+      const metadataSummary = [
+        trade_name ? `Trade Name: ${trade_name}` : null,
+        designation ? `Designation: ${designation}` : null,
+        billing_name ? `Billing Name: ${billing_name}` : null,
+        billing_address ? `Billing Address: ${billing_address}` : null,
+        billing_contact ? `Billing Contact: ${billing_contact}` : null,
+        billing_email ? `Billing Email: ${billing_email}` : null,
+        client_since ? `Client Since: ${client_since}` : null,
+        additional_contacts.length > 0 ? `Additional Contacts: ${JSON.stringify(additional_contacts)}` : null,
+      ].filter(Boolean).join("\n");
+
+      const combinedNotes = [notes, metadataSummary].filter(Boolean).join("\n\n");
+
+      const fallbackPayload: Record<string, any> = {
+        company_name,
+        company_type,
+        contact_person,
+        email: email || `${phone.replace(/\D/g, "")}@client.brand360s.in`,
+        phone,
+        alternate_phone,
+        address,
+        city,
+        state,
+        pincode,
+        country,
+        gst_number: is_not_gst_registered ? "Not GST-registered" : gst_number,
+        services_purchased,
+        contract_value,
+        payments_received,
+        balance_receivable,
+        next_payment_due_amount: balance_receivable > 0 ? balance_receivable : 0,
+        payment_status,
+        client_status: client_status === "Inactive" ? "On Hold" : "Active",
+        assigned_salesperson,
+        created_by: user.id,
+        notes: combinedNotes || null,
+      };
+
+      const fallbackResult = await supabase
+        .from("clients")
+        .insert(fallbackPayload)
+        .select("id")
+        .single();
+
+      data = fallbackResult.data;
+      error = fallbackResult.error;
+    }
+  }
 
   if (error) {
     return { error: error.message };

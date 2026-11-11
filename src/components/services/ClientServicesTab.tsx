@@ -14,15 +14,16 @@ interface ClientServicesTabProps {
   clientId: string;
   clientName: string;
   isAdmin: boolean;
+  initialAddService?: boolean;
 }
 
-export function ClientServicesTab({ clientId, clientName, isAdmin }: ClientServicesTabProps) {
+export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddService }: ClientServicesTabProps) {
   const [services, setServices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Modals
-  const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
+  const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(Boolean(initialAddService));
   const [vendorModalService, setVendorModalService] = useState<any | null>(null);
   const [manageVendorsService, setManageVendorsService] = useState<any | null>(null);
 

@@ -72,3 +72,21 @@ h1 [data-number], h2 [data-number], h3 [data-number], h4 [data-number], h5 [data
   background: #94A3B8;
 }
 
+
+/* Completely hide Next.js in-browser development badge indicator */
+nextjs-portal,
+#nextjs-dev-indicator,
+[data-nextjs-toast],
+[data-nextjs-dialog-overlay],
+div[data-next-badge],
+div[data-nextjs-dev-tools],
+#next-logo,
+#__next-build-watcher,
+[data-nextjs-dev-indicator],
+[data-nextjs-toast-wrapper],
+button[data-nextjs-dev-indicator] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

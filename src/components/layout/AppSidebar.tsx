@@ -4,105 +4,102 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { 
-  Home,
+  LayoutDashboard, 
   Users, 
   CreditCard, 
-  RotateCw, 
-  CalendarCheck, 
-  BarChart2, 
+  RefreshCw, 
+  Calendar, 
+  BarChart3, 
   FileText, 
-  UsersRound, 
-  Trophy, 
-  UserRound, 
-  Settings,
+  Truck, 
+  Award,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  UserCheck,
+  Settings
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 interface AppSidebarProps {
-  isCollapsed: boolean;
-  setIsCollapsed: (val: boolean) => void;
-  userRole?: "admin" | "employee";
+  isCollapsed?: boolean;
+  setIsCollapsed?: (collapsed: boolean) => void | React.Dispatch<React.SetStateAction<boolean>>;
+  userRole?: string;
   userFullName?: string;
   userEmail?: string;
 }
 
 export function AppSidebar({ 
-  isCollapsed, 
-  setIsCollapsed,
-  userRole = "employee",
+  isCollapsed: externalIsCollapsed,
+  setIsCollapsed: externalSetIsCollapsed,
+  userRole = "admin", 
   userFullName = "Uki0070411",
-  userEmail = "user@brand360s.co"
+  userEmail,
 }: AppSidebarProps) {
   const pathname = usePathname();
+  const [internalIsCollapsed, setInternalIsCollapsed] = useState(false);
+  const isCollapsed = externalIsCollapsed !== undefined ? externalIsCollapsed : internalIsCollapsed;
+  const setIsCollapsed = (val: boolean) => {
+    if (externalSetIsCollapsed) {
+      externalSetIsCollapsed(val);
+    } else {
+      setInternalIsCollapsed(val);
+    }
+  };
 
-  // Navigation items matching the CRM layout in the design
+  // CRM Navigation Menu items matching Brand360s mock design
   const navItems = [
-    { label: "Dashboard", href: "/dashboard", icon: Home },
+    { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
     { label: "Clients", href: "/clients", icon: Users },
     { label: "Payments", href: "/payments", icon: CreditCard },
-    { label: "Renewals", href: "/services", icon: RotateCw },
-    { label: "Follow-ups", href: "/follow-ups", icon: CalendarCheck },
-    { label: "Reports", href: "/reports", icon: BarChart2 },
+    { label: "Renewals", href: "/renewals", icon: RefreshCw },
+    { label: "Follow-ups", href: "/follow-ups", icon: Calendar },
+    { label: "Reports", href: "/reports", icon: BarChart3 },
     { label: "Invoices", href: "/invoices", icon: FileText },
-    { label: "Vendors", href: "/vendors", icon: UsersRound },
-    { label: "Sales Incentives", href: "/sales-incentives", icon: Trophy },
+    { label: "Vendors", href: "/vendors", icon: Truck },
+    { label: "Sales Incentives", href: "/sales-incentives", icon: Award },
   ];
 
   // Admin items
   const adminItems = [
-    { label: "Employees", href: "/employees", icon: UserRound },
+    { label: "Employees", href: "/employees", icon: UserCheck },
     { label: "Settings", href: "/settings", icon: Settings },
   ];
-
-  const initials = userFullName 
-    ? userFullName.slice(0, 2).toUpperCase() 
-    : userEmail.slice(0, 2).toUpperCase();
 
   return (
     <aside 
       className={cn(
-        "fixed left-0 top-0 bottom-0 z-30 flex flex-col bg-[#0F1E3D] text-slate-300 border-r border-[#1B2F5B]/80 transition-all duration-300 overflow-hidden",
-        isCollapsed ? "w-[72px]" : "w-[240px]"
+        "relative flex flex-col justify-between transition-all duration-300 select-none shrink-0 shadow-xl overflow-hidden",
+        "bg-[#14244B] border-r border-[#1B2F5B]/80",
+        isCollapsed ? "w-20" : "w-64"
       )}
+      style={{ minHeight: "100vh" }}
     >
       {/* Brand Header */}
-      <div className="h-[76px] flex items-center justify-between px-5 relative z-10">
-        {!isCollapsed ? (
-          <Link href="/dashboard" className="flex items-center">
+      <div className="flex items-center justify-between px-5 h-20 border-b border-[#1E3567]/50 relative z-10">
+        <Link href="/dashboard" className="flex items-center gap-3 overflow-hidden">
+          <div className="relative h-9 w-36 shrink-0 flex items-center">
             <Image
               src="/brand360s-darkmodelogo.svg"
               alt="BRAND 360s"
-              width={145}
-              height={45}
-              className="h-9 w-auto object-contain"
+              width={140}
+              height={36}
               priority
+              className="object-contain object-left h-8 w-auto"
             />
-          </Link>
-        ) : (
-          <Link href="/dashboard" className="mx-auto flex flex-col items-center">
-            <Image
-              src="/brand360s-darkmodelogo.svg"
-              alt="BRAND 360s"
-              width={40}
-              height={30}
-              className="h-6 w-auto object-contain"
-              priority
-            />
-          </Link>
-        )}
+          </div>
+        </Link>
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="text-slate-400 hover:text-white p-1 rounded-md transition-colors"
+          className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-[#1E3567]/60 transition-colors"
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
         </button>
       </div>
 
-      {/* Main Navigation */}
-      <div className="flex-1 overflow-y-auto py-3 px-3 space-y-1 relative z-10">
+      {/* Navigation Links */}
+      <div className="flex-1 py-4 px-3 space-y-1.5 overflow-y-auto relative z-10 font-sans">
         {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
           const Icon = item.icon;
@@ -158,7 +155,7 @@ export function AppSidebar({
       </div>
 
       {/* Decorative Cyan / Teal Curved Waves at bottom of sidebar */}
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-44 overflow-hidden z-0">
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-48 overflow-hidden z-0">
         <svg 
           viewBox="0 0 240 180" 
           className="absolute bottom-0 left-0 w-full h-full"
@@ -166,28 +163,45 @@ export function AppSidebar({
           fill="none" 
           xmlns="http://www.w3.org/2000/svg"
         >
-          {/* Deep Navy wave */}
+          <defs>
+            <linearGradient id="waveGradTeal" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#0481A2" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#02566D" stopOpacity="0.9" />
+            </linearGradient>
+            <linearGradient id="waveGradCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#00BCD4" stopOpacity="0.95" />
+              <stop offset="60%" stopColor="#0481A2" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#02566D" stopOpacity="0.95" />
+            </linearGradient>
+            <linearGradient id="waveGradSoft" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#1B3E75" stopOpacity="0.7" />
+              <stop offset="100%" stopColor="#0E2147" stopOpacity="0.85" />
+            </linearGradient>
+          </defs>
+
+          {/* Layer 1: Deep Navy/Blue smooth underlay wave */}
           <path 
-            d="M0 80 C80 120, 160 50, 240 90 L240 180 L0 180 Z" 
-            fill="#142852" 
-            opacity="0.8" 
+            d="M -10 75 C 65 118, 145 48, 250 88 L 250 190 L -10 190 Z" 
+            fill="url(#waveGradSoft)" 
           />
-          {/* Teal blue wave */}
+
+          {/* Layer 2: Mid-Teal sweeping ocean wave */}
           <path 
-            d="M-20 120 C60 70, 140 160, 240 110 L240 180 L-20 180 Z" 
+            d="M -10 108 C 65 72, 145 148, 250 105 L 250 190 L -10 190 Z" 
             fill="#0481A2" 
-            opacity="0.45" 
+            opacity="0.5" 
           />
-          {/* Bright Cyan accent wave */}
+
+          {/* Layer 3: Vibrant Teal accent wave */}
           <path 
-            d="M-10 145 C50 115, 120 170, 240 135 L240 180 L-10 180 Z" 
-            fill="#0481A2" 
-            opacity="0.85" 
+            d="M -10 132 C 60 105, 135 160, 250 122 L 250 190 L -10 190 Z" 
+            fill="url(#waveGradTeal)" 
           />
+
+          {/* Layer 4: Bright Cyan flowing crest - smoothly spans full width */}
           <path 
-            d="M-20 165 C40 140, 100 175, 200 160 L200 180 L-20 180 Z" 
-            fill="#0696BC" 
-            opacity="0.9" 
+            d="M -10 152 C 50 128, 125 165, 250 142 L 250 190 L -10 190 Z" 
+            fill="url(#waveGradCyan)" 
           />
         </svg>
       </div>

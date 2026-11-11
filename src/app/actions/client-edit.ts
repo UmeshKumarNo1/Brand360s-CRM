@@ -2,9 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { validatePhoneNumber, parseInitialPhone } from "@/lib/validation/phone";
 
 export interface ClientFormState {
   error?: string | null;
+  fieldErrors?: Record<string, string>;
   success?: boolean;
   clientId?: string;
 }
@@ -37,45 +39,108 @@ export async function updateClientAction(
     return { error: "Missing Client ID." };
   }
 
-  // If not admin, check if user is the assigned salesperson or creator
-  if (!isAdmin) {
-    const { data: existingClient } = await supabase
-      .from("clients")
-      .select("assigned_salesperson, created_by")
-      .eq("id", clientId)
-      .single();
+  // Fetch the existing client to guarantee we preserve existing values and verify ownership
+  const { data: existingClient, error: fetchError } = await supabase
+    .from("clients")
+    .select("assigned_salesperson, created_by, contract_value, payments_received")
+    .eq("id", clientId)
+    .single();
 
-    if (!existingClient || (existingClient.assigned_salesperson !== user.id && existingClient.created_by !== user.id)) {
+  if (fetchError || !existingClient) {
+    return { error: "Client not found or could not be loaded." };
+  }
+
+  // Authorization check: Non-admin can only edit if assigned or creator
+  if (!isAdmin) {
+    if (
+      existingClient.assigned_salesperson !== user.id &&
+      existingClient.created_by !== user.id
+    ) {
       return { error: "You are not authorized to edit this client record." };
     }
   }
 
   // Extract Form Data
-  const company_name = formData.get("company_name") as string;
+  const company_name = (formData.get("company_name") as string)?.trim();
   const company_type = (formData.get("company_type") as string) || "Private Limited (Pvt Ltd)";
-  const contact_person = formData.get("contact_person") as string;
-  const email = formData.get("email") as string;
-  const phone = formData.get("phone") as string;
-  const alternate_phone = (formData.get("alternate_phone") as string) || null;
-  const website = (formData.get("website") as string) || null;
-  const address = (formData.get("address") as string) || null;
-  const city = (formData.get("city") as string) || null;
-  const state = (formData.get("state") as string) || null;
-  const pincode = (formData.get("pincode") as string) || null;
-  const country = (formData.get("country") as string) || "India";
-  const gst_number = (formData.get("gst_number") as string) || null;
-  const pan_number = (formData.get("pan_number") as string) || null;
-  const services_purchased = (formData.get("services_purchased") as string) || "Company Registration";
+  const contact_person = (formData.get("contact_person") as string)?.trim();
+  const email = (formData.get("email") as string)?.trim().toLowerCase();
+  const phone = (formData.get("phone") as string)?.trim();
+  const alternate_phone = (formData.get("alternate_phone") as string)?.trim() || null;
+  const website = (formData.get("website") as string)?.trim() || null;
+  const address = (formData.get("address") as string)?.trim() || null;
+  const city = (formData.get("city") as string)?.trim() || null;
+  const state = (formData.get("state") as string)?.trim() || null;
+  const pincode = (formData.get("pincode") as string)?.trim() || null;
+  const country = (formData.get("country") as string)?.trim() || "India";
+  const gst_number = (formData.get("gst_number") as string)?.trim().toUpperCase() || null;
+  const pan_number = (formData.get("pan_number") as string)?.trim().toUpperCase() || null;
+  const services_purchased = (formData.get("services_purchased") as string)?.trim() || "Company Registration";
   const client_status = (formData.get("client_status") as string) || "Active";
-  const notes = (formData.get("notes") as string) || null;
-  const contract_value = parseFloat(formData.get("contract_value") as string) || 0;
-  const payments_received = parseFloat(formData.get("payments_received") as string) || 0;
-  const balance_receivable = Math.max(0, contract_value - payments_received);
+  const notes = (formData.get("notes") as string)?.trim() || null;
+  
+  const rawContractVal = formData.get("contract_value") as string;
+  const rawPaymentsRec = formData.get("payments_received") as string;
+  const contract_value = rawContractVal !== "" && rawContractVal !== null ? parseFloat(rawContractVal) : 0;
+  const payments_received = rawPaymentsRec !== "" && rawPaymentsRec !== null ? parseFloat(rawPaymentsRec) : 0;
+  
   const next_payment_due_date = (formData.get("next_payment_due_date") as string) || null;
 
-  if (!company_name || !contact_person || !email || !phone) {
-    return { error: "Please fill in all required fields (Company name, contact person, email, and phone)." };
+  const fieldErrors: Record<string, string> = {};
+
+  // Validations
+  if (!company_name) {
+    fieldErrors.company_name = "Company name is required.";
   }
+  if (!contact_person) {
+    fieldErrors.contact_person = "Contact person is required.";
+  }
+  if (!email) {
+    fieldErrors.email = "Email address is required.";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    fieldErrors.email = "Please enter a valid email address.";
+  }
+
+  // Validate Phone
+  if (!phone) {
+    fieldErrors.phone = "Primary phone number is required.";
+  } else {
+    const parsed = parseInitialPhone(phone);
+    const phoneCheck = validatePhoneNumber(parsed.nationalNumber, parsed.country, true);
+    if (!phoneCheck.isValid) {
+      fieldErrors.phone = phoneCheck.error || "Invalid phone number.";
+    }
+  }
+
+  // Validate Alternate Phone if provided
+  if (alternate_phone) {
+    const parsedAlt = parseInitialPhone(alternate_phone);
+    const altCheck = validatePhoneNumber(parsedAlt.nationalNumber, parsedAlt.country, false);
+    if (!altCheck.isValid) {
+      fieldErrors.alternate_phone = altCheck.error || "Invalid alternate phone number.";
+    }
+  }
+
+  // Commercial / Numeric Validations
+  if (isNaN(contract_value) || contract_value < 0) {
+    fieldErrors.contract_value = "Contract value cannot be negative.";
+  }
+  if (isNaN(payments_received) || payments_received < 0) {
+    fieldErrors.payments_received = "Payments received cannot be negative.";
+  } else if (contract_value > 0 && payments_received > contract_value) {
+    fieldErrors.payments_received = `Payments received (₹${payments_received.toLocaleString()}) cannot exceed total contract value (₹${contract_value.toLocaleString()}).`;
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    const firstErrorMessage = Object.values(fieldErrors)[0];
+    return {
+      error: firstErrorMessage,
+      fieldErrors,
+      success: false,
+    };
+  }
+
+  const balance_receivable = Math.max(0, contract_value - payments_received);
 
   // Determine Payment Status
   let payment_status: "Paid in full" | "Upcoming" | "Overdue" | "Partially Paid" = "Upcoming";
@@ -115,24 +180,33 @@ export async function updateClientAction(
     updated_at: new Date().toISOString(),
   };
 
-  // Only Admin can reassign assigned_salesperson
+  // Salesperson assignment logic:
+  // Strictly protect assigned_salesperson from being unintentionally overwritten or reset!
   if (isAdmin) {
     const selectedSalesperson = formData.get("assigned_salesperson") as string;
-    if (selectedSalesperson) {
-      updatePayload.assigned_salesperson = selectedSalesperson;
+    // Only update if explicitly provided and not empty
+    if (selectedSalesperson && selectedSalesperson.trim() !== "") {
+      updatePayload.assigned_salesperson = selectedSalesperson.trim();
+    } else {
+      // If untouched or omitted, preserve existing assignment
+      updatePayload.assigned_salesperson = existingClient.assigned_salesperson;
     }
+  } else {
+    // Non-admin can NEVER reassign salesperson; explicitly lock to existing
+    updatePayload.assigned_salesperson = existingClient.assigned_salesperson;
   }
 
-  const { error } = await supabase
+  const { error: updateError } = await supabase
     .from("clients")
     .update(updatePayload)
     .eq("id", clientId);
 
-  if (error) {
-    return { error: error.message };
+  if (updateError) {
+    return { error: updateError.message, success: false };
   }
 
   revalidatePath(`/clients/${clientId}`);
+  revalidatePath(`/clients/${clientId}/edit`);
   revalidatePath("/clients");
   revalidatePath("/dashboard");
 
@@ -146,7 +220,7 @@ export async function fetchClientByIdAction(clientId: string) {
     .from("clients")
     .select(`
       *,
-      assigned_profile:profiles!assigned_salesperson(id, full_name, email)
+      assigned_profile:profiles!assigned_salesperson(id, full_name, email, role, is_active)
     `)
     .eq("id", clientId)
     .single();
@@ -157,4 +231,3 @@ export async function fetchClientByIdAction(clientId: string) {
 
   return data;
 }
-

@@ -27,8 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${nunito.variable} ${merriweather.variable}`}>
-      <body className="antialiased min-h-screen bg-[#F5F8FC] font-sans">
+    <html lang="en" className={`${nunito.variable} ${merriweather.variable}`} suppressHydrationWarning>
+      <body className="antialiased min-h-screen bg-[#F5F8FC] font-sans" suppressHydrationWarning>
         {children}
       </body>
     </html>

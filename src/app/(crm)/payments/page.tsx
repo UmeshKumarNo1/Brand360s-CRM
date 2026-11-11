@@ -36,7 +36,8 @@ export default function PaymentsPage() {
   const [activeTab, setActiveTab] = useState<"transactions" | "installments">("transactions");
   const [payments, setPayments] = useState<any[]>([]);
   const [installments, setInstallments] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isPaymentsLoading, setIsPaymentsLoading] = useState(true);
+  const [isInstallmentsLoading, setIsInstallmentsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Filters
@@ -71,27 +72,40 @@ export default function PaymentsPage() {
 
   const loadData = useCallback(async () => {
     const currentReqId = ++requestIdRef.current;
-    setIsLoading(true);
+    setIsPaymentsLoading(true);
+    setIsInstallmentsLoading(true);
     setErrorMessage(null);
 
-    try {
-      const [payData, instData] = await Promise.all([
-        fetchPaymentsAction(),
-        fetchAllInstallmentsAction(),
-      ]);
-      if (currentReqId === requestIdRef.current) {
-        setPayments(payData || []);
-        setInstallments(instData || []);
-      }
-    } catch (err: any) {
-      if (currentReqId === requestIdRef.current) {
-        setErrorMessage(err.message || "Failed to load payment transactions.");
-      }
-    } finally {
-      if (currentReqId === requestIdRef.current) {
-        setIsLoading(false);
-      }
-    }
+    // Fetch payments and installments with separate error boundaries
+    fetchPaymentsAction()
+      .then((payData) => {
+        if (currentReqId === requestIdRef.current) {
+          setPayments(payData || []);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load payments:", err);
+      })
+      .finally(() => {
+        if (currentReqId === requestIdRef.current) {
+          setIsPaymentsLoading(false);
+        }
+      });
+
+    fetchAllInstallmentsAction()
+      .then((instData) => {
+        if (currentReqId === requestIdRef.current) {
+          setInstallments(instData || []);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to load installments:", err);
+      })
+      .finally(() => {
+        if (currentReqId === requestIdRef.current) {
+          setIsInstallmentsLoading(false);
+        }
+      });
   }, []);
 
   useEffect(() => {
@@ -211,7 +225,7 @@ export default function PaymentsPage() {
             className="p-2 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-600 rounded-lg shadow-2xs transition-colors cursor-pointer"
             title="Refresh payments"
           >
-            <RefreshCw size={15} className={isLoading ? "animate-spin text-[#0481A2]" : ""} />
+            <RefreshCw size={15} className={(isPaymentsLoading || isInstallmentsLoading) ? "animate-spin text-[#0481A2]" : ""} />
           </button>
 
           <button
@@ -412,7 +426,7 @@ export default function PaymentsPage() {
       {/* TAB CONTENT: TRANSACTIONS */}
       {!errorMessage && activeTab === "transactions" && (
         <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-xs overflow-hidden">
-          {isLoading ? (
+          {isPaymentsLoading ? (
             <div className="py-12 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
               <RefreshCw size={14} className="animate-spin text-[#0481A2]" />
               <span>Loading payment receipts...</span>
@@ -536,7 +550,7 @@ export default function PaymentsPage() {
       {/* TAB CONTENT: INSTALLMENTS */}
       {!errorMessage && activeTab === "installments" && (
         <div className="bg-white border border-[#E2E8F0] rounded-xl shadow-xs overflow-hidden">
-          {isLoading ? (
+          {isInstallmentsLoading ? (
             <div className="py-12 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
               <RefreshCw size={14} className="animate-spin text-[#0481A2]" />
               <span>Loading installments...</span>

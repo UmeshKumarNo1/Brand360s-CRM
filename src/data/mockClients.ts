@@ -10,6 +10,7 @@ export interface ClientRecord {
   nextPaymentDueAmount: number;
   nextPaymentDueDate: string;
   paymentStatus: 'Paid in full' | 'Overdue' | 'Upcoming' | 'Partially Paid';
+  clientStatus?: 'Active' | 'Pending Onboarding' | 'On Hold' | 'Archived';
 }
 
 export const MOCK_CLIENTS: ClientRecord[] = [

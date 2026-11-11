@@ -297,3 +297,77 @@ export async function fetchEmployeeDetailsAction(employeeId: string) {
     },
   };
 }
+
+/**
+ * Deletes or deactivates an employee (Admin only)
+ * If employee has assigned clients, prevents deletion and requires reassignment or deactivation.
+ */
+export async function deleteEmployeeAction(employeeId: string): Promise<EmployeeActionState> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Authentication required." };
+
+  const { data: currentProfile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (currentProfile?.role !== "admin") {
+    return { error: "Admin authorization required to delete employees." };
+  }
+
+  if (employeeId === user.id) {
+    return { error: "You cannot delete your own admin account." };
+  }
+
+  // Check if employee has assigned clients
+  const { count: assignedCount } = await supabase
+    .from("clients")
+    .select("id", { count: "exact", head: true })
+    .eq("assigned_salesperson", employeeId);
+
+  if (assignedCount && assignedCount > 0) {
+    return {
+      error: `Cannot delete employee: they are assigned to ${assignedCount} client(s). Please reassign those clients or deactivate the employee account instead.`,
+    };
+  }
+
+  // Check if employee has assigned follow-ups
+  const { count: followupsCount } = await supabase
+    .from("follow_ups")
+    .select("id", { count: "exact", head: true })
+    .eq("assigned_to", employeeId);
+
+  if (followupsCount && followupsCount > 0) {
+    return {
+      error: `Cannot delete employee: they have ${followupsCount} pending follow-up(s). Please reassign them or deactivate the employee account instead.`,
+    };
+  }
+
+  const adminAuth = getAdminAuthClient();
+  const dbClient = adminAuth || supabase;
+
+  // Delete from profiles
+  const { error: profileDeleteError } = await dbClient
+    .from("profiles")
+    .delete()
+    .eq("id", employeeId);
+
+  if (profileDeleteError) {
+    return { error: profileDeleteError.message };
+  }
+
+  // If service role available, delete from auth.users as well
+  if (adminAuth) {
+    try {
+      await adminAuth.auth.admin.deleteUser(employeeId);
+    } catch (e) {
+      console.error("Failed to delete auth user:", e);
+    }
+  }
+
+  revalidatePath("/employees");
+  return { success: true };
+}

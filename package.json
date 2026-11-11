@@ -16,6 +16,7 @@
     "clsx": "^2.1.1",
     "html2pdf.js": "^0.14.0",
     "jspdf": "^4.2.1",
+    "libphonenumber-js": "^1.13.16",
     "lucide-react": "^1.71.0",
     "next": "^15.2.1",
     "postcss": "^8.5.32",

@@ -25,6 +25,8 @@ import { formatINR } from "@/lib/utils";
 import { RecordPaymentModal } from "@/components/payments/RecordPaymentModal";
 import { CreateInstallmentModal } from "@/components/payments/CreateInstallmentModal";
 import { EditInstallmentModal } from "@/components/payments/EditInstallmentModal";
+import { AllocatePaymentModal } from "@/components/payments/AllocatePaymentModal";
+import { InvoicePreviewModal } from "@/components/invoices/InvoicePreviewModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 
@@ -43,6 +45,8 @@ export default function PaymentsPage() {
   const [isRecordPaymentModalOpen, setIsRecordPaymentModalOpen] = useState(false);
   const [isCreateInstallmentModalOpen, setIsCreateInstallmentModalOpen] = useState(false);
   const [editingInstallment, setEditingInstallment] = useState<any | null>(null);
+  const [allocatingPayment, setAllocatingPayment] = useState<any | null>(null);
+  const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
 
   // Quick pay from installment
   const [payForInstallment, setPayForInstallment] = useState<{
@@ -320,15 +324,20 @@ export default function PaymentsPage() {
                   <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 font-semibold">
                     <th className="py-2.5 px-4">Client</th>
                     <th className="py-2.5 px-4 text-right">Amount</th>
+                    <th className="py-2.5 px-4 text-center">Allocation</th>
+                    <th className="py-2.5 px-4">Linked Invoices</th>
                     <th className="py-2.5 px-4">Date</th>
                     <th className="py-2.5 px-4">Method</th>
                     <th className="py-2.5 px-4">Reference / UTR</th>
                     <th className="py-2.5 px-4">Recorded By</th>
                     <th className="py-2.5 px-4">Status</th>
+                    <th className="py-2.5 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredPayments.map((p) => (
+                  {filteredPayments.map((p) => {
+                    const linkedAllocations = p.allocations || [];
+                    return (
                     <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="py-3 px-4">
                         <Link
@@ -342,6 +351,50 @@ export default function PaymentsPage() {
                       </td>
                       <td className="py-3 px-4 text-right font-bold text-slate-900">
                         {formatINR(p.amount)}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                            p.allocationStatus === "Fully Allocated"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : p.allocationStatus === "Partially Allocated"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-slate-50 text-slate-600 border-slate-200"
+                          }`}
+                        >
+                          {p.allocationStatus || "Unallocated"}
+                        </span>
+                        {p.totalAllocated > 0 && p.totalAllocated < p.amount && (
+                          <span className="block text-[10px] text-slate-400 font-mono mt-0.5">
+                            {formatINR(p.totalAllocated)} / {formatINR(p.amount)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        {linkedAllocations.length === 0 ? (
+                          <span className="text-slate-400 text-[11px] italic">None</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {linkedAllocations.map((alloc: any) => {
+                              const invNumber =
+                                alloc.invoice?.invoice_number ||
+                                alloc.invoice_number ||
+                                "Invoice";
+                              const invId = alloc.invoice?.id || alloc.invoice_id;
+                              return (
+                                <button
+                                  key={alloc.id}
+                                  onClick={() => setPreviewInvoiceId(invId)}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#243E76]/10 text-[#243E76] hover:bg-[#243E76]/20 font-mono text-[10px] font-semibold border border-[#243E76]/20 transition-colors cursor-pointer"
+                                  title={`Allocated: ${formatINR(Number(alloc.allocated_amount) || 0)} - Click to view invoice`}
+                                >
+                                  <span>{invNumber}</span>
+                                  <span className="text-slate-500 font-normal">({formatINR(Number(alloc.allocated_amount) || 0)})</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </td>
                       <td className="py-3 px-4 text-slate-600 font-medium">{p.paymentDate}</td>
                       <td className="py-3 px-4 text-slate-700">{p.paymentMethod}</td>
@@ -359,8 +412,18 @@ export default function PaymentsPage() {
                           {p.status}
                         </span>
                       </td>
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          onClick={() => setAllocatingPayment(p)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-md border border-[#077EA1]/30 text-[#077EA1] hover:bg-[#077EA1]/10 transition-colors cursor-pointer"
+                          title="Allocate payment to client invoices"
+                        >
+                          <span>Allocate</span>
+                        </button>
+                      </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -534,6 +597,19 @@ export default function PaymentsPage() {
         installment={editingInstallment}
         onClose={() => setEditingInstallment(null)}
         onSuccess={() => loadData()}
+      />
+
+      <AllocatePaymentModal
+        isOpen={!!allocatingPayment}
+        payment={allocatingPayment}
+        onClose={() => setAllocatingPayment(null)}
+        onSuccess={() => loadData()}
+      />
+
+      <InvoicePreviewModal
+        isOpen={!!previewInvoiceId}
+        invoiceId={previewInvoiceId || undefined}
+        onClose={() => setPreviewInvoiceId(null)}
       />
     </div>
   );

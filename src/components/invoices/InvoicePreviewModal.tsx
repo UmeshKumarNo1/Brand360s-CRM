@@ -498,6 +498,65 @@ export function InvoicePreviewModal({
               </div>
             </div>
 
+            {/* Payment Receipts & Allocation History */}
+            {invoice.allocations && invoice.allocations.length > 0 && (
+              <div className="pt-4 border-t border-slate-200">
+                <div className="flex items-center justify-between mb-2">
+                  <h5 className="font-bold text-[#243E76] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
+                    <CheckCircle2 size={13} className="text-emerald-600" />
+                    <span>Payment Receipts & Allocation History</span>
+                  </h5>
+                  <span className="text-[10px] text-slate-500 font-medium">
+                    Total Credited: <strong className="text-emerald-700">{formatINR(amountPaid)}</strong>
+                  </span>
+                </div>
+                <div className="overflow-x-auto rounded border border-slate-200">
+                  <table className="w-full text-left text-[11px] border-collapse bg-slate-50/50">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+                        <th className="py-1.5 px-2.5">Date</th>
+                        <th className="py-1.5 px-2.5">Method</th>
+                        <th className="py-1.5 px-2.5">Reference / UTR</th>
+                        <th className="py-1.5 px-2.5 text-center">Status</th>
+                        <th className="py-1.5 px-2.5 text-right font-bold">Allocated Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200">
+                      {invoice.allocations.map((alloc: any, idx: number) => {
+                        const pay = alloc.payment || {};
+                        const allocAmt = Number(alloc.allocated_amount) || 0;
+                        return (
+                          <tr key={alloc.id || idx} className="hover:bg-slate-50 transition-colors">
+                            <td className="py-1.5 px-2.5 font-medium text-slate-800">
+                              {pay.payment_date || alloc.created_at?.split("T")[0] || "-"}
+                            </td>
+                            <td className="py-1.5 px-2.5 text-slate-600">{pay.payment_method || "Bank Transfer"}</td>
+                            <td className="py-1.5 px-2.5 font-mono text-[10px] text-slate-500">
+                              {pay.transaction_ref || "-"}
+                            </td>
+                            <td className="py-1.5 px-2.5 text-center">
+                              <span
+                                className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold border ${
+                                  pay.status === "Verified"
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                    : "bg-amber-50 text-amber-700 border-amber-200"
+                                }`}
+                              >
+                                {pay.status || "Verified"}
+                              </span>
+                            </td>
+                            <td className="py-1.5 px-2.5 text-right font-bold text-emerald-700 font-mono">
+                              +{formatINR(allocAmt)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Terms and Signature */}
             <div className="pt-6 border-t border-slate-200 grid grid-cols-2 gap-6 text-[10px] text-slate-500">
               <div>

@@ -26,6 +26,7 @@ import { RecordPaymentModal } from "@/components/payments/RecordPaymentModal";
 import { CreateInstallmentModal } from "@/components/payments/CreateInstallmentModal";
 import { EditInstallmentModal } from "@/components/payments/EditInstallmentModal";
 import { AllocatePaymentModal } from "@/components/payments/AllocatePaymentModal";
+import { InvoicePreviewModal } from "@/components/invoices/InvoicePreviewModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 
@@ -45,6 +46,7 @@ export default function PaymentsPage() {
   const [isCreateInstallmentModalOpen, setIsCreateInstallmentModalOpen] = useState(false);
   const [editingInstallment, setEditingInstallment] = useState<any | null>(null);
   const [allocatingPayment, setAllocatingPayment] = useState<any | null>(null);
+  const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
 
   // Quick pay from installment
   const [payForInstallment, setPayForInstallment] = useState<{
@@ -323,6 +325,7 @@ export default function PaymentsPage() {
                     <th className="py-2.5 px-4">Client</th>
                     <th className="py-2.5 px-4 text-right">Amount</th>
                     <th className="py-2.5 px-4 text-center">Allocation</th>
+                    <th className="py-2.5 px-4">Linked Invoices</th>
                     <th className="py-2.5 px-4">Date</th>
                     <th className="py-2.5 px-4">Method</th>
                     <th className="py-2.5 px-4">Reference / UTR</th>
@@ -332,7 +335,9 @@ export default function PaymentsPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredPayments.map((p) => (
+                  {filteredPayments.map((p) => {
+                    const linkedAllocations = p.allocations || [];
+                    return (
                     <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
                       <td className="py-3 px-4">
                         <Link
@@ -365,6 +370,32 @@ export default function PaymentsPage() {
                           </span>
                         )}
                       </td>
+                      <td className="py-3 px-4">
+                        {linkedAllocations.length === 0 ? (
+                          <span className="text-slate-400 text-[11px] italic">None</span>
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {linkedAllocations.map((alloc: any) => {
+                              const invNumber =
+                                alloc.invoice?.invoice_number ||
+                                alloc.invoice_number ||
+                                "Invoice";
+                              const invId = alloc.invoice?.id || alloc.invoice_id;
+                              return (
+                                <button
+                                  key={alloc.id}
+                                  onClick={() => setPreviewInvoiceId(invId)}
+                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-[#243E76]/10 text-[#243E76] hover:bg-[#243E76]/20 font-mono text-[10px] font-semibold border border-[#243E76]/20 transition-colors cursor-pointer"
+                                  title={`Allocated: ${formatINR(Number(alloc.allocated_amount) || 0)} - Click to view invoice`}
+                                >
+                                  <span>{invNumber}</span>
+                                  <span className="text-slate-500 font-normal">({formatINR(Number(alloc.allocated_amount) || 0)})</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </td>
                       <td className="py-3 px-4 text-slate-600 font-medium">{p.paymentDate}</td>
                       <td className="py-3 px-4 text-slate-700">{p.paymentMethod}</td>
                       <td className="py-3 px-4 font-mono text-[11px] text-slate-500">{p.transactionRef}</td>
@@ -391,7 +422,8 @@ export default function PaymentsPage() {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -572,6 +604,12 @@ export default function PaymentsPage() {
         payment={allocatingPayment}
         onClose={() => setAllocatingPayment(null)}
         onSuccess={() => loadData()}
+      />
+
+      <InvoicePreviewModal
+        isOpen={!!previewInvoiceId}
+        invoiceId={previewInvoiceId || undefined}
+        onClose={() => setPreviewInvoiceId(null)}
       />
     </div>
   );

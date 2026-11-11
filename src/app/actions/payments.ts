@@ -197,7 +197,7 @@ export async function recordPaymentAction(
   }
 
   // 1. Insert payment record into public.payments
-  const { error: paymentError } = await supabase
+  const { data: newPayment, error: paymentError } = await supabase
     .from("payments")
     .insert({
       client_id: clientId,
@@ -209,10 +209,26 @@ export async function recordPaymentAction(
       recorded_by: user.id,
       verified_by: status === "Verified" ? user.id : null,
       notes,
-    });
+    })
+    .select("id")
+    .single();
 
-  if (paymentError) {
-    return { error: paymentError.message };
+  if (paymentError || !newPayment) {
+    return { error: paymentError?.message || "Failed to record payment transaction." };
+  }
+
+  // 1b. Check if invoice allocations were passed with this payment
+  const allocationsJson = formData.get("invoice_allocations") as string;
+  if (allocationsJson && status === "Verified") {
+    try {
+      const parsedAllocations: { invoiceId: string; amount: number }[] = JSON.parse(allocationsJson);
+      if (Array.isArray(parsedAllocations) && parsedAllocations.length > 0) {
+        // Run allocation action for this new payment
+        await allocatePaymentToInvoicesAction(newPayment.id, parsedAllocations);
+      }
+    } catch (allocErr: any) {
+      console.error("Error processing initial invoice allocations:", allocErr);
+    }
   }
 
   // 2. If an installment milestone was explicitly selected and the payment is verified, update the installment

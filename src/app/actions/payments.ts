@@ -8,6 +8,17 @@ export interface PaymentActionState {
   success?: boolean;
 }
 
+export interface PaymentAllocationItem {
+  invoiceId: string;
+  amount: number;
+}
+
+export interface PaymentAllocationResponse {
+  success: boolean;
+  error?: string | null;
+  allocations?: any[];
+}
+
 export async function fetchPaymentsAction() {
   const supabase = await createClient();
 
@@ -15,6 +26,7 @@ export async function fetchPaymentsAction() {
     .from("payments")
     .select(`
       id,
+      client_id,
       amount,
       payment_date,
       payment_method,
@@ -27,11 +39,27 @@ export async function fetchPaymentsAction() {
         company_name,
         client_code,
         contract_value,
-        balance_receivable
+        balance_receivable,
+        assigned_salesperson,
+        created_by
       ),
       recorder:profiles!recorded_by (
         full_name,
         email
+      ),
+      allocations:invoice_payment_allocations (
+        id,
+        invoice_id,
+        allocated_amount,
+        created_at,
+        invoice:invoices!invoice_id (
+          id,
+          invoice_number,
+          total_amount,
+          amount_paid,
+          balance_due,
+          status
+        )
       )
     `)
     .order("payment_date", { ascending: false });
@@ -41,19 +69,40 @@ export async function fetchPaymentsAction() {
     return [];
   }
 
-  return (payments || []).map((p: any) => ({
-    id: p.id,
-    clientId: p.client?.id,
-    companyName: p.client?.company_name || "Unknown Company",
-    clientCode: p.client?.client_code || "B360-1000",
-    amount: Number(p.amount) || 0,
-    paymentDate: p.payment_date,
-    paymentMethod: p.payment_method,
-    transactionRef: p.transaction_ref || "-",
-    status: p.status,
-    recordedBy: p.recorder?.full_name || "System",
-    notes: p.notes,
-  }));
+  return (payments || []).map((p: any) => {
+    const totalAmount = Number(p.amount) || 0;
+    const allocations = p.allocations || [];
+    const totalAllocated = allocations.reduce(
+      (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+      0
+    );
+    const availableAmount = Math.max(0, totalAmount - totalAllocated);
+
+    let allocationStatus: "Unallocated" | "Partially Allocated" | "Fully Allocated" = "Unallocated";
+    if (totalAllocated >= totalAmount && totalAmount > 0) {
+      allocationStatus = "Fully Allocated";
+    } else if (totalAllocated > 0) {
+      allocationStatus = "Partially Allocated";
+    }
+
+    return {
+      id: p.id,
+      clientId: p.client?.id || p.client_id,
+      companyName: p.client?.company_name || "Unknown Company",
+      clientCode: p.client?.client_code || "B360-1000",
+      amount: totalAmount,
+      totalAllocated,
+      availableAmount,
+      allocationStatus,
+      paymentDate: p.payment_date,
+      paymentMethod: p.payment_method,
+      transactionRef: p.transaction_ref || "-",
+      status: p.status,
+      recordedBy: p.recorder?.full_name || "System",
+      notes: p.notes,
+      allocations,
+    };
+  });
 }
 
 export async function fetchAllInstallmentsAction() {
@@ -346,7 +395,7 @@ export async function deleteInstallmentAction(installmentId: string, clientId: s
 export async function fetchClientFinancialsAction(clientId: string) {
   const supabase = await createClient();
 
-  // Fetch payments
+  // Fetch payments with allocations
   const { data: payments } = await supabase
     .from("payments")
     .select(`
@@ -357,10 +406,49 @@ export async function fetchClientFinancialsAction(clientId: string) {
       transaction_ref,
       status,
       notes,
-      recorder:profiles!recorded_by (full_name)
+      recorder:profiles!recorded_by (full_name),
+      allocations:invoice_payment_allocations (
+        id,
+        invoice_id,
+        allocated_amount,
+        created_at,
+        invoice:invoices!invoice_id (
+          id,
+          invoice_number,
+          total_amount,
+          amount_paid,
+          balance_due,
+          status
+        )
+      )
     `)
     .eq("client_id", clientId)
     .order("payment_date", { ascending: false });
+
+  const enrichedPayments = (payments || []).map((p: any) => {
+    const totalAmount = Number(p.amount) || 0;
+    const allocations = p.allocations || [];
+    const totalAllocated = allocations.reduce(
+      (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+      0
+    );
+    const availableAmount = Math.max(0, totalAmount - totalAllocated);
+
+    let allocationStatus: "Unallocated" | "Partially Allocated" | "Fully Allocated" = "Unallocated";
+    if (totalAllocated >= totalAmount && totalAmount > 0) {
+      allocationStatus = "Fully Allocated";
+    } else if (totalAllocated > 0) {
+      allocationStatus = "Partially Allocated";
+    }
+
+    return {
+      ...p,
+      amount: totalAmount,
+      totalAllocated,
+      availableAmount,
+      allocationStatus,
+    };
+  });
 
   // Fetch installment schedules
   const { data: schedules } = await supabase
@@ -398,7 +486,254 @@ export async function fetchClientFinancialsAction(clientId: string) {
   });
 
   return {
-    payments: payments || [],
+    payments: enrichedPayments || [],
     schedules: enrichedSchedules,
+  };
+}
+
+/**
+ * Fetch open / eligible invoices for a client for payment allocation
+ */
+export async function fetchClientInvoicesForAllocationAction(clientId: string) {
+  const supabase = await createClient();
+
+  const { data: invoices, error } = await supabase
+    .from("invoices")
+    .select(`
+      id,
+      invoice_number,
+      client_id,
+      issue_date,
+      due_date,
+      total_amount,
+      amount_paid,
+      balance_due,
+      status
+    `)
+    .eq("client_id", clientId)
+    .neq("status", "Cancelled")
+    .order("issue_date", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching client invoices for allocation:", error);
+    return [];
+  }
+
+  const today = new Date().toISOString().split("T")[0];
+
+  return (invoices || []).map((inv: any) => {
+    const total = Number(inv.total_amount) || 0;
+    const paid = Number(inv.amount_paid) || 0;
+    const balance = Math.max(0, total - paid);
+
+    let computedStatus = inv.status;
+    if (balance <= 0 && total > 0) {
+      computedStatus = "Paid";
+    } else if (paid > 0) {
+      computedStatus = inv.due_date < today ? "Overdue" : "Partially Paid";
+    } else if (inv.due_date < today) {
+      computedStatus = "Overdue";
+    }
+
+    return {
+      id: inv.id,
+      invoiceNumber: inv.invoice_number,
+      issueDate: inv.issue_date,
+      dueDate: inv.due_date,
+      totalAmount: total,
+      amountPaid: paid,
+      balanceDue: balance,
+      status: computedStatus,
+    };
+  });
+}
+
+/**
+ * Allocate payment amounts to one or multiple invoices atomically
+ */
+export async function allocatePaymentToInvoicesAction(
+  paymentId: string,
+  allocations: { invoiceId: string; amount: number }[]
+): Promise<PaymentAllocationResponse> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Authentication required to allocate payments." };
+
+  if (!paymentId) return { success: false, error: "Payment ID is required." };
+  if (!allocations || !Array.isArray(allocations) || allocations.length === 0) {
+    return { success: false, error: "Please specify at least one invoice allocation." };
+  }
+
+  // 1. Verify user role & permissions
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  const isAdmin = profile?.role === "admin";
+
+  // 2. Fetch payment record with client details & existing allocations
+  const { data: payment, error: paymentError } = await supabase
+    .from("payments")
+    .select(`
+      id,
+      client_id,
+      amount,
+      status,
+      client:clients!client_id (
+        id,
+        assigned_salesperson,
+        created_by
+      ),
+      existing_allocations:invoice_payment_allocations (
+        allocated_amount
+      )
+    `)
+    .eq("id", paymentId)
+    .single();
+
+  if (paymentError || !payment) {
+    return { success: false, error: "Payment record not found." };
+  }
+
+  const client = Array.isArray(payment.client) ? payment.client[0] : payment.client;
+  const isAuthorized = isAdmin || client?.assigned_salesperson === user.id || client?.created_by === user.id;
+
+  if (!isAuthorized) {
+    return {
+      success: false,
+      error: "You are not authorized to allocate payments for this client.",
+    };
+  }
+
+  // 3. Compute available unallocated amount
+  const paymentTotal = Number(payment.amount) || 0;
+  const currentAllocated = (payment.existing_allocations || []).reduce(
+    (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+    0
+  );
+  const paymentAvailable = Math.max(0, paymentTotal - currentAllocated);
+
+  const totalNewAllocation = allocations.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+
+  if (totalNewAllocation <= 0) {
+    return { success: false, error: "Total allocation amount must be greater than zero." };
+  }
+
+  if (totalNewAllocation > paymentAvailable + 0.001) {
+    return {
+      success: false,
+      error: `Total allocations (₹${totalNewAllocation.toLocaleString("en-IN")}) exceed available payment balance (₹${paymentAvailable.toLocaleString("en-IN")}).`,
+    };
+  }
+
+  // 4. Validate each allocation against invoice balance
+  const results = [];
+  const today = new Date().toISOString().split("T")[0];
+
+  for (const item of allocations) {
+    const allocAmount = Number(item.amount) || 0;
+    if (allocAmount <= 0) continue;
+
+    // Fetch invoice
+    const { data: inv, error: invError } = await supabase
+      .from("invoices")
+      .select("id, client_id, total_amount, amount_paid, balance_due, status, due_date")
+      .eq("id", item.invoiceId)
+      .single();
+
+    if (invError || !inv) {
+      return { success: false, error: `Invoice ${item.invoiceId} could not be found.` };
+    }
+
+    if (inv.client_id !== payment.client_id) {
+      return { success: false, error: "Invoice and payment belong to different clients." };
+    }
+
+    if (inv.status === "Cancelled") {
+      return { success: false, error: "Cannot allocate payment to a cancelled invoice." };
+    }
+
+    if (allocAmount > (Number(inv.balance_due) + 0.001)) {
+      return {
+        success: false,
+        error: `Allocation amount ₹${allocAmount} exceeds invoice balance ₹${inv.balance_due}.`,
+      };
+    }
+
+    // Try RPC first for atomicity if present in database
+    const { data: rpcData, error: rpcError } = await supabase.rpc("allocate_payment_to_invoice", {
+      p_payment_id: paymentId,
+      p_invoice_id: item.invoiceId,
+      p_amount: allocAmount,
+    });
+
+    if (!rpcError && rpcData && rpcData.success) {
+      results.push(rpcData);
+    } else {
+      // Fallback to transactional client-side steps if RPC isn't executed in DB yet
+      const { data: insertedAlloc, error: allocErr } = await supabase
+        .from("invoice_payment_allocations")
+        .insert({
+          payment_id: paymentId,
+          invoice_id: item.invoiceId,
+          allocated_amount: allocAmount,
+        })
+        .select()
+        .single();
+
+      if (allocErr) {
+        return { success: false, error: allocErr.message || "Failed to create payment allocation." };
+      }
+
+      // Re-aggregate invoice paid amount
+      const { data: allInvoicesAllocations } = await supabase
+        .from("invoice_payment_allocations")
+        .select("allocated_amount")
+        .eq("invoice_id", item.invoiceId);
+
+      const newPaid = (allInvoicesAllocations || []).reduce(
+        (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+        0
+      );
+      const totalInvAmount = Number(inv.total_amount) || 0;
+      const newBalance = Math.max(0, totalInvAmount - newPaid);
+
+      let newStatus = inv.status;
+      if (newBalance <= 0) {
+        newStatus = "Paid";
+      } else if (newPaid > 0) {
+        newStatus = inv.due_date < today ? "Overdue" : "Partially Paid";
+      } else if (inv.due_date < today) {
+        newStatus = "Overdue";
+      } else {
+        newStatus = "Issued";
+      }
+
+      await supabase
+        .from("invoices")
+        .update({
+          amount_paid: newPaid,
+          balance_due: newBalance,
+          status: newStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", item.invoiceId);
+
+      results.push(insertedAlloc);
+    }
+  }
+
+  // 5. Revalidate affected paths
+  revalidatePath("/payments");
+  revalidatePath("/invoices");
+  revalidatePath(`/clients/${payment.client_id}`);
+  revalidatePath("/dashboard");
+
+  return {
+    success: true,
+    allocations: results,
   };
 }

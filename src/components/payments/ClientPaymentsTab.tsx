@@ -8,6 +8,7 @@ import { formatINR } from "@/lib/utils";
 import { RecordPaymentModal } from "./RecordPaymentModal";
 import { CreateInstallmentModal } from "./CreateInstallmentModal";
 import { EditInstallmentModal } from "./EditInstallmentModal";
+import { AllocatePaymentModal } from "./AllocatePaymentModal";
 import { CreateInvoiceModal } from "@/components/invoices/CreateInvoiceModal";
 import { InvoicePreviewModal } from "@/components/invoices/InvoicePreviewModal";
 import { useToast } from "@/components/common/ToastProvider";
@@ -40,6 +41,7 @@ export function ClientPaymentsTab({
   const [editingInstallment, setEditingInstallment] = useState<any | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null);
+  const [allocatingPayment, setAllocatingPayment] = useState<any | null>(null);
 
   const [selectedForPayment, setSelectedForPayment] = useState<{
     id: string;
@@ -324,9 +326,27 @@ export function ClientPaymentsTab({
                       {p.notes && <p className="text-[11px] text-slate-500 mt-0.5 italic">{p.notes}</p>}
                     </div>
 
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">
-                      <CheckCircle2 size={11} /> {p.status}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">
+                        <CheckCircle2 size={11} /> {p.status}
+                      </span>
+                      <button
+                        onClick={() =>
+                          setAllocatingPayment({
+                            id: p.id,
+                            clientId,
+                            companyName: clientName,
+                            amount: Number(p.amount) || 0,
+                            totalAllocated: p.totalAllocated,
+                            availableAmount: p.availableAmount,
+                          })
+                        }
+                        className="px-2 py-0.5 text-[11px] font-semibold text-[#077EA1] hover:bg-sky-50 rounded border border-[#077EA1]/30 transition-colors cursor-pointer"
+                        title="Allocate payment to invoice"
+                      >
+                        Allocate
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -454,6 +474,13 @@ export function ClientPaymentsTab({
         isOpen={!!editingInstallment}
         installment={editingInstallment}
         onClose={() => setEditingInstallment(null)}
+        onSuccess={() => loadData()}
+      />
+
+      <AllocatePaymentModal
+        isOpen={!!allocatingPayment}
+        payment={allocatingPayment}
+        onClose={() => setAllocatingPayment(null)}
         onSuccess={() => loadData()}
       />
     </div>

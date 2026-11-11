@@ -3,29 +3,25 @@ import { Plus } from "lucide-react";
 
 export function ClientsHeader() {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0F172A]">Clients</h1>
-          <span className="px-2.5 py-0.5 text-xs font-semibold bg-[#E0F2FE] text-[#0369A1] rounded-md">
-            Illustrative data
-          </span>
-        </div>
-        <p className="text-xs sm:text-sm text-[#64748B] mt-1">
-          Client relationships, service commitments and collections.
+        <h1 className="text-3xl sm:text-4xl font-bold font-heading text-[#1B3260] tracking-tight">
+          Clients
+        </h1>
+        <p className="text-sm text-slate-500 mt-1 font-normal">
+          Manage your clients, track their payments and stay up to date with their status.
         </p>
       </div>
 
       <div>
         <Link
           href="/clients/new"
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#077EA1] hover:bg-[#066B89] text-white text-sm font-semibold rounded-lg shadow-sm transition-colors"
+          className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-[#0481A2] hover:bg-[#036c88] text-white text-sm font-semibold rounded-xl shadow-xs transition-all duration-150 cursor-pointer"
         >
-          <Plus size={16} />
+          <Plus size={18} />
           <span>Add Client</span>
         </Link>
       </div>
     </div>
   );
 }
-

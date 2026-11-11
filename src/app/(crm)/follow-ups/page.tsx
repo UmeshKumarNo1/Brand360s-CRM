@@ -123,12 +123,12 @@ export default function FollowupsPage() {
             className="p-2 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-600 rounded-lg shadow-2xs transition-colors cursor-pointer"
             title="Refresh follow-ups"
           >
-            <RefreshCw size={15} className={isLoading ? "animate-spin text-[#077EA1]" : ""} />
+            <RefreshCw size={15} className={isLoading ? "animate-spin text-[#0481A2]" : ""} />
           </button>
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#077EA1] hover:bg-[#066B89] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
           >
             <Plus size={16} />
             <span>Create Follow-up</span>
@@ -144,7 +144,7 @@ export default function FollowupsPage() {
         </div>
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Due Today</span>
-          <p className="text-2xl font-bold text-[#077EA1] mt-1">{todayCount}</p>
+          <p className="text-2xl font-bold text-[#0481A2] mt-1">{todayCount}</p>
         </div>
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Overdue Reminders</span>
@@ -165,14 +165,14 @@ export default function FollowupsPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search follow-ups by title, company, or note..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#077EA1] text-slate-800 placeholder:text-slate-400 shadow-xs"
+            className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2] text-slate-800 placeholder:text-slate-400 shadow-xs"
           />
         </div>
 
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#077EA1] font-medium text-slate-700 shadow-xs cursor-pointer"
+          className="px-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2] font-medium text-slate-700 shadow-xs cursor-pointer"
         >
           <option value="All">Status: All</option>
           <option value="Pending">Pending</option>
@@ -184,7 +184,7 @@ export default function FollowupsPage() {
         <select
           value={priorityFilter}
           onChange={(e) => setPriorityFilter(e.target.value)}
-          className="px-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#077EA1] font-medium text-slate-700 shadow-xs cursor-pointer"
+          className="px-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2] font-medium text-slate-700 shadow-xs cursor-pointer"
         >
           <option value="All">Priority: All</option>
           <option value="High">High</option>
@@ -219,7 +219,7 @@ export default function FollowupsPage() {
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-slate-400 text-xs">
                       <div className="flex items-center justify-center gap-2">
-                        <RefreshCw size={14} className="animate-spin text-[#077EA1]" />
+                        <RefreshCw size={14} className="animate-spin text-[#0481A2]" />
                         <span>Loading follow-up tasks...</span>
                       </div>
                     </td>
@@ -245,7 +245,7 @@ export default function FollowupsPage() {
                         </td>
                         <td className="py-3 px-4">
                           {f.clientId ? (
-                            <Link href={`/clients/${f.clientId}`} className="font-semibold text-[#077EA1] hover:underline">
+                            <Link href={`/clients/${f.clientId}`} className="font-semibold text-[#0481A2] hover:underline">
                               {f.companyName}
                             </Link>
                           ) : (
@@ -277,7 +277,7 @@ export default function FollowupsPage() {
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => setEditingFollowup(f)}
-                              className="p-1 text-slate-400 hover:text-[#077EA1] hover:bg-sky-50 rounded transition-colors cursor-pointer"
+                              className="p-1 text-slate-400 hover:text-[#0481A2] hover:bg-sky-50 rounded transition-colors cursor-pointer"
                               title="Edit follow-up"
                             >
                               <Pencil size={15} />

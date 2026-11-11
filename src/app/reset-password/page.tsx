@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { resetPasswordAction } from "@/app/actions/auth";
 import { Lock, Eye, EyeOff, Loader2, ArrowRight } from "lucide-react";
 
@@ -12,9 +13,15 @@ export default function ResetPasswordPage() {
   return (
     <div className="min-h-screen bg-[#0F172A] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center">
-        <div className="inline-flex items-center space-x-2 font-black tracking-tight text-3xl">
-          <span className="text-white">BRAND</span>
-          <span className="text-[#00A3C4]">360s</span>
+        <div className="flex justify-center mb-4">
+          <Image
+            src="/brand360s-darkmodelogo.svg"
+            alt="BRAND 360s"
+            width={200}
+            height={60}
+            className="h-12 w-auto object-contain"
+            priority
+          />
         </div>
         <h2 className="mt-4 text-xl font-bold text-slate-100">
           Create new password
@@ -44,7 +51,7 @@ export default function ResetPasswordPage() {
                   name="password"
                   required
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-10 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:border-[#077EA1] text-slate-900"
+                  className="w-full pl-10 pr-10 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:border-[#0481A2] text-slate-900"
                 />
                 <button
                   type="button"
@@ -67,7 +74,7 @@ export default function ResetPasswordPage() {
                   name="confirmPassword"
                   required
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:border-[#077EA1] text-slate-900"
+                  className="w-full pl-10 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:border-[#0481A2] text-slate-900"
                 />
               </div>
             </div>

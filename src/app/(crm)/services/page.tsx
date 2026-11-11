@@ -89,12 +89,12 @@ export default function ServicesPage() {
             className="p-2 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-600 rounded-lg shadow-2xs transition-colors cursor-pointer"
             title="Refresh services"
           >
-            <RefreshCw size={15} className={isLoading ? "animate-spin text-[#077EA1]" : ""} />
+            <RefreshCw size={15} className={isLoading ? "animate-spin text-[#0481A2]" : ""} />
           </button>
 
           <button
             onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#077EA1] hover:bg-[#066B89] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
           >
             <Plus size={16} />
             <span>Add Service to Catalog</span>
@@ -111,14 +111,14 @@ export default function ServicesPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search service name, description, or category..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#077EA1] text-slate-800 placeholder:text-slate-400 shadow-xs"
+            className="w-full pl-9 pr-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2] text-slate-800 placeholder:text-slate-400 shadow-xs"
           />
         </div>
 
         <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
-          className="px-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#077EA1] font-medium text-slate-700 shadow-xs cursor-pointer"
+          className="px-3 py-1.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2] font-medium text-slate-700 shadow-xs cursor-pointer"
         >
           <option value="All">All Categories</option>
           <option value="Company Incorporation">Company Incorporation</option>
@@ -156,7 +156,7 @@ export default function ServicesPage() {
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-slate-400 text-xs">
                       <div className="flex items-center justify-center gap-2">
-                        <RefreshCw size={14} className="animate-spin text-[#077EA1]" />
+                        <RefreshCw size={14} className="animate-spin text-[#0481A2]" />
                         <span>Loading services catalog...</span>
                       </div>
                     </td>
@@ -183,7 +183,7 @@ export default function ServicesPage() {
                       <td className="py-3 px-4 text-right text-slate-500">
                         {formatINR(Number(s.default_govt_fee) || 0)}
                       </td>
-                      <td className="py-3 px-4 text-right font-bold text-[#077EA1]">
+                      <td className="py-3 px-4 text-right font-bold text-[#0481A2]">
                         {formatINR((Number(s.default_service_fee) || 0) + (Number(s.default_govt_fee) || 0))}
                       </td>
                       <td className="py-3 px-4 text-center">

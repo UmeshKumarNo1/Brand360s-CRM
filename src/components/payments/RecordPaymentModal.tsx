@@ -210,7 +210,7 @@ export function RecordPaymentModal({
                 required
                 value={selectedClientId}
                 onChange={(e) => setSelectedClientId(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               >
                 <option value="">Select Client...</option>
                 {clients.map((c) => (
@@ -234,7 +234,7 @@ export function RecordPaymentModal({
                 value={amountValue}
                 onChange={(e) => setAmountValue(e.target.value)}
                 placeholder="25000"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
               />
             </div>
 
@@ -245,7 +245,7 @@ export function RecordPaymentModal({
                 required
                 type="date"
                 defaultValue={new Date().toISOString().split("T")[0]}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               />
             </div>
           </div>
@@ -422,7 +422,7 @@ export function RecordPaymentModal({
               <label className="block font-semibold text-slate-700 mb-1">Payment Method *</label>
               <select
                 name="payment_method"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               >
                 <option value="Bank Transfer / NEFT">Bank Transfer / NEFT</option>
                 <option value="UPI / QR">UPI / QR</option>
@@ -439,7 +439,7 @@ export function RecordPaymentModal({
               <select
                 name="status"
                 defaultValue="Verified"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               >
                 <option value="Verified">Verified (Confirmed)</option>
                 <option value="Pending Verification">Pending Verification</option>
@@ -453,7 +453,7 @@ export function RecordPaymentModal({
               name="transaction_ref"
               type="text"
               placeholder="e.g. UTR198273642"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1] font-mono text-xs uppercase"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2] font-mono text-xs uppercase"
             />
           </div>
 

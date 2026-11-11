@@ -66,7 +66,7 @@ export default async function EmployeeDetailsPage({
         </div>
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Active Clients</span>
-          <p className="text-2xl font-bold text-[#077EA1] mt-1">{stats.activeClients}</p>
+          <p className="text-2xl font-bold text-[#0481A2] mt-1">{stats.activeClients}</p>
         </div>
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Fully Paid Clients</span>
@@ -88,7 +88,7 @@ export default async function EmployeeDetailsPage({
               <h3 className="text-sm font-bold text-slate-900">Assigned Client Portfolio</h3>
               <p className="text-xs text-slate-500">Clients currently owned or handled by {profile.full_name}</p>
             </div>
-            <span className="text-xs font-semibold px-2 py-0.5 bg-sky-50 text-[#077EA1] rounded">
+            <span className="text-xs font-semibold px-2 py-0.5 bg-sky-50 text-[#0481A2] rounded">
               {clients.length} Clients
             </span>
           </div>
@@ -115,7 +115,7 @@ export default async function EmployeeDetailsPage({
                   clients.map((c: any) => (
                     <tr key={c.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-2.5 font-semibold">
-                        <Link href={`/clients/${c.id}`} className="text-[#077EA1] hover:underline">
+                        <Link href={`/clients/${c.id}`} className="text-[#0481A2] hover:underline">
                           {c.company_name}
                         </Link>
                       </td>

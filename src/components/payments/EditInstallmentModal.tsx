@@ -57,7 +57,7 @@ export function EditInstallmentModal({
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#077EA1] flex items-center justify-center font-bold">
+            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#0481A2] flex items-center justify-center font-bold">
               <Edit2 size={16} />
             </div>
             <div>
@@ -91,7 +91,7 @@ export function EditInstallmentModal({
               required
               type="text"
               defaultValue={installment.title}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
             />
           </div>
 
@@ -122,7 +122,7 @@ export function EditInstallmentModal({
                 type="number"
                 step="any"
                 defaultValue={installment.amount}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
               />
             </div>
 
@@ -133,7 +133,7 @@ export function EditInstallmentModal({
                 required
                 type="date"
                 defaultValue={dueDate}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               />
             </div>
           </div>
@@ -160,7 +160,7 @@ export function EditInstallmentModal({
             <button
               type="submit"
               disabled={isPending}
-              className="px-4 py-1.5 font-semibold text-white bg-[#077EA1] hover:bg-[#066B89] rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-70 cursor-pointer"
+              className="px-4 py-1.5 font-semibold text-white bg-[#0481A2] hover:bg-[#036c88] rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-70 cursor-pointer"
             >
               {isPending ? (
                 <>

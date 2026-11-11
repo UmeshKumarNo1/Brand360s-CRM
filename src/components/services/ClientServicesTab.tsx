@@ -106,12 +106,12 @@ export function ClientServicesTab({ clientId, clientName, isAdmin }: ClientServi
             className="p-1.5 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-600 rounded-lg shadow-2xs transition-colors cursor-pointer"
             title="Refresh services"
           >
-            <RefreshCw size={13} className={isLoading ? "animate-spin text-[#077EA1]" : ""} />
+            <RefreshCw size={13} className={isLoading ? "animate-spin text-[#0481A2]" : ""} />
           </button>
 
           <button
             onClick={() => setIsAddServiceModalOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#077EA1] hover:bg-[#066B89] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
           >
             <Plus size={14} />
             <span>Add Service</span>
@@ -144,7 +144,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin }: ClientServi
                   <tr>
                     <td colSpan={8} className="py-8 text-center text-slate-400">
                       <div className="flex items-center justify-center gap-2">
-                        <RefreshCw size={13} className="animate-spin text-[#077EA1]" />
+                        <RefreshCw size={13} className="animate-spin text-[#0481A2]" />
                         <span>Loading client services...</span>
                       </div>
                     </td>
@@ -213,7 +213,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin }: ClientServi
                               </div>
 
                               <div className="flex items-center gap-2 text-[11px]">
-                                <span className="text-[#077EA1] font-bold">
+                                <span className="text-[#0481A2] font-bold">
                                   Cost: {formatINR(totalVendorCost)}
                                 </span>
                                 <span
@@ -228,7 +228,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin }: ClientServi
                               <div>
                                 <button
                                   onClick={() => setManageVendorsService(s)}
-                                  className="text-[11px] text-[#077EA1] hover:underline font-semibold cursor-pointer"
+                                  className="text-[11px] text-[#0481A2] hover:underline font-semibold cursor-pointer"
                                 >
                                   Manage Vendors ({vendorAssignments.length})
                                 </button>
@@ -239,7 +239,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin }: ClientServi
                               <span className="text-[11px] text-slate-400 italic">No vendor assigned</span>
                               <button
                                 onClick={() => setVendorModalService(s)}
-                                className="text-[11px] text-[#077EA1] hover:underline font-semibold cursor-pointer self-start"
+                                className="text-[11px] text-[#0481A2] hover:underline font-semibold cursor-pointer self-start"
                               >
                                 + Assign Vendor
                               </button>

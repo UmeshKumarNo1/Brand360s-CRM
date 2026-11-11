@@ -2,6 +2,7 @@
 
 import { useActionState, useState, Suspense } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { loginAction } from "@/app/actions/auth";
 import { Eye, EyeOff, Lock, Mail, ArrowRight, Loader2 } from "lucide-react";
@@ -42,7 +43,7 @@ function LoginForm() {
             autoComplete="email"
             required
             placeholder="admin@brand360s.com"
-            className="block w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#077EA1]/20 focus:border-[#077EA1] placeholder:text-slate-400"
+            className="block w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0481A2]/20 focus:border-[#0481A2] placeholder:text-slate-400"
           />
         </div>
       </div>
@@ -58,7 +59,7 @@ function LoginForm() {
           </label>
           <Link
             href="/forgot-password"
-            className="text-xs font-semibold text-[#077EA1] hover:text-[#066B89] hover:underline"
+            className="text-xs font-semibold text-[#0481A2] hover:text-[#036c88] hover:underline"
           >
             Forgot password?
           </Link>
@@ -74,7 +75,7 @@ function LoginForm() {
             autoComplete="current-password"
             required
             placeholder="••••••••"
-            className="block w-full pl-10 pr-10 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#077EA1]/20 focus:border-[#077EA1] placeholder:text-slate-400"
+            className="block w-full pl-10 pr-10 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0481A2]/20 focus:border-[#0481A2] placeholder:text-slate-400"
           />
           <button
             type="button"
@@ -90,7 +91,7 @@ function LoginForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full flex justify-center items-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-[#077EA1] hover:bg-[#066B89] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#077EA1] transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+        className="w-full flex justify-center items-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-[#0481A2] hover:bg-[#036c88] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0481A2] transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
       >
         {isPending ? (
           <>
@@ -112,16 +113,19 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[#0F172A] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Subtle brand glow background */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#077EA1]/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#0481A2]/15 rounded-full blur-3xl pointer-events-none" />
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10 text-center">
         {/* Brand Logo */}
-        <div className="inline-flex items-center space-x-2 font-black tracking-tight text-3xl">
-          <span className="text-white">BRAND</span>
-          <span className="text-[#00A3C4]">360s</span>
-          <span className="text-[10px] uppercase font-bold tracking-widest bg-[#243E76] text-white px-2 py-0.5 rounded ml-2 border border-blue-400/30">
-            CRM
-          </span>
+        <div className="flex justify-center mb-4">
+          <Image
+            src="/brand360s-darkmodelogo.svg"
+            alt="BRAND 360s"
+            width={200}
+            height={60}
+            className="h-12 w-auto object-contain"
+            priority
+          />
         </div>
         <h2 className="mt-4 text-xl font-bold text-slate-100">
           Sign in to your account

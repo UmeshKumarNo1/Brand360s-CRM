@@ -35,7 +35,7 @@ export default async function SupabaseTestPage() {
     <div className="min-h-screen bg-[#F5F8FC] p-8 flex items-center justify-center">
       <div className="max-w-md w-full bg-white border border-[#E2E8F0] rounded-2xl p-6 shadow-sm space-y-4">
         <div className="flex items-center space-x-2">
-          <div className="w-3 h-3 rounded-full bg-[#077EA1]" />
+          <div className="w-3 h-3 rounded-full bg-[#0481A2]" />
           <h1 className="text-xl font-bold text-slate-900">Supabase Connection Test</h1>
         </div>
 

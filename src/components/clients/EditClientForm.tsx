@@ -70,7 +70,7 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
         {/* Section 1: Company Details */}
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100 text-slate-800 font-semibold text-sm">
-            <Building size={16} className="text-[#077EA1]" />
+            <Building size={16} className="text-[#0481A2]" />
             <h3>Company Information</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
@@ -81,7 +81,7 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
                 required 
                 type="text" 
                 defaultValue={client.company_name}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#077EA1]" 
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0481A2]" 
               />
             </div>
             <div>
@@ -174,7 +174,7 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
         {/* Section 2: Contact Details */}
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100 text-slate-800 font-semibold text-sm">
-            <Phone size={16} className="text-[#077EA1]" />
+            <Phone size={16} className="text-[#0481A2]" />
             <h3>Contact Details</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
@@ -223,7 +223,7 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
         {/* Section 3: Commercial Terms & Sales Assignment */}
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100 text-slate-800 font-semibold text-sm">
-            <Layers size={16} className="text-[#077EA1]" />
+            <Layers size={16} className="text-[#0481A2]" />
             <h3>Commercial Terms & Sales Assignment</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
@@ -247,7 +247,7 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
                 <select 
                   name="assigned_salesperson" 
                   defaultValue={client.assigned_salesperson || ""}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#077EA1]"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2]"
                 >
                   {salespeople.map((p) => (
                     <option key={p.id} value={p.id}>
@@ -331,7 +331,7 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
           <button
             type="submit"
             disabled={isPending}
-            className="inline-flex items-center gap-1.5 px-5 py-2 bg-[#077EA1] hover:bg-[#066B89] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-70 cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-5 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-70 cursor-pointer"
           >
             {isPending ? (
               <>

@@ -154,60 +154,54 @@ export function AppSidebar({
         )}
       </div>
 
-      {/* Decorative Crescent Swoosh at bottom-left matching original design mock */}
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-60 overflow-hidden z-0">
+      {/* Decorative Cyan / Teal Curved Waves at bottom of sidebar */}
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-48 overflow-hidden z-0">
         <svg 
-          viewBox="0 0 260 260" 
+          viewBox="0 0 240 180" 
           className="absolute bottom-0 left-0 w-full h-full"
           preserveAspectRatio="none"
           fill="none" 
           xmlns="http://www.w3.org/2000/svg"
         >
           <defs>
-            <linearGradient id="crescentGradDeep" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#0481A2" stopOpacity="0.45" />
-              <stop offset="50%" stopColor="#02566D" stopOpacity="0.75" />
-              <stop offset="100%" stopColor="#0B1A3A" stopOpacity="0.9" />
+            <linearGradient id="waveGradTeal" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#0481A2" stopOpacity="0.8" />
+              <stop offset="100%" stopColor="#02566D" stopOpacity="0.9" />
             </linearGradient>
-
-            <linearGradient id="crescentGradTeal" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#06B6D4" stopOpacity="0.9" />
-              <stop offset="45%" stopColor="#0481A2" stopOpacity="0.85" />
-              <stop offset="100%" stopColor="#02566D" stopOpacity="0.6" />
+            <linearGradient id="waveGradCyan" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#00BCD4" stopOpacity="0.95" />
+              <stop offset="60%" stopColor="#0481A2" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#02566D" stopOpacity="0.95" />
             </linearGradient>
-
-            <linearGradient id="crescentGradCyan" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.8" />
-              <stop offset="40%" stopColor="#06B6D4" stopOpacity="0.65" />
-              <stop offset="100%" stopColor="#0481A2" stopOpacity="0.2" />
+            <linearGradient id="waveGradSoft" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#1B3E75" stopOpacity="0.7" />
+              <stop offset="100%" stopColor="#0E2147" stopOpacity="0.85" />
             </linearGradient>
-
-            <radialGradient id="cornerAmbientGlow" cx="15%" cy="85%" r="70%">
-              <stop offset="0%" stopColor="#06B6D4" stopOpacity="0.3" />
-              <stop offset="50%" stopColor="#0481A2" stopOpacity="0.12" />
-              <stop offset="100%" stopColor="#14244B" stopOpacity="0" />
-            </radialGradient>
           </defs>
 
-          {/* Ambient background glow in corner */}
-          <rect width="260" height="260" fill="url(#cornerAmbientGlow)" />
-
-          {/* Outer sweeping curved crescent */}
+          {/* Layer 1: Deep Navy/Blue smooth underlay wave */}
           <path 
-            d="M -20 100 C 60 65, 170 115, 270 230 L 270 280 L -20 280 Z" 
-            fill="url(#crescentGradDeep)" 
+            d="M -10 75 C 65 118, 145 48, 250 88 L 250 190 L -10 190 Z" 
+            fill="url(#waveGradSoft)" 
           />
 
-          {/* Main vibrant teal crescent swoosh rising from bottom-left */}
+          {/* Layer 2: Mid-Teal sweeping ocean wave */}
           <path 
-            d="M -20 155 C 45 110, 135 150, 230 270 L -20 270 Z" 
-            fill="url(#crescentGradTeal)" 
+            d="M -10 108 C 65 72, 145 148, 250 105 L 250 190 L -10 190 Z" 
+            fill="#0481A2" 
+            opacity="0.5" 
           />
 
-          {/* Glowing cyan inner crescent accent */}
+          {/* Layer 3: Vibrant Teal accent wave */}
           <path 
-            d="M -20 188 C 35 145, 105 180, 175 270 L -20 270 Z" 
-            fill="url(#crescentGradCyan)" 
+            d="M -10 132 C 60 105, 135 160, 250 122 L 250 190 L -10 190 Z" 
+            fill="url(#waveGradTeal)" 
+          />
+
+          {/* Layer 4: Bright Cyan flowing crest - smoothly spans full width */}
+          <path 
+            d="M -10 152 C 50 128, 125 165, 250 142 L 250 190 L -10 190 Z" 
+            fill="url(#waveGradCyan)" 
           />
         </svg>
       </div>

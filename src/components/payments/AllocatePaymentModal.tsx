@@ -96,6 +96,28 @@ export function AllocatePaymentModal({
 
   const remainingAvailable = Math.max(0, initialAvailable - currentTotalAllocating);
 
+  // Check validation rules across all inputs
+  let validationError: string | null = null;
+  if (currentTotalAllocating > initialAvailable + 0.001) {
+    validationError = `Total allocation (${formatINR(currentTotalAllocating)}) exceeds available payment amount (${formatINR(initialAvailable)}).`;
+  } else {
+    for (const [invId, strVal] of Object.entries(allocationInputs)) {
+      const amt = parseFloat(strVal);
+      if (!isNaN(amt) && amt > 0) {
+        const targetInv = invoices.find((i) => i.id === invId);
+        if (targetInv && amt > targetInv.balanceDue + 0.001) {
+          validationError = `Allocation of ${formatINR(amt)} exceeds outstanding balance (${formatINR(targetInv.balanceDue)}) for invoice ${targetInv.invoiceNumber}.`;
+          break;
+        }
+      }
+    }
+  }
+
+  const isFormValid =
+    !validationError &&
+    currentTotalAllocating > 0 &&
+    currentTotalAllocating <= initialAvailable + 0.001;
+
   const handleInputChange = (invoiceId: string, val: string, maxBalance: number) => {
     setErrorMsg(null);
     setAllocationInputs((prev) => ({
@@ -212,11 +234,11 @@ export function AllocatePaymentModal({
           </div>
         </div>
 
-        {/* Error message */}
-        {errorMsg && (
+        {/* Error message or Validation Warning */}
+        {(errorMsg || validationError) && (
           <div className="mx-6 mt-4 p-3 bg-rose-50 border border-rose-200 rounded-lg flex items-center gap-2 text-xs text-rose-700">
             <AlertCircle size={15} className="shrink-0 text-rose-600" />
-            <span>{errorMsg}</span>
+            <span>{errorMsg || validationError}</span>
           </div>
         )}
 
@@ -339,7 +361,7 @@ export function AllocatePaymentModal({
 
             <button
               type="submit"
-              disabled={isSubmitting || currentTotalAllocating <= 0 || currentTotalAllocating > initialAvailable}
+              disabled={isSubmitting || !isFormValid}
               className="inline-flex items-center gap-2 px-5 py-2 bg-[#077EA1] hover:bg-[#066B89] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSubmitting ? (

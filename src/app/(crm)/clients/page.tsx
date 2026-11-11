@@ -397,10 +397,6 @@ export default function ClientsPage() {
             <ClientsTable
               clients={paginatedClients}
               isAdmin={isAdmin}
-              selectedIds={selectedIds}
-              onToggleSelect={handleToggleSelect}
-              onSelectAll={handleSelectAll}
-              isAllSelected={isAllSelected}
               onDeleteClient={handleOpenDelete}
               onArchiveClient={handleOpenDelete}
               onRestoreClient={handleRestoreClient}

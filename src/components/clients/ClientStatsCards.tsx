@@ -53,13 +53,13 @@ export function ClientStatsCards({
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 w-full">
       {stats.map((stat, idx) => {
         const Icon = stat.icon;
         return (
           <div
             key={idx}
-            className="bg-white rounded-2xl p-5 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-center gap-4 transition-all duration-200 hover:shadow-xs"
+            className="bg-white rounded-2xl p-3.5 sm:p-4 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-center gap-3 transition-all duration-200 hover:shadow-xs min-h-[82px] min-w-0"
           >
             {/* Soft decorative wave background on bottom right */}
             <div className="pointer-events-none absolute right-0 bottom-0 w-28 h-20 opacity-40">

@@ -72,8 +72,13 @@ export function AppLayout({ children, userProfile }: AppLayoutProps) {
         </svg>
       </div>
 
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:block relative z-30">
+      {/* Desktop Sidebar (Fixed to full viewport height so when page scrolls, it remains anchored and never exposes white space) */}
+      <div 
+        className={`hidden lg:block fixed top-0 left-0 bottom-0 z-30 shrink-0 transition-all duration-300 ${
+          isCollapsed ? "w-20" : "w-64"
+        }`}
+        style={{ height: "100dvh", minHeight: "100vh" }}
+      >
         <AppSidebar
           isCollapsed={isCollapsed}
           setIsCollapsed={setIsCollapsed}
@@ -102,15 +107,19 @@ export function AppLayout({ children, userProfile }: AppLayoutProps) {
         </div>
       )}
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10">
+      {/* Main Content Area (Offset to match fixed sidebar width) */}
+      <div 
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 ${
+          isCollapsed ? "lg:ml-20" : "lg:ml-64"
+        }`}
+      >
         <TopNavbar
           onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
           userEmail={userProfile?.email || "admin@brand360s.co"}
           userRole={userProfile?.role === "admin" ? "Administrator" : "Employee"}
           userName={userProfile?.fullName || "Uki0070411"}
         />
-        <main className="flex-1 px-6 sm:px-8 py-4 sm:py-6 w-full">
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 w-full max-w-full min-w-0 overflow-x-hidden">
           {children}
         </main>
       </div>

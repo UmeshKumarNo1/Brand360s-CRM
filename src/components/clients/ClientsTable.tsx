@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Eye, Trash2, RotateCcw, UserCheck } from "lucide-react";
+import { Eye, Edit3, Trash2, RotateCcw, UserCheck } from "lucide-react";
 import { ClientRecord } from "@/data/mockClients";
 import { formatINR } from "@/lib/utils";
 
@@ -38,22 +38,22 @@ export function ClientsTable({
   onReassignClient,
 }: ClientsTableProps) {
   return (
-    <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-left border-collapse text-xs sm:text-sm">
+    <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden w-full max-w-full">
+      <div className="overflow-x-auto w-full custom-scrollbar">
+        <table className="w-full text-left border-collapse text-xs sm:text-[13px] table-auto">
           {/* Navy Blue Table Header matching image */}
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide">
-              <th className="py-3.5 px-3 w-10 text-center font-semibold">No.</th>
-              <th className="py-3.5 px-4 min-w-[170px] font-semibold">Company Name</th>
-              <th className="py-3.5 px-3.5 min-w-[120px] font-semibold">Date of Creation</th>
-              <th className="py-3.5 px-3 font-semibold">Salesperson</th>
-              <th className="py-3.5 px-3.5 min-w-[180px] font-semibold">Services Purchased</th>
-              <th className="py-3.5 px-3 text-right font-semibold whitespace-nowrap">Contract Value</th>
-              <th className="py-3.5 px-3 text-right font-semibold whitespace-nowrap">Payment Received</th>
-              <th className="py-3.5 px-3 text-right font-semibold whitespace-nowrap">Balance Receivable</th>
-              <th className="py-3.5 px-3.5 font-semibold whitespace-nowrap">Next Payment Due</th>
-              <th className="py-3.5 px-3 text-center w-24 font-semibold whitespace-nowrap">Actions</th>
+              <th className="py-2.5 px-2 w-9 text-center font-semibold">No.</th>
+              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Company Name</th>
+              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Date of Creation</th>
+              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Salesperson</th>
+              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Services Purchased</th>
+              <th className="py-2.5 px-2 text-right font-semibold whitespace-nowrap">Contract Value</th>
+              <th className="py-2.5 px-2 text-right font-semibold whitespace-nowrap">Payment Received</th>
+              <th className="py-2.5 px-2 text-right font-semibold whitespace-nowrap">Balance Receivable</th>
+              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Next Payment Due</th>
+              <th className="py-2.5 px-2 text-center font-semibold whitespace-nowrap min-w-[124px] w-[124px]">Actions</th>
             </tr>
           </thead>
 
@@ -76,12 +76,12 @@ export function ClientsTable({
                     }`}
                   >
                     {/* No. */}
-                    <td className="py-4 px-3 font-bold text-slate-800 text-center font-sans font-number">
+                    <td className="py-2.5 px-2 font-bold text-slate-800 text-center font-sans font-number">
                       {client.no}
                     </td>
 
                     {/* Company Name */}
-                    <td className="py-4 px-4 font-bold">
+                    <td className="py-2.5 px-2 font-bold whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <Link
                           href={`/clients/${client.id}`}
@@ -98,47 +98,61 @@ export function ClientsTable({
                     </td>
 
                     {/* Date of Creation */}
-                    <td className="py-4 px-3.5 font-medium text-slate-600 font-sans font-number whitespace-nowrap">
+                    <td className="py-2.5 px-2 font-medium text-slate-600 font-sans font-number whitespace-nowrap">
                       {formatCreationDate(client.dateOfCreation || client.createdAt)}
                     </td>
 
                     {/* Salesperson */}
-                    <td className="py-4 px-3 font-medium text-slate-700">
+                    <td className="py-2.5 px-2 font-medium text-slate-700 whitespace-nowrap">
                       {client.salesperson}
                     </td>
 
                     {/* Services Purchased */}
-                    <td className="py-4 px-3.5 text-slate-600 font-normal">
-                      {client.servicesPurchased}
+                    <td className="py-2.5 px-2 text-slate-600 font-normal leading-tight">
+                      {client.servicesPurchased ? (
+                        client.servicesPurchased.includes(",") ? (
+                          <div className="flex flex-col">
+                            {client.servicesPurchased.split(",").map((s: string, idx: number, arr: string[]) => (
+                              <span key={idx} className="whitespace-nowrap">
+                                {s.trim()}{idx < arr.length - 1 ? "," : ""}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="whitespace-nowrap">{client.servicesPurchased}</span>
+                        )
+                      ) : (
+                        "-"
+                      )}
                     </td>
 
                     {/* Contract Value */}
-                    <td className="py-4 px-3 text-right font-semibold text-slate-800 font-sans font-number whitespace-nowrap">
+                    <td className="py-2.5 px-2 text-right font-semibold text-slate-800 font-sans font-number whitespace-nowrap">
                       {formatINR(client.contractValue)}
                     </td>
 
                     {/* Payments Received */}
-                    <td className="py-4 px-3 text-right font-semibold text-slate-800 font-sans font-number whitespace-nowrap">
+                    <td className="py-2.5 px-2 text-right font-semibold text-slate-800 font-sans font-number whitespace-nowrap">
                       {formatINR(client.paymentsReceived)}
                     </td>
 
                     {/* Balance Receivable */}
-                    <td className="py-4 px-3 text-right font-semibold text-slate-800 font-sans font-number whitespace-nowrap">
+                    <td className="py-2.5 px-2 text-right font-semibold text-slate-800 font-sans font-number whitespace-nowrap">
                       {formatINR(client.balanceReceivable)}
                     </td>
 
                     {/* Next Payment Due */}
-                    <td className="py-4 px-3.5 whitespace-nowrap">
+                    <td className="py-2.5 px-2 whitespace-nowrap">
                       {client.paymentStatus === "Paid in full" || client.nextPaymentDueAmount === 0 ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           Paid in full
                         </span>
                       ) : (
                         <div className="leading-tight font-sans">
-                          <span className="font-bold text-slate-900 block text-sm font-sans font-number">
+                          <span className="font-bold text-slate-900 block text-xs sm:text-[13px] font-sans font-number">
                             {formatINR(client.nextPaymentDueAmount)}
                           </span>
-                          <span className="text-[11px] text-slate-400 block mt-0.5 font-medium font-sans">
+                          <span className="text-[10px] text-slate-400 block mt-0.5 font-medium font-sans">
                             {client.nextPaymentDueDate}
                           </span>
                         </div>
@@ -146,21 +160,31 @@ export function ClientsTable({
                     </td>
 
                     {/* Action Buttons */}
-                    <td className="py-4 px-3 text-center whitespace-nowrap">
-                      <div className="inline-flex items-center justify-center gap-1">
+                    <td className="py-2.5 px-2 text-center whitespace-nowrap min-w-[124px] w-[124px]">
+                      <div className="inline-flex items-center justify-center gap-1.5 flex-nowrap">
+                        {/* View Action */}
                         <Link
                           href={`/clients/${client.id}`}
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#F0F8FA] hover:bg-[#E0F2F7] text-[#0481A2] border border-[#D5EBF1] transition-all shadow-2xs"
+                          className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-lg bg-[#F0F8FA] hover:bg-[#E0F2F7] text-[#0481A2] border border-[#D5EBF1] transition-all shadow-2xs"
                           title="View client details"
                         >
                           <Eye size={13} strokeWidth={2} />
+                        </Link>
+
+                        {/* Edit Action */}
+                        <Link
+                          href={`/clients/${client.id}/edit`}
+                          className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-lg bg-sky-50 hover:bg-sky-100 text-[#077EA1] border border-sky-200 transition-all shadow-2xs"
+                          title="Edit client details"
+                        >
+                          <Edit3 size={13} strokeWidth={2} />
                         </Link>
 
                         {/* Admin Reassign Quick Action */}
                         {isAdmin && onReassignClient && (
                           <button
                             onClick={() => onReassignClient(client)}
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 transition-all shadow-2xs cursor-pointer"
+                            className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 transition-all shadow-2xs cursor-pointer"
                             title="Reassign Salesperson (Admin)"
                           >
                             <UserCheck size={13} strokeWidth={2} />
@@ -171,18 +195,18 @@ export function ClientsTable({
                         {isAdmin && isArchived && onRestoreClient && (
                           <button
                             onClick={() => onRestoreClient(client)}
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-600 border border-teal-200 transition-all shadow-2xs cursor-pointer"
+                            className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-600 border border-teal-200 transition-all shadow-2xs cursor-pointer"
                             title="Restore Client to Active"
                           >
                             <RotateCcw size={13} strokeWidth={2} />
                           </button>
                         )}
 
-                        {/* Admin Delete Action */}
+                        {/* Admin Delete / Archive Action */}
                         {isAdmin && onDeleteClient && (
                           <button
                             onClick={() => onDeleteClient(client)}
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all shadow-2xs cursor-pointer"
+                            className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all shadow-2xs cursor-pointer"
                             title="Delete or Archive Client (Admin)"
                           >
                             <Trash2 size={13} strokeWidth={2} />

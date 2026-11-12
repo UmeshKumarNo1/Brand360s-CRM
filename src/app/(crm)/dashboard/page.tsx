@@ -7,10 +7,16 @@ import { RecentClientsTable } from "@/components/dashboard/RecentClientsTable";
 import { TasksAlerts } from "@/components/dashboard/TasksAlerts";
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { fetchClientsAction } from "@/app/actions/clients";
+import { fetchRenewalsAction } from "@/app/actions/renewals";
+import { fetchFollowupsAction } from "@/app/actions/followups";
 
 export default async function DashboardPage() {
-  const profile = await getCurrentUserProfileAction();
-  const rawClients = await fetchClientsAction();
+  const [profile, rawClients, renewals, followups] = await Promise.all([
+    getCurrentUserProfileAction(),
+    fetchClientsAction(),
+    fetchRenewalsAction(),
+    fetchFollowupsAction(),
+  ]);
 
   const userName = profile?.full_name || profile?.email?.split("@")[0] || "User";
   const userRole = profile?.role === "admin" ? "Administrator" : "Employee";
@@ -21,6 +27,11 @@ export default async function DashboardPage() {
   const totalReceived = rawClients.reduce((sum, c) => sum + (Number(c.payments_received) || 0), 0);
   const totalOutstanding = rawClients.reduce((sum, c) => sum + (Number(c.balance_receivable) || 0), 0);
   const overdueCount = rawClients.filter((c) => c.payment_status === "Overdue").length;
+
+  const renewalsDueCount = renewals.filter((r) => r.status === "Due Soon" || r.status === "Overdue").length;
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const followupsTodayCount = followups.filter((f) => f.dueDate === todayStr && f.status !== "Completed").length;
 
   return (
     <div className="space-y-5">
@@ -53,7 +64,11 @@ export default async function DashboardPage() {
           <RecentClientsTable clients={rawClients.slice(0, 5)} />
         </div>
         <div className="lg:col-span-5">
-          <TasksAlerts overdueCount={overdueCount} />
+          <TasksAlerts 
+            overdueCount={overdueCount} 
+            renewalsDueCount={renewalsDueCount}
+            followupsTodayCount={followupsTodayCount}
+          />
         </div>
       </div>
     </div>

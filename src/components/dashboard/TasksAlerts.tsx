@@ -2,23 +2,28 @@ import Link from "next/link";
 import { 
   FileWarning, 
   CalendarCheck, 
-  FileText, 
-  CheckCircle2, 
-  Trophy, 
+  RefreshCw, 
+  Clock, 
   ChevronRight 
 } from "lucide-react";
 
 interface TasksAlertsProps {
   overdueCount?: number;
+  renewalsDueCount?: number;
+  followupsTodayCount?: number;
 }
 
-export function TasksAlerts({ overdueCount = 0 }: TasksAlertsProps) {
+export function TasksAlerts({ 
+  overdueCount = 0,
+  renewalsDueCount = 0,
+  followupsTodayCount = 0
+}: TasksAlertsProps) {
   const alerts = [
     {
       id: "1",
-      label: "Overdue Invoices",
+      label: "Overdue Payments & Invoices",
       count: overdueCount,
-      href: "/invoices?status=overdue",
+      href: "/payments?status=Overdue",
       icon: FileWarning,
       iconColor: "text-red-600",
       iconBg: "bg-red-50",
@@ -27,8 +32,8 @@ export function TasksAlerts({ overdueCount = 0 }: TasksAlertsProps) {
     {
       id: "2",
       label: "Follow-ups Due Today",
-      count: 0,
-      href: "/follow-ups?filter=today",
+      count: followupsTodayCount,
+      href: "/follow-ups",
       icon: CalendarCheck,
       iconColor: "text-[#0481A2]",
       iconBg: "bg-sky-50",
@@ -36,23 +41,13 @@ export function TasksAlerts({ overdueCount = 0 }: TasksAlertsProps) {
     },
     {
       id: "3",
-      label: "Pending Document Submission",
-      count: 0,
-      href: "/services?status=documents-pending",
-      icon: FileText,
+      label: "Upcoming Service Renewals",
+      count: renewalsDueCount,
+      href: "/renewals",
+      icon: RefreshCw,
       iconColor: "text-amber-600",
       iconBg: "bg-amber-50",
       badgeColor: "bg-amber-100 text-amber-700",
-    },
-    {
-      id: "4",
-      label: "Service Completion (This Week)",
-      count: 0,
-      href: "/services?filter=completion-week",
-      icon: CheckCircle2,
-      iconColor: "text-emerald-600",
-      iconBg: "bg-emerald-50",
-      badgeColor: "bg-emerald-100 text-emerald-700",
     },
   ];
 

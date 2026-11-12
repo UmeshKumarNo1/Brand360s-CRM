@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Search, Bell, LogOut, Settings as SettingsIcon, Menu } from "lucide-react";
+import { Search, LogOut, Settings as SettingsIcon, Menu } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
+import { NotificationBellDropdown } from "@/components/notifications/NotificationBellDropdown";
 
 interface TopNavbarProps {
   onMobileMenuToggle: () => void;
@@ -51,29 +52,8 @@ export function TopNavbar({
 
       {/* Right controls: Notifications & User profile */}
       <div className="flex items-center gap-3 sm:gap-5">
-        {/* Notifications Icon with red badge */}
-        <div className="relative">
-          <button
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="p-2.5 text-slate-600 hover:text-[#243E76] hover:bg-white rounded-full transition-colors relative"
-            title="Notifications"
-          >
-            <Bell size={19} />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full ring-2 ring-white" />
-          </button>
-
-          {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 text-xs">
-              <div className="px-4 py-2.5 border-b border-slate-100 font-semibold text-slate-800 flex justify-between items-center">
-                <span className="font-heading">Notifications</span>
-                <span className="text-[10px] bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-medium">Alerts</span>
-              </div>
-              <div className="p-4 text-center text-slate-500">
-                No pending notifications
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Dynamic Notification Bell Dropdown */}
+        <NotificationBellDropdown />
 
         {/* Separator line */}
         <div className="h-6 w-px bg-slate-200/80" />

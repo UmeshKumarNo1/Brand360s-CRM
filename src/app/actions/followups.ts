@@ -36,9 +36,39 @@ export interface FollowupItem {
   overdueDays: number;
 }
 
-/**
- * Fetch all follow-ups visible to the current authenticated user (enforced by RLS + role logic)
- */
+function normalizeFollowupType(rawType?: string | null): string {
+  if (!rawType) return "General";
+  const trimmed = rawType.trim();
+  switch (trimmed) {
+    case "Phone Call":
+    case "Call":
+      return "Call";
+    case "Email":
+      return "Email";
+    case "Meeting":
+    case "Client Consultation":
+      return "Meeting";
+    case "Document Request":
+    case "Document Collection":
+      return "Document Collection";
+    case "Payment Reminder":
+      return "Payment Reminder";
+    case "General":
+    case "Service Update":
+    case "Renewal Reminder":
+    case "Other":
+    default:
+      return "General";
+  }
+}
+
+function normalizePriority(rawPriority?: string | null): string {
+  if (!rawPriority) return "Medium";
+  const trimmed = rawPriority.trim();
+  if (trimmed === "Urgent" || trimmed === "High") return "High";
+  if (trimmed === "Low") return "Low";
+  return "Medium";
+}
 export async function fetchFollowupsAction() {
   const supabase = await createClient();
 
@@ -140,10 +170,10 @@ export async function createFollowupAction(
 
   const clientId = formData.get("client_id") as string;
   const title = (formData.get("title") as string)?.trim();
-  const followUpType = (formData.get("follow_up_type") as string) || "Phone Call";
+  const followUpType = normalizeFollowupType(formData.get("follow_up_type") as string);
   const dueDate = formData.get("due_date") as string;
   const dueTime = (formData.get("due_time") as string) || null;
-  const priority = (formData.get("priority") as string) || "Medium";
+  const priority = normalizePriority(formData.get("priority") as string);
   const status = (formData.get("status") as string) || "Pending";
   const notes = (formData.get("notes") as string)?.trim() || null;
   const contactPerson = (formData.get("contact_person") as string)?.trim() || null;
@@ -252,10 +282,10 @@ export async function updateFollowupAction(
   const id = formData.get("id") as string;
   const clientId = formData.get("client_id") as string;
   const title = (formData.get("title") as string)?.trim();
-  const followUpType = (formData.get("follow_up_type") as string) || "Phone Call";
+  const followUpType = normalizeFollowupType(formData.get("follow_up_type") as string);
   const dueDate = formData.get("due_date") as string;
   const dueTime = (formData.get("due_time") as string) || null;
-  const priority = (formData.get("priority") as string) || "Medium";
+  const priority = normalizePriority(formData.get("priority") as string);
   const status = (formData.get("status") as string) || "Pending";
   const notes = (formData.get("notes") as string)?.trim() || null;
   const contactPerson = (formData.get("contact_person") as string)?.trim() || null;

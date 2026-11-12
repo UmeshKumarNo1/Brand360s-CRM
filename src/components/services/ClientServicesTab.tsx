@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Plus, Layers, Trash2, UserCheck, RefreshCw, Store } from "lucide-react";
+import { Plus, Layers, Trash2, UserCheck, RefreshCw, Store, Calendar, History } from "lucide-react";
 import { fetchClientServicesAction, removeClientServiceAction } from "@/app/actions/services";
 import { formatINR } from "@/lib/utils";
 import { AssignServiceModal } from "@/components/services/AssignServiceModal";
 import { AssignVendorModal } from "@/components/vendors/AssignVendorModal";
 import { ManageServiceVendorsModal } from "@/components/vendors/ManageServiceVendorsModal";
+import { RenewServiceModal } from "@/components/renewals/RenewServiceModal";
+import { RenewalHistoryModal } from "@/components/renewals/RenewalHistoryModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 
@@ -26,6 +28,8 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(Boolean(initialAddService));
   const [vendorModalService, setVendorModalService] = useState<any | null>(null);
   const [manageVendorsService, setManageVendorsService] = useState<any | null>(null);
+  const [renewModalService, setRenewModalService] = useState<any | null>(null);
+  const [historyModalService, setHistoryModalService] = useState<any | null>(null);
 
   const { success, error: toastError } = useToast();
   const requestIdRef = useRef(0);
@@ -92,6 +96,33 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
     }
   };
 
+  const getRenewalStatusBadge = (service: any) => {
+    const renewalStatus = service.renewal_status;
+    const expiryDateStr = service.expected_completion_date || service.renewal_date;
+
+    if (renewalStatus === "Renewed") {
+      return { label: "Renewed", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+    }
+
+    if (!expiryDateStr) {
+      return { label: "Not Scheduled", className: "bg-slate-50 text-slate-500 border-slate-200" };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiry = new Date(expiryDateStr);
+    expiry.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return { label: `Overdue (${Math.abs(diffDays)}d)`, className: "bg-rose-50 text-rose-700 border-rose-200 font-semibold" };
+    }
+    if (diffDays <= 30) {
+      return { label: `Due Soon (${diffDays}d)`, className: "bg-amber-50 text-amber-700 border-amber-200 font-semibold" };
+    }
+    return { label: `Upcoming (${diffDays}d)`, className: "bg-sky-50 text-sky-700 border-sky-200" };
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -135,7 +166,8 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                   <th className="py-2.5 px-3 text-right">Service Fee</th>
                   <th className="py-2.5 px-3 text-right">Govt Fee</th>
                   <th className="py-2.5 px-3 text-center">Status</th>
-                  <th className="py-2.5 px-3 min-w-[200px]">Vendor / Outsourcing</th>
+                  <th className="py-2.5 px-3">Renewal Status</th>
+                  <th className="py-2.5 px-3 min-w-[180px]">Vendor / Outsourcing</th>
                   <th className="py-2.5 px-3">Expected Date</th>
                   <th className="py-2.5 px-3 text-right">Actions</th>
                 </tr>
@@ -198,6 +230,20 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                           </span>
                         </td>
 
+                        {/* Renewal Status */}
+                        <td className="py-2.5 px-3">
+                          {(() => {
+                            const badge = getRenewalStatusBadge(s);
+                            return (
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] border ${badge.className}`}
+                              >
+                                {badge.label}
+                              </span>
+                            );
+                          })()}
+                        </td>
+
                         {/* Vendor / Outsourcing Column */}
                         <td className="py-2.5 px-3">
                           {hasVendors ? (
@@ -256,6 +302,43 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                         {/* Actions */}
                         <td className="py-2.5 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => {
+                                setRenewModalService({
+                                  id: s.id,
+                                  clientId: clientId,
+                                  clientName: clientName,
+                                  serviceName: s.service_name,
+                                  serviceCategory: s.service_category || "General",
+                                  renewalDate: s.expected_completion_date || s.renewal_date || new Date().toISOString().split("T")[0],
+                                  renewalAmount: Number(s.service_fee) || Number(s.renewal_amount) || 0,
+                                  renewalStatus: s.renewal_status || "Upcoming",
+                                  salespersonName: "",
+                                  paymentStatus: "Unpaid",
+                                });
+                              }}
+                              className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1 border border-emerald-200"
+                              title="Renew Service"
+                            >
+                              <RefreshCw size={11} />
+                              <span>Renew</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setHistoryModalService({
+                                  id: s.id,
+                                  service_name: s.service_name,
+                                  client_name: clientName,
+                                  client_id: clientId,
+                                });
+                              }}
+                              className="p-1 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded text-[11px] transition-colors cursor-pointer border border-slate-200"
+                              title="Renewal History"
+                            >
+                              <History size={12} />
+                            </button>
+
                             <button
                               onClick={() => {
                                 if (hasVendors) {
@@ -330,6 +413,30 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
           }}
           service={manageVendorsService}
           clientName={clientName}
+        />
+      )}
+
+      {/* Renew Service Modal */}
+      {renewModalService && (
+        <RenewServiceModal
+          isOpen={!!renewModalService}
+          onClose={() => setRenewModalService(null)}
+          onSuccess={() => {
+            setRenewModalService(null);
+            loadData();
+          }}
+          renewal={renewModalService}
+        />
+      )}
+
+      {/* Renewal History Modal */}
+      {historyModalService && (
+        <RenewalHistoryModal
+          isOpen={!!historyModalService}
+          onClose={() => setHistoryModalService(null)}
+          serviceId={historyModalService.id}
+          serviceName={historyModalService.service_name}
+          clientName={historyModalService.client_name}
         />
       )}
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useRef, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -11,9 +11,13 @@ import {
   Layers,
   Loader2,
   AlertTriangle,
+  ShieldAlert,
 } from "lucide-react";
 import { createClientAction, fetchSalespeopleAction } from "@/app/actions/clients";
+import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { PhoneInput } from "@/components/clients/PhoneInput";
+import { DuplicateWarningModal } from "@/components/clients/DuplicateWarningModal";
+import { DuplicateMatch } from "@/lib/validation/duplicate-detector";
 
 interface SalespersonOption {
   id: string;
@@ -25,9 +29,17 @@ interface SalespersonOption {
 
 export default function NewClientPage() {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const [state, formAction, isPending] = useActionState(createClientAction, null);
   const [salespeople, setSalespeople] = useState<SalespersonOption[]>([]);
   const [selectedSalesperson, setSelectedSalesperson] = useState<string>("");
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Duplicate Warning Modal State
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>([]);
+  const [isBlockedByEmail, setIsBlockedByEmail] = useState(false);
+  const [isSubmittingOverride, startTransition] = useTransition();
 
   useEffect(() => {
     fetchSalespeopleAction().then((data) => {
@@ -36,14 +48,35 @@ export default function NewClientPage() {
         setSelectedSalesperson(data[0].id);
       }
     });
+
+    getCurrentUserProfileAction().then((p) => {
+      if (p?.role === "admin") {
+        setIsAdmin(true);
+      }
+    });
   }, []);
 
   useEffect(() => {
     if (state?.success && state?.clientId) {
       router.push(`/clients/${state.clientId}`);
       router.refresh();
+    } else if (state?.hasDuplicates && state?.duplicateMatches) {
+      setDuplicateMatches(state.duplicateMatches);
+      setIsBlockedByEmail(!!state.isBlockedByActiveEmail);
+      setDuplicateModalOpen(true);
     }
   }, [state, router]);
+
+  // Admin Proceed Anyway Handler
+  const handleProceedAnyway = () => {
+    if (!formRef.current) return;
+    const formData = new FormData(formRef.current);
+    formData.set("allow_duplicate_override", "true");
+
+    startTransition(async () => {
+      await formAction(formData);
+    });
+  };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -66,14 +99,33 @@ export default function NewClientPage() {
       </div>
 
       {state?.error && (
-        <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-700 flex items-center gap-2 shadow-2xs">
-          <AlertTriangle size={16} className="text-red-500 shrink-0" />
+        <div className={`p-3.5 border rounded-xl text-xs font-semibold flex items-center gap-2 shadow-2xs ${
+          state.isBlockedByActiveEmail
+            ? "bg-red-50 border-red-200 text-red-700"
+            : state.hasDuplicates
+            ? "bg-amber-50 border-amber-200 text-amber-800"
+            : "bg-red-50 border-red-200 text-red-700"
+        }`}>
+          {state.isBlockedByActiveEmail ? (
+            <ShieldAlert size={16} className="text-red-500 shrink-0" />
+          ) : (
+            <AlertTriangle size={16} className={state.hasDuplicates ? "text-amber-600 shrink-0" : "text-red-500 shrink-0"} />
+          )}
           <span>{state.error}</span>
+          {state.hasDuplicates && (
+            <button
+              type="button"
+              onClick={() => setDuplicateModalOpen(true)}
+              className="ml-auto underline font-bold cursor-pointer hover:opacity-80"
+            >
+              View Matches ({state.duplicateMatches?.length || 0})
+            </button>
+          )}
         </div>
       )}
 
       {/* Multi-Section Form */}
-      <form action={formAction} className="space-y-6">
+      <form ref={formRef} action={formAction} className="space-y-6">
         {/* Section 1: Company Details */}
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center gap-2 pb-2 border-b border-slate-100 text-slate-800 font-semibold text-sm">
@@ -306,10 +358,10 @@ export default function NewClientPage() {
           </Link>
           <button
             type="submit"
-            disabled={isPending}
+            disabled={isPending || isSubmittingOverride}
             className="inline-flex items-center gap-1.5 px-5 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
           >
-            {isPending ? (
+            {isPending || isSubmittingOverride ? (
               <>
                 <Loader2 size={16} className="animate-spin" />
                 <span>Saving Client...</span>
@@ -323,6 +375,17 @@ export default function NewClientPage() {
           </button>
         </div>
       </form>
+
+      {/* Duplicate Warning & Inspection Modal */}
+      <DuplicateWarningModal
+        isOpen={duplicateModalOpen}
+        onClose={() => setDuplicateModalOpen(false)}
+        matches={duplicateMatches}
+        isBlocked={isBlockedByEmail}
+        isAdmin={isAdmin}
+        onProceedAnyway={handleProceedAnyway}
+        isSubmitting={isSubmittingOverride}
+      />
     </div>
   );
 }

@@ -3,12 +3,17 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { validatePhoneNumber, parseInitialPhone } from "@/lib/validation/phone";
+import { checkClientDuplicatesAction } from "./duplicate-detection";
+import { DuplicateMatch } from "@/lib/validation/duplicate-detector";
 
 export interface CreateClientState {
   error?: string | null;
   fieldErrors?: Record<string, string>;
   success?: boolean;
   clientId?: string;
+  hasDuplicates?: boolean;
+  duplicateMatches?: DuplicateMatch[];
+  isBlockedByActiveEmail?: boolean;
 }
 
 export async function createClientAction(
@@ -106,6 +111,39 @@ export async function createClientAction(
     return {
       error: firstErrorMessage,
       fieldErrors,
+      success: false,
+    };
+  }
+
+  // Feature 015: Duplicate Detection Check
+  const allowDuplicateOverride = formData.get("allow_duplicate_override") === "true";
+  const duplicateCheck = await checkClientDuplicatesAction({
+    companyName: company_name,
+    email,
+    phone,
+  });
+
+  // Strict prevention: Duplicate email on an active client is NEVER permitted
+  if (duplicateCheck.activeEmailMatch) {
+    return {
+      error: `A client with email "${email}" is already active in BRAND 360s CRM. Duplicate active client records with identical email are prevented.`,
+      fieldErrors: {
+        email: "This email address is already registered to an active client.",
+      },
+      hasDuplicates: true,
+      duplicateMatches: duplicateCheck.matches,
+      isBlockedByActiveEmail: true,
+      success: false,
+    };
+  }
+
+  // Non-blocking duplicate warning (Company name, phone, or archived email)
+  if (duplicateCheck.hasMatches && !allowDuplicateOverride) {
+    return {
+      error: "Potential duplicate client detected matching company name, phone, or existing records. Please review.",
+      hasDuplicates: true,
+      duplicateMatches: duplicateCheck.matches,
+      isBlockedByActiveEmail: false,
       success: false,
     };
   }

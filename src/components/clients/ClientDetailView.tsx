@@ -132,10 +132,17 @@ export function ClientDetailView({
                   </span>
                 )}
                 <span
-                  className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${client.clientStatus === "Inactive"
+                  className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
+                    client.clientStatus === "Inactive"
                       ? "bg-slate-100 text-slate-600 border-slate-300"
+                      : client.clientStatus === "On Hold"
+                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                      : client.clientStatus === "Pending Onboarding"
+                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                      : client.clientStatus === "Completed"
+                      ? "bg-purple-50 text-purple-700 border-purple-200"
                       : "bg-emerald-50 text-emerald-700 border-emerald-200"
-                    }`}
+                  }`}
                 >
                   {client.clientStatus || "Active"}
                 </span>
@@ -265,7 +272,6 @@ export function ClientDetailView({
                 }`}
             >
               Services ({client.servicesPurchased ? client.servicesPurchased.split(",").length : 0})
-              Services &amp; Scope
             </button>
             <button
               onClick={() => setActiveTab("payments")}
@@ -274,8 +280,7 @@ export function ClientDetailView({
                   : "border-transparent hover:text-slate-900"
                 }`}
             >
-              Payments & Ledger
-              Payments &amp; Invoices
+              Payments &amp; Ledger
             </button>
             <button
               onClick={() => setActiveTab("followups")}
@@ -330,7 +335,7 @@ export function ClientDetailView({
                       )}
                       <div className="flex justify-between py-1">
                         <span className="text-slate-500">Email</span>
-                        <span className="font-medium text-slate-800">{client.email}</span>
+                        <span className="font-medium text-slate-800">{client.email || "Not provided"}</span>
                       </div>
                     </div>
                   </div>
@@ -397,7 +402,7 @@ export function ClientDetailView({
                       <div className="flex justify-between py-1 border-b border-slate-100">
                         <span className="text-slate-500">Billing Email</span>
                         <span className="font-medium text-slate-800">
-                          {client.billingEmail || client.email}
+                          {client.billingEmail || client.email || "Not provided"}
                         </span>
                       </div>
                       <div className="flex justify-between py-1 border-b border-slate-100">

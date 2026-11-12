@@ -7,6 +7,7 @@ interface ClientStatsCardsProps {
   activeClients?: number;
   pendingFollowups?: number;
   totalRevenue?: string;
+  totalOutstanding?: string;
 }
 
 export function ClientStatsCards({
@@ -14,11 +15,13 @@ export function ClientStatsCards({
   activeClients = 180,
   pendingFollowups = 65,
   totalRevenue = "₹12.5L",
+  totalOutstanding,
 }: ClientStatsCardsProps) {
   const stats = [
     {
       label: "Total Clients",
       value: totalClients,
+      sublabel: "All Registered",
       icon: Users,
       iconBg: "bg-[#E0F3F7]",
       iconColor: "text-[#0481A2]",
@@ -26,6 +29,7 @@ export function ClientStatsCards({
     {
       label: "Active Clients",
       value: activeClients,
+      sublabel: "Operational",
       icon: Briefcase,
       iconBg: "bg-[#243E76]",
       iconColor: "text-white",
@@ -33,6 +37,7 @@ export function ClientStatsCards({
     {
       label: "Pending Follow-ups",
       value: pendingFollowups,
+      sublabel: "Action Required",
       icon: CalendarDays,
       iconBg: "bg-[#0481A2]",
       iconColor: "text-white",
@@ -40,6 +45,7 @@ export function ClientStatsCards({
     {
       label: "Total Revenue",
       value: totalRevenue,
+      sublabel: totalOutstanding ? `Receivable: ${totalOutstanding}` : undefined,
       icon: IndianRupee,
       iconBg: "bg-[#243E76]",
       iconColor: "text-white",
@@ -86,6 +92,11 @@ export function ClientStatsCards({
               <p className="text-xs font-semibold text-slate-500 mt-0.5">
                 {stat.label}
               </p>
+              {stat.sublabel && (
+                <p className="text-[11px] font-medium text-slate-400 mt-0.5">
+                  {stat.sublabel}
+                </p>
+              )}
             </div>
           </div>
         );

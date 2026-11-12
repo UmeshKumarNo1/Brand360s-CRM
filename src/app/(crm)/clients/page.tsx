@@ -8,7 +8,8 @@ import { ClientFilters } from "@/components/clients/ClientFilters";
 import { ClientsTable } from "@/components/clients/ClientsTable";
 import { ClientPagination } from "@/components/clients/ClientPagination";
 import { ClientRecord, MOCK_CLIENTS } from "@/data/mockClients";
-import { fetchClientsAction } from "@/app/actions/clients";
+import { fetchClientsAction, fetchSalespeopleAction } from "@/app/actions/clients";
+import { fetchFollowupsAction } from "@/app/actions/followups";
 import {
   deleteClientAction,
   archiveClientAction,
@@ -57,6 +58,9 @@ export default function ClientsPage() {
   const [selectedSalesperson, setSelectedSalesperson] = useState("All");
   const [selectedService, setSelectedService] = useState("All");
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState("All");
+  const [selectedClientStatus, setSelectedClientStatus] = useState("All");
+  const [salespeopleList, setSalespeopleList] = useState<{ id: string; full_name: string }[]>([]);
+  const [pendingFollowupsCount, setPendingFollowupsCount] = useState<number>(0);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -79,13 +83,32 @@ export default function ClientsPage() {
     setErrorMessage(null);
 
     try {
-      const records = await fetchClientsAction();
+      const [records, spList, followups] = await Promise.all([
+        fetchClientsAction(),
+        fetchSalespeopleAction(),
+        fetchFollowupsAction(),
+      ]);
+
       if (currentReqId === requestIdRef.current) {
+        if (spList && Array.isArray(spList)) {
+          setSalespeopleList(spList.map((s: any) => ({ id: s.id, full_name: s.full_name })));
+        }
+
+        if (followups && Array.isArray(followups)) {
+          const pending = followups.filter((f: any) => f.status === "Pending" && f.clientStatus !== "Archived").length;
+          setPendingFollowupsCount(pending);
+        }
+
         if (records && records.length > 0) {
           const mapped: ClientRecord[] = records.map((r: any, idx: number) => ({
             id: r.id,
             no: idx + 1,
             companyName: r.company_name,
+            tradeName: r.trade_name || undefined,
+            clientCode: r.client_code || undefined,
+            contactPerson: r.contact_person || undefined,
+            email: r.email || undefined,
+            phone: r.phone || undefined,
             dateOfCreation: r.created_at
               ? new Date(r.created_at).toLocaleDateString("en-IN", {
                   day: "2-digit",
@@ -215,6 +238,20 @@ export default function ClientsPage() {
     }
   };
 
+  // Distinct Services dynamically extracted from loaded clients
+  const distinctServices = useMemo(() => {
+    const s = new Set<string>();
+    dbClients.forEach((c) => {
+      if (c.servicesPurchased) {
+        c.servicesPurchased.split(",").forEach((item) => {
+          const trimmed = item.trim();
+          if (trimmed) s.add(trimmed);
+        });
+      }
+    });
+    return Array.from(s).sort();
+  }, [dbClients]);
+
   // Filter Logic: separate active vs archived clients
   const filteredClients = useMemo(() => {
     return dbClients.filter((client) => {
@@ -223,24 +260,45 @@ export default function ClientsPage() {
       if (clientTab === "active" && isArchived) return false;
       if (clientTab === "archived" && !isArchived) return false;
 
+      // Search across company, trade name, contact, phone, email, client code, salesperson
       if (searchQuery.trim() !== "") {
-        const query = searchQuery.toLowerCase();
-        const matchesName = client.companyName.toLowerCase().includes(query);
-        const matchesSalesperson = client.salesperson.toLowerCase().includes(query);
-        if (!matchesName && !matchesSalesperson) return false;
+        const query = searchQuery.toLowerCase().trim();
+        const matchesName = client.companyName?.toLowerCase().includes(query);
+        const matchesTrade = client.tradeName?.toLowerCase().includes(query);
+        const matchesContact = client.contactPerson?.toLowerCase().includes(query);
+        const matchesEmail = client.email?.toLowerCase().includes(query);
+        const matchesPhone = client.phone?.includes(query);
+        const matchesCode = client.clientCode?.toLowerCase().includes(query);
+        const matchesSalesperson = client.salesperson?.toLowerCase().includes(query);
+
+        if (
+          !matchesName &&
+          !matchesTrade &&
+          !matchesContact &&
+          !matchesEmail &&
+          !matchesPhone &&
+          !matchesCode &&
+          !matchesSalesperson
+        ) {
+          return false;
+        }
       }
+
       if (selectedSalesperson !== "All" && client.salesperson !== selectedSalesperson) {
         return false;
       }
-      if (selectedService !== "All" && !client.servicesPurchased.includes(selectedService)) {
+      if (selectedService !== "All" && !client.servicesPurchased?.toLowerCase().includes(selectedService.toLowerCase())) {
         return false;
       }
       if (selectedPaymentStatus !== "All" && client.paymentStatus !== selectedPaymentStatus) {
         return false;
       }
+      if (selectedClientStatus !== "All" && client.clientStatus !== selectedClientStatus) {
+        return false;
+      }
       return true;
     });
-  }, [dbClients, clientTab, searchQuery, selectedSalesperson, selectedService, selectedPaymentStatus]);
+  }, [dbClients, clientTab, searchQuery, selectedSalesperson, selectedService, selectedPaymentStatus, selectedClientStatus]);
 
   const totalPages = Math.ceil(filteredClients.length / pageSize) || 1;
   const paginatedClients = useMemo(() => {
@@ -274,11 +332,22 @@ export default function ClientsPage() {
     setSelectedSalesperson("All");
     setSelectedService("All");
     setSelectedPaymentStatus("All");
+    setSelectedClientStatus("All");
     setCurrentPage(1);
+    setSelectedIds([]);
   };
 
-  const activeCount = dbClients.filter((c) => c.clientStatus !== "Archived").length;
+  const totalNonArchived = dbClients.filter((c) => c.clientStatus !== "Archived").length;
+  const activeOperationalCount = dbClients.filter((c) => c.clientStatus === "Active").length;
   const archivedCount = dbClients.filter((c) => c.clientStatus === "Archived").length;
+
+  const totalRevenueNumber = dbClients
+    .filter((c) => c.clientStatus !== "Archived")
+    .reduce((acc, c) => acc + (c.paymentsReceived || 0), 0);
+
+  const totalOutstandingNumber = dbClients
+    .filter((c) => c.clientStatus !== "Archived")
+    .reduce((acc, c) => acc + (c.balanceReceivable || 0), 0);
 
   return (
     <div className="space-y-6 w-full">
@@ -288,14 +357,11 @@ export default function ClientsPage() {
       />
 
       <ClientStatsCards
-        totalClients={activeCount}
-        activeClients={dbClients.filter((c) => c.clientStatus !== "Archived" && c.paymentStatus !== "Paid in full").length}
-        pendingFollowups={dbClients.filter((c) => c.clientStatus !== "Archived" && c.paymentStatus === "Overdue").length}
-        totalRevenue={`₹${(
-          dbClients
-            .filter((c) => c.clientStatus !== "Archived")
-            .reduce((acc, c) => acc + (c.paymentsReceived || 0), 0) / 100000
-        ).toFixed(1)}L`}
+        totalClients={totalNonArchived}
+        activeClients={activeOperationalCount}
+        pendingFollowups={pendingFollowupsCount}
+        totalRevenue={`₹${(totalRevenueNumber / 100000).toFixed(1)}L`}
+        totalOutstanding={`₹${(totalOutstandingNumber / 100000).toFixed(1)}L`}
       />
 
       {/* Tabs: Active vs Archived Portfolio */}
@@ -313,7 +379,7 @@ export default function ClientsPage() {
                 : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
             }`}
           >
-            Active Clients ({activeCount})
+            Active Clients ({totalNonArchived})
           </button>
           {isAdmin && (
             <button
@@ -396,6 +462,13 @@ export default function ClientsPage() {
           setSelectedPaymentStatus(st);
           setCurrentPage(1);
         }}
+        selectedClientStatus={selectedClientStatus}
+        setSelectedClientStatus={(cs) => {
+          setSelectedClientStatus(cs);
+          setCurrentPage(1);
+        }}
+        salespeople={salespeopleList}
+        services={distinctServices}
         onReset={handleReset}
       />
 

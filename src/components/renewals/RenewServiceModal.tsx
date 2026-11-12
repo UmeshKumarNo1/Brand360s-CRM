@@ -31,7 +31,9 @@ export function RenewServiceModal({
 
   const [newRenewalDate, setNewRenewalDate] = useState(defaultNextDate());
   const [renewalAmount, setRenewalAmount] = useState<number>(renewal?.renewalAmount || 0);
+  const [notes, setNotes] = useState("");
   const [createInvoice, setCreateInvoice] = useState(true);
+  const [createFollowup, setCreateFollowup] = useState(false);
 
   if (!isOpen || !renewal) return null;
 
@@ -44,7 +46,9 @@ export function RenewServiceModal({
         renewal.id,
         newRenewalDate,
         Number(renewalAmount) || 0,
-        createInvoice
+        createInvoice,
+        notes,
+        createFollowup
       );
 
       if (res.success) {
@@ -121,23 +125,57 @@ export function RenewServiceModal({
             />
           </div>
 
-          {/* Create Invoice Checkbox */}
-          <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl flex items-start gap-2.5">
-            <input
-              type="checkbox"
-              id="createInvoice"
-              checked={createInvoice}
-              onChange={(e) => setCreateInvoice(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#0481A2] focus:ring-[#0481A2]"
-            />
-            <label htmlFor="createInvoice" className="text-slate-700 cursor-pointer">
-              <span className="font-semibold block text-[11px] text-[#1B3260]">
-                Automatically generate renewal invoice
-              </span>
-              <span className="text-[10px] text-slate-500">
-                Creates an Unpaid invoice for this client to track collection and receivables.
-              </span>
+          {/* Notes */}
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Renewal Notes (Optional)
             </label>
+            <textarea
+              rows={2}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. Renewed for another annual term..."
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-[#0481A2]"
+            />
+          </div>
+
+          {/* Checkboxes */}
+          <div className="space-y-2 pt-1">
+            <div className="p-3 bg-blue-50/50 border border-blue-100 rounded-xl flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                id="createInvoice"
+                checked={createInvoice}
+                onChange={(e) => setCreateInvoice(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#0481A2] focus:ring-[#0481A2]"
+              />
+              <label htmlFor="createInvoice" className="text-slate-700 cursor-pointer">
+                <span className="font-semibold block text-[11px] text-[#1B3260]">
+                  Automatically generate renewal invoice
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  Creates an Unpaid invoice for this client to track collection and receivables.
+                </span>
+              </label>
+            </div>
+
+            <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5">
+              <input
+                type="checkbox"
+                id="createFollowup"
+                checked={createFollowup}
+                onChange={(e) => setCreateFollowup(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#0481A2] focus:ring-[#0481A2]"
+              />
+              <label htmlFor="createFollowup" className="text-slate-700 cursor-pointer">
+                <span className="font-semibold block text-[11px] text-[#1B3260]">
+                  Schedule Renewal Follow-up Reminder
+                </span>
+                <span className="text-[10px] text-slate-500">
+                  Creates a follow-up task on the renewal due date for the assigned salesperson.
+                </span>
+              </label>
+            </div>
           </div>
 
           {/* Buttons */}

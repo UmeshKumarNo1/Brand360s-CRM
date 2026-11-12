@@ -7,7 +7,10 @@ import { RenewalStatsCards } from "@/components/renewals/RenewalStatsCards";
 import { RenewalFilters } from "@/components/renewals/RenewalFilters";
 import { RenewalsTable } from "@/components/renewals/RenewalsTable";
 import { RenewServiceModal } from "@/components/renewals/RenewServiceModal";
+import { CreateRenewalModal } from "@/components/renewals/CreateRenewalModal";
+import { RenewalHistoryModal } from "@/components/renewals/RenewalHistoryModal";
 import { CreateFollowupModal } from "@/components/followups/CreateFollowupModal";
+import { InvoicePreviewModal } from "@/components/invoices/InvoicePreviewModal";
 import { ClientPagination } from "@/components/clients/ClientPagination";
 import { useToast } from "@/components/common/ToastProvider";
 
@@ -28,8 +31,11 @@ export default function RenewalsPage() {
 
   // Modals
   const [selectedRenewalForRenew, setSelectedRenewalForRenew] = useState<RenewalItem | null>(null);
+  const [isCreateRenewalModalOpen, setIsCreateRenewalModalOpen] = useState(false);
+  const [historyRenewal, setHistoryRenewal] = useState<RenewalItem | null>(null);
   const [isFollowupModalOpen, setIsFollowupModalOpen] = useState(false);
   const [followupClientId, setFollowupClientId] = useState<string | undefined>(undefined);
+  const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     setIsLoading(true);
@@ -47,7 +53,26 @@ export default function RenewalsPage() {
     loadData();
   }, [loadData]);
 
-  // Derived unique lists for dropdowns
+  // Derived unique clients and services for modal creation
+  const uniqueClients = useMemo(() => {
+    const map = new Map<string, string>();
+    renewals.forEach((r) => {
+      if (r.clientId && r.clientName) map.set(r.clientId, r.clientName);
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [renewals]);
+
+  const servicesForModal = useMemo(() => {
+    return renewals.map((r) => ({
+      id: r.id,
+      clientId: r.clientId,
+      name: r.serviceName,
+      amount: r.renewalAmount,
+      expiry: r.currentExpiryDate,
+    }));
+  }, [renewals]);
+
+  // Derived unique lists for dropdown filters
   const servicesList = useMemo(() => {
     return Array.from(new Set(renewals.map((r) => r.serviceName))).sort();
   }, [renewals]);
@@ -106,10 +131,10 @@ export default function RenewalsPage() {
     });
   }, [renewals, searchQuery, statusFilter, serviceFilter, salespersonFilter]);
 
-  // Paginated records
+  // Pagination slice
   const paginatedRenewals = useMemo(() => {
-    const startIndex = (currentPage - 1) * pageSize;
-    return filteredRenewals.slice(startIndex, startIndex + pageSize);
+    const start = (currentPage - 1) * pageSize;
+    return filteredRenewals.slice(start, start + pageSize);
   }, [filteredRenewals, currentPage, pageSize]);
 
   const handleResetFilters = () => {
@@ -120,39 +145,43 @@ export default function RenewalsPage() {
     setCurrentPage(1);
   };
 
-  const handleCreateFollowup = (renewal: RenewalItem) => {
-    setFollowupClientId(renewal.clientId);
+  const handleOpenFollowup = (r: RenewalItem) => {
+    setFollowupClientId(r.clientId);
     setIsFollowupModalOpen(true);
   };
 
   return (
     <div className="space-y-6">
-      {/* 1. Header */}
-      <RenewalsHeader onRefresh={loadData} isLoading={isLoading} />
+      {/* 1. Header with Refresh and Create Renewal */}
+      <RenewalsHeader
+        onRefresh={loadData}
+        isLoading={isLoading}
+        onCreateRenewal={() => setIsCreateRenewalModalOpen(true)}
+      />
 
-      {/* 2. Summary KPI Cards */}
+      {/* 2. Top Summary KPI Cards */}
       <RenewalStatsCards stats={stats} />
 
       {/* 3. Filter Bar */}
       <RenewalFilters
         searchQuery={searchQuery}
-        onSearchChange={(q) => {
-          setSearchQuery(q);
+        onSearchChange={(val) => {
+          setSearchQuery(val);
           setCurrentPage(1);
         }}
         statusFilter={statusFilter}
-        onStatusChange={(s) => {
-          setStatusFilter(s);
+        onStatusChange={(val) => {
+          setStatusFilter(val);
           setCurrentPage(1);
         }}
         serviceFilter={serviceFilter}
-        onServiceChange={(svc) => {
-          setServiceFilter(svc);
+        onServiceChange={(val) => {
+          setServiceFilter(val);
           setCurrentPage(1);
         }}
         salespersonFilter={salespersonFilter}
-        onSalespersonChange={(sp) => {
-          setSalespersonFilter(sp);
+        onSalespersonChange={(val) => {
+          setSalespersonFilter(val);
           setCurrentPage(1);
         }}
         servicesList={servicesList}
@@ -164,40 +193,61 @@ export default function RenewalsPage() {
       <RenewalsTable
         renewals={paginatedRenewals}
         onRenewClick={(r) => setSelectedRenewalForRenew(r)}
-        onCreateFollowup={handleCreateFollowup}
+        onCreateFollowup={handleOpenFollowup}
+        onViewHistory={(r) => setHistoryRenewal(r)}
+        onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
       />
 
       {/* 5. Pagination */}
-      {filteredRenewals.length > 0 && (
+      {!isLoading && filteredRenewals.length > 0 && (
         <ClientPagination
           currentPage={currentPage}
           totalPages={Math.ceil(filteredRenewals.length / pageSize) || 1}
           pageSize={pageSize}
           onPageChange={setCurrentPage}
-          onPageSizeChange={(newSize) => {
-            setPageSize(newSize);
+          onPageSizeChange={(size) => {
+            setPageSize(size);
             setCurrentPage(1);
           }}
         />
       )}
 
-      {/* Modal: Process Renewal */}
+      {/* Modals */}
       <RenewServiceModal
-        renewal={selectedRenewalForRenew}
         isOpen={!!selectedRenewalForRenew}
+        renewal={selectedRenewalForRenew}
         onClose={() => setSelectedRenewalForRenew(null)}
-        onSuccess={loadData}
+        onSuccess={() => loadData()}
       />
 
-      {/* Modal: Create Follow-up */}
+      <CreateRenewalModal
+        isOpen={isCreateRenewalModalOpen}
+        onClose={() => setIsCreateRenewalModalOpen(false)}
+        onSuccess={() => loadData()}
+        clients={uniqueClients}
+        services={servicesForModal}
+      />
+
+      <RenewalHistoryModal
+        isOpen={!!historyRenewal}
+        serviceId={historyRenewal?.id}
+        serviceName={historyRenewal?.serviceName}
+        clientName={historyRenewal?.clientName}
+        onClose={() => setHistoryRenewal(null)}
+        onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
+      />
+
       <CreateFollowupModal
         isOpen={isFollowupModalOpen}
-        onClose={() => {
-          setIsFollowupModalOpen(false);
-          setFollowupClientId(undefined);
-        }}
-        onSuccess={loadData}
+        onClose={() => setIsFollowupModalOpen(false)}
+        onSuccess={() => loadData()}
         defaultClientId={followupClientId}
+      />
+
+      <InvoicePreviewModal
+        isOpen={!!previewInvoiceId}
+        invoiceId={previewInvoiceId || undefined}
+        onClose={() => setPreviewInvoiceId(null)}
       />
     </div>
   );

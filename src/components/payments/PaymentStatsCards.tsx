@@ -95,16 +95,16 @@ export function PaymentStatsCards({
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 w-full">
       {cards.map((card, idx) => {
         const Icon = card.icon;
         return (
           <div
             key={idx}
-            className="bg-white rounded-2xl p-4.5 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-center gap-4 transition-all duration-200 hover:shadow-xs min-h-[92px]"
+            className="bg-white rounded-2xl p-3.5 sm:p-4 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-center gap-3 transition-all duration-200 hover:shadow-xs min-h-[82px] min-w-0"
           >
             {/* Subtle organic decorative wave matching reference design and Clients stats cards */}
-            <div className="pointer-events-none absolute right-0 bottom-0 w-24 h-16 opacity-35">
+            <div className="pointer-events-none absolute right-0 bottom-0 w-20 h-14 opacity-30">
               <svg viewBox="0 0 120 80" fill="none" className="w-full h-full">
                 <path
                   d="M120 80C90 75 70 50 80 20C90 -5 110 5 120 0V80Z"
@@ -121,17 +121,17 @@ export function PaymentStatsCards({
 
             {/* Icon Circle */}
             <div
-              className={`w-12 h-12 rounded-full shrink-0 flex items-center justify-center ${card.iconBg} ${card.iconColor} shadow-2xs z-10`}
+              className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full shrink-0 flex items-center justify-center ${card.iconBg} ${card.iconColor} shadow-2xs z-10`}
             >
-              <Icon size={20} strokeWidth={2.2} />
+              <Icon size={18} strokeWidth={2.2} />
             </div>
 
             {/* Value & Label */}
             <div className="z-10 min-w-0 flex-1">
-              <div className="text-xl sm:text-2xl font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number whitespace-nowrap">
+              <div className="text-lg sm:text-xl font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number whitespace-nowrap">
                 {card.value}
               </div>
-              <p className="text-xs font-semibold text-slate-500 mt-1 leading-snug">
+              <p className="text-[11px] sm:text-xs font-semibold text-slate-500 mt-0.5 leading-snug">
                 {card.label}
               </p>
             </div>

@@ -72,8 +72,8 @@ export function AppLayout({ children, userProfile }: AppLayoutProps) {
         </svg>
       </div>
 
-      {/* Desktop Sidebar */}
-      <div className="hidden lg:block relative z-30">
+      {/* Desktop Sidebar (Sticky to full viewport height so when page scrolls, it never cuts off or exposes white space) */}
+      <div className="hidden lg:block sticky top-0 h-screen z-30 shrink-0">
         <AppSidebar
           isCollapsed={isCollapsed}
           setIsCollapsed={setIsCollapsed}

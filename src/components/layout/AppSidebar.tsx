@@ -63,11 +63,10 @@ export function AppSidebar({
   return (
     <aside 
       className={cn(
-        "relative flex flex-col justify-between transition-all duration-300 select-none shrink-0 shadow-xl overflow-hidden",
+        "relative flex flex-col justify-between transition-all duration-300 select-none shrink-0 shadow-xl overflow-hidden h-full",
         "bg-[#14244B] border-r border-[#1B2F5B]/80",
         isCollapsed ? "w-20" : "w-64"
       )}
-      style={{ minHeight: "100vh" }}
     >
       {/* Brand Header */}
       <div className="flex items-center justify-between px-4 sm:px-5 h-20 border-b border-[#1E3567]/50 relative z-10">

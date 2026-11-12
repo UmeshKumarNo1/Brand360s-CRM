@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { AppSidebar } from "./AppSidebar";
 import { TopNavbar } from "./TopNavbar";
-import { cn } from "@/lib/utils";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -104,12 +103,7 @@ export function AppLayout({ children, userProfile }: AppLayoutProps) {
       )}
 
       {/* Main Content Area */}
-      <div
-        className={cn(
-          "flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10",
-          isCollapsed ? "lg:ml-[72px]" : "lg:ml-[240px]"
-        )}
-      >
+      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10">
         <TopNavbar
           onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
           userEmail={userProfile?.email || "admin@brand360s.co"}

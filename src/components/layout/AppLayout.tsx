@@ -23,20 +23,20 @@ export function AppLayout({ children, userProfile }: AppLayoutProps) {
     <div className="min-h-screen bg-[#F4F8FC] flex relative overflow-x-hidden">
       {/* Background Soft Organic Waves (matching the design in the image) */}
       <div className="pointer-events-none fixed top-0 right-0 w-[550px] h-[350px] z-0 overflow-hidden opacity-60">
-        <svg 
-          viewBox="0 0 550 350" 
-          fill="none" 
+        <svg
+          viewBox="0 0 550 350"
+          fill="none"
           xmlns="http://www.w3.org/2000/svg"
           className="w-full h-full"
         >
-          <path 
-            d="M550 0H0C80 90 200 130 350 90C450 60 510 130 550 200V0Z" 
-            fill="url(#topWaveGrad)" 
+          <path
+            d="M550 0H0C80 90 200 130 350 90C450 60 510 130 550 200V0Z"
+            fill="url(#topWaveGrad)"
             opacity="0.35"
           />
-          <path 
-            d="M550 0H140C240 70 330 90 420 50C480 20 520 70 550 120V0Z" 
-            fill="url(#topWaveGrad2)" 
+          <path
+            d="M550 0H140C240 70 330 90 420 50C480 20 520 70 550 120V0Z"
+            fill="url(#topWaveGrad2)"
             opacity="0.25"
           />
           <defs>
@@ -53,15 +53,15 @@ export function AppLayout({ children, userProfile }: AppLayoutProps) {
       </div>
 
       <div className="pointer-events-none fixed bottom-0 right-0 w-[600px] h-[300px] z-0 overflow-hidden opacity-50">
-        <svg 
-          viewBox="0 0 600 300" 
-          fill="none" 
+        <svg
+          viewBox="0 0 600 300"
+          fill="none"
           xmlns="http://www.w3.org/2000/svg"
           className="w-full h-full"
         >
-          <path 
-            d="M600 300H0C120 220 280 260 420 210C500 180 560 220 600 240V300Z" 
-            fill="url(#bottomWaveGrad)" 
+          <path
+            d="M600 300H0C120 220 280 260 420 210C500 180 560 220 600 240V300Z"
+            fill="url(#bottomWaveGrad)"
             opacity="0.3"
           />
           <defs>
@@ -75,9 +75,9 @@ export function AppLayout({ children, userProfile }: AppLayoutProps) {
 
       {/* Desktop Sidebar */}
       <div className="hidden lg:block relative z-30">
-        <AppSidebar 
-          isCollapsed={isCollapsed} 
-          setIsCollapsed={setIsCollapsed} 
+        <AppSidebar
+          isCollapsed={isCollapsed}
+          setIsCollapsed={setIsCollapsed}
           userRole={userProfile?.role || "admin"}
           userFullName={userProfile?.fullName || "Uki0070411"}
           userEmail={userProfile?.email || "admin@brand360s.co"}
@@ -87,13 +87,13 @@ export function AppLayout({ children, userProfile }: AppLayoutProps) {
       {/* Mobile Drawer */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 lg:hidden flex">
-          <div 
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs" 
-            onClick={() => setMobileMenuOpen(false)} 
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs"
+            onClick={() => setMobileMenuOpen(false)}
           />
           <div className="relative z-10 w-[240px]">
-            <AppSidebar 
-              isCollapsed={false} 
+            <AppSidebar
+              isCollapsed={false}
               setIsCollapsed={() => setMobileMenuOpen(false)}
               userRole={userProfile?.role || "admin"}
               userFullName={userProfile?.fullName || "Uki0070411"}
@@ -104,13 +104,13 @@ export function AppLayout({ children, userProfile }: AppLayoutProps) {
       )}
 
       {/* Main Content Area */}
-      <div 
+      <div
         className={cn(
           "flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10",
-          isCollapsed ? "lg:ml-[72px]" : "lg:ml-[240px]"
+          isCollapsed ? "lg:ml-[72px]" : "lg:ml-[20px]"
         )}
       >
-        <TopNavbar 
+        <TopNavbar
           onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
           userEmail={userProfile?.email || "admin@brand360s.co"}
           userRole={userProfile?.role === "admin" ? "Administrator" : "Employee"}

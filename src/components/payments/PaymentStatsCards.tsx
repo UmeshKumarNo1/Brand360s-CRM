@@ -94,13 +94,13 @@ export function PaymentStatsCards({
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3.5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7 gap-3.5">
       {cards.map((card, idx) => {
         const Icon = card.icon;
         return (
           <div
             key={idx}
-            className="bg-white rounded-2xl p-4 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-center gap-3 transition-all duration-200 hover:shadow-xs min-h-[92px]"
+            className="bg-white rounded-2xl p-4 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-start sm:items-center gap-3.5 transition-all duration-200 hover:shadow-xs min-h-[96px]"
           >
             {/* Subtle organic decorative wave matching Clients stats card */}
             <div className="pointer-events-none absolute right-0 bottom-0 w-20 h-14 opacity-30">
@@ -120,20 +120,20 @@ export function PaymentStatsCards({
 
             {/* Icon Circle */}
             <div
-              className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center ${card.iconBg} ${card.iconColor} shadow-2xs z-10`}
+              className={`w-11 h-11 rounded-full shrink-0 flex items-center justify-center ${card.iconBg} ${card.iconColor} shadow-2xs z-10 mt-0.5 sm:mt-0`}
             >
               <Icon size={18} strokeWidth={2.2} />
             </div>
 
             {/* Value & Label */}
-            <div className="z-10 min-w-0">
-              <div className="text-lg xl:text-xl font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number truncate">
+            <div className="z-10 min-w-0 flex-1">
+              <div className="text-base sm:text-lg 2xl:text-xl font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number whitespace-nowrap">
                 {card.value}
               </div>
-              <p className="text-[11px] font-semibold text-slate-500 mt-0.5 truncate">
+              <p className="text-xs font-semibold text-slate-700 mt-1 leading-snug">
                 {card.label}
               </p>
-              <span className="text-[10px] text-slate-400 block truncate">
+              <span className="text-[11px] text-slate-400 block mt-0.5 leading-tight">
                 {card.subLabel}
               </span>
             </div>

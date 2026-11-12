@@ -72,6 +72,16 @@ export function CreateRenewalModal({
       return;
     }
 
+    if (new Date(newRenewalDate) <= new Date(renewalStartDate)) {
+      toastError("Validation Error", "Renewal end date must be after the renewal start date.");
+      return;
+    }
+
+    if (Number(renewalAmount) < 0) {
+      toastError("Validation Error", "Renewal amount cannot be negative.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const res = await createManualRenewalAction(
@@ -85,7 +95,7 @@ export function CreateRenewalModal({
       );
 
       if (res.success) {
-        success("Renewal Created", "Service renewal recorded successfully.");
+        success("Renewal Created", "Pending service renewal created successfully.");
         onSuccess();
         onClose();
       } else {
@@ -242,7 +252,7 @@ export function CreateRenewalModal({
                   <span>Saving...</span>
                 </>
               ) : (
-                <span>Complete Renewal</span>
+                <span>Create Renewal Record</span>
               )}
             </button>
           </div>

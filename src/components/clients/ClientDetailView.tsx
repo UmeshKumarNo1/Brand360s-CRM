@@ -128,7 +128,10 @@ export function ClientDetailView({
     : 0;
 
   return (
-    <div className="space-y-6 font-sans">
+    <div className="relative space-y-6 font-sans">
+      {/* Ambient background atmosphere matching reference */}
+      <div className="absolute -top-10 -right-8 w-96 h-96 bg-gradient-to-br from-sky-100/40 via-teal-50/30 to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
+
       {/* Back button & Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -143,13 +146,13 @@ export function ClientDetailView({
               <h1 className="text-2xl sm:text-3xl font-bold font-sans text-slate-900 tracking-tight">
                 {client.companyName}
               </h1>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#16A34A] border border-[#BBF7D0]">
                 {client.clientStatus || "Active"}
               </span>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#E0F2FE] text-[#0284C7] border border-[#BAE6FD]">
                 {client.paymentStatus || "Upcoming"}
               </span>
-              <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 font-mono">
+              <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-[#F1F5F9] text-[#64748B] border border-[#E2E8F0] font-mono">
                 {client.clientCode}
               </span>
               {isArchived && (
@@ -160,9 +163,9 @@ export function ClientDetailView({
             </div>
             <p className="text-xs text-slate-500 mt-1">
               {client.companyType} • Brought in by:{" "}
-              <strong className="text-slate-700 font-semibold">{client.salesperson}</strong>
+              <strong className="text-slate-800 font-semibold">{client.salesperson}</strong>
               {client.clientSince && (
-                <> • Client Since: <strong className="text-slate-700 font-semibold">{client.clientSince}</strong></>
+                <> • Client Since: <strong className="text-slate-800 font-semibold">{client.clientSince}</strong></>
               )}
             </p>
           </div>
@@ -207,10 +210,10 @@ export function ClientDetailView({
           {isAdmin && (
             <button
               onClick={handleOpenDelete}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-semibold rounded-xl shadow-2xs transition-colors cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#FEF2F2] hover:bg-[#FEE2E2] text-[#DC2626] border border-[#FECACA] text-xs font-semibold rounded-xl shadow-2xs transition-colors cursor-pointer"
               title="Delete or Archive Client"
             >
-              <Trash2 size={14} className="text-red-500" />
+              <Trash2 size={14} className="text-[#DC2626]" />
               <span>Delete</span>
             </button>
           )}
@@ -229,8 +232,8 @@ export function ClientDetailView({
       {/* Financial Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* 1. Contract Value */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs relative overflow-hidden flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
+        <div className="bg-gradient-to-r from-white via-white to-[#E0F2FE]/40 border border-slate-200/90 rounded-2xl p-5 shadow-2xs relative overflow-hidden flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#E0F2FE] text-[#0284C7] flex items-center justify-center shrink-0">
             <Layers size={22} />
           </div>
           <div>
@@ -239,38 +242,53 @@ export function ClientDetailView({
               {formatINR(client.contractValue)}
             </p>
           </div>
+          {/* Decorative double waves */}
           <svg
-            className="absolute -right-3 -bottom-3 w-24 h-24 text-sky-500/[0.07] pointer-events-none"
-            viewBox="0 0 100 100"
+            className="absolute -right-2 -bottom-2 w-32 h-24 text-[#BAE6FD]/40 pointer-events-none"
+            viewBox="0 0 120 80"
             fill="currentColor"
           >
-            <path d="M0,80 Q30,50 60,75 T100,60 L100,100 L0,100 Z" />
+            <path d="M0,80 C30,40 70,80 120,30 L120,80 Z" />
+          </svg>
+          <svg
+            className="absolute right-0 -bottom-3 w-28 h-20 text-[#0284C7]/15 pointer-events-none"
+            viewBox="0 0 120 80"
+            fill="currentColor"
+          >
+            <path d="M20,80 C50,50 80,75 120,45 L120,80 Z" />
           </svg>
         </div>
 
         {/* 2. Payments Received */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs relative overflow-hidden flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+        <div className="bg-gradient-to-r from-white via-white to-[#DCFCE7]/40 border border-slate-200/90 rounded-2xl p-5 shadow-2xs relative overflow-hidden flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#DCFCE7] text-[#16A34A] flex items-center justify-center shrink-0">
             <Wallet size={22} />
           </div>
           <div>
             <span className="text-xs text-slate-500 font-medium">Payments Received</span>
-            <p className="text-2xl font-bold text-emerald-600 mt-0.5 font-sans font-number">
+            <p className="text-2xl font-bold text-[#16A34A] mt-0.5 font-sans font-number">
               {formatINR(client.paymentsReceived)}
             </p>
           </div>
           <svg
-            className="absolute -right-3 -bottom-3 w-24 h-24 text-emerald-500/[0.07] pointer-events-none"
-            viewBox="0 0 100 100"
+            className="absolute -right-2 -bottom-2 w-32 h-24 text-[#BBF7D0]/40 pointer-events-none"
+            viewBox="0 0 120 80"
             fill="currentColor"
           >
-            <path d="M0,80 Q30,50 60,75 T100,60 L100,100 L0,100 Z" />
+            <path d="M0,80 C30,40 70,80 120,30 L120,80 Z" />
+          </svg>
+          <svg
+            className="absolute right-0 -bottom-3 w-28 h-20 text-[#16A34A]/15 pointer-events-none"
+            viewBox="0 0 120 80"
+            fill="currentColor"
+          >
+            <path d="M20,80 C50,50 80,75 120,45 L120,80 Z" />
           </svg>
         </div>
 
         {/* 3. Balance Receivable */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs relative overflow-hidden flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+        <div className="bg-gradient-to-r from-white via-white to-[#DBEAFE]/40 border border-slate-200/90 rounded-2xl p-5 shadow-2xs relative overflow-hidden flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#DBEAFE] text-[#2563EB] flex items-center justify-center shrink-0">
             <Scale size={22} />
           </div>
           <div>
@@ -280,31 +298,45 @@ export function ClientDetailView({
             </p>
           </div>
           <svg
-            className="absolute -right-3 -bottom-3 w-24 h-24 text-blue-500/[0.07] pointer-events-none"
-            viewBox="0 0 100 100"
+            className="absolute -right-2 -bottom-2 w-32 h-24 text-[#BFDBFE]/40 pointer-events-none"
+            viewBox="0 0 120 80"
             fill="currentColor"
           >
-            <path d="M0,80 Q30,50 60,75 T100,60 L100,100 L0,100 Z" />
+            <path d="M0,80 C30,40 70,80 120,30 L120,80 Z" />
+          </svg>
+          <svg
+            className="absolute right-0 -bottom-3 w-28 h-20 text-[#2563EB]/15 pointer-events-none"
+            viewBox="0 0 120 80"
+            fill="currentColor"
+          >
+            <path d="M20,80 C50,50 80,75 120,45 L120,80 Z" />
           </svg>
         </div>
 
         {/* 4. Next Due Date */}
-        <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-2xs relative overflow-hidden flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+        <div className="bg-gradient-to-r from-white via-white to-[#F3E8FF]/40 border border-slate-200/90 rounded-2xl p-5 shadow-2xs relative overflow-hidden flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#F3E8FF] text-[#9333EA] flex items-center justify-center shrink-0">
             <Calendar size={22} />
           </div>
           <div>
             <span className="text-xs text-slate-500 font-medium">Next Due Date</span>
-            <p className="text-2xl font-bold text-rose-500 mt-0.5 font-sans font-number">
+            <p className="text-2xl font-bold text-[#EF4444] mt-0.5 font-sans font-number">
               {client.nextPaymentDueDate && client.nextPaymentDueDate !== "-" ? client.nextPaymentDueDate : "—"}
             </p>
           </div>
           <svg
-            className="absolute -right-3 -bottom-3 w-24 h-24 text-purple-500/[0.07] pointer-events-none"
-            viewBox="0 0 100 100"
+            className="absolute -right-2 -bottom-2 w-32 h-24 text-[#E9D5FF]/40 pointer-events-none"
+            viewBox="0 0 120 80"
             fill="currentColor"
           >
-            <path d="M0,80 Q30,50 60,75 T100,60 L100,100 L0,100 Z" />
+            <path d="M0,80 C30,40 70,80 120,30 L120,80 Z" />
+          </svg>
+          <svg
+            className="absolute right-0 -bottom-3 w-28 h-20 text-[#9333EA]/15 pointer-events-none"
+            viewBox="0 0 120 80"
+            fill="currentColor"
+          >
+            <path d="M20,80 C50,50 80,75 120,45 L120,80 Z" />
           </svg>
         </div>
       </div>
@@ -378,12 +410,10 @@ export function ClientDetailView({
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* 1. Primary Contact Card */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-[#0481A2]/10 text-[#0481A2] flex items-center justify-center">
-                      <User size={18} />
-                    </div>
+                    <User size={18} className="text-[#0481A2]" />
                     <h3 className="font-bold text-sm text-slate-900 font-sans">
                       Primary Contact
                     </h3>
@@ -393,19 +423,19 @@ export function ClientDetailView({
                   </button>
                 </div>
 
-                <div className="space-y-3.5 text-xs">
+                <div className="space-y-4 text-xs">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <User size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <User size={15} className="text-slate-500" />
                       <span>Name</span>
                     </div>
-                    <span className="font-semibold text-slate-900">{client.contactPerson}</span>
+                    <span className="font-medium text-slate-900">{client.contactPerson}</span>
                   </div>
 
                   {client.designation && (
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-slate-500 font-medium">
-                        <Briefcase size={15} className="text-slate-400" />
+                      <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                        <Briefcase size={15} className="text-slate-500" />
                         <span>Designation</span>
                       </div>
                       <span className="font-medium text-slate-800">{client.designation}</span>
@@ -413,17 +443,17 @@ export function ClientDetailView({
                   )}
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <Phone size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <Phone size={15} className="text-slate-500" />
                       <span>Mobile</span>
                     </div>
-                    <span className="font-semibold text-slate-900 font-number">{client.phone}</span>
+                    <span className="font-medium text-slate-900 font-number">{client.phone}</span>
                   </div>
 
                   {client.alternatePhone && (
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-slate-500 font-medium">
-                        <PhoneCall size={15} className="text-slate-400" />
+                      <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                        <PhoneCall size={15} className="text-slate-500" />
                         <span>Alternate Mobile</span>
                       </div>
                       <span className="font-medium text-slate-800 font-number">{client.alternatePhone}</span>
@@ -431,22 +461,20 @@ export function ClientDetailView({
                   )}
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <Mail size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <Mail size={15} className="text-slate-500" />
                       <span>Email</span>
                     </div>
-                    <span className="font-semibold text-slate-900">{client.email || "Not provided"}</span>
+                    <span className="font-medium text-slate-900">{client.email || "Not provided"}</span>
                   </div>
                 </div>
               </div>
 
               {/* 2. Company & Address Card */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-[#0481A2]/10 text-[#0481A2] flex items-center justify-center">
-                      <Building2 size={18} />
-                    </div>
+                    <Building2 size={18} className="text-[#0481A2]" />
                     <h3 className="font-bold text-sm text-slate-900 font-sans">
                       Company &amp; Address
                     </h3>
@@ -456,19 +484,19 @@ export function ClientDetailView({
                   </button>
                 </div>
 
-                <div className="space-y-3.5 text-xs">
+                <div className="space-y-4 text-xs">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <FileText size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <FileText size={15} className="text-slate-500" />
                       <span>Legal Name</span>
                     </div>
-                    <span className="font-semibold text-slate-900">{client.companyName}</span>
+                    <span className="font-medium text-slate-900">{client.companyName}</span>
                   </div>
 
                   {client.tradeName && (
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-slate-500 font-medium">
-                        <FileText size={15} className="text-slate-400" />
+                      <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                        <FileText size={15} className="text-slate-500" />
                         <span>Trade Name</span>
                       </div>
                       <span className="font-medium text-slate-800">{client.tradeName}</span>
@@ -476,42 +504,40 @@ export function ClientDetailView({
                   )}
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <FileCheck size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <CreditCard size={15} className="text-slate-500" />
                       <span>Registered Address</span>
                     </div>
-                    <span className="font-medium text-slate-800 text-right max-w-[260px] truncate">
+                    <span className="font-medium text-slate-900 text-right max-w-[260px] truncate">
                       {client.address || "Not Provided"}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <MapPin size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <MapPin size={15} className="text-slate-500" />
                       <span>City &amp; State</span>
                     </div>
-                    <span className="font-medium text-slate-800">
+                    <span className="font-medium text-slate-900">
                       {[client.city, client.state, client.pincode].filter(Boolean).join(", ") || "-"}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <Flag size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <Flag size={15} className="text-slate-500" />
                       <span>Country</span>
                     </div>
-                    <span className="font-medium text-slate-800">{client.country || "India"}</span>
+                    <span className="font-medium text-slate-900">{client.country || "India"}</span>
                   </div>
                 </div>
               </div>
 
               {/* 3. Billing & GST Details Card */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-[#0481A2]/10 text-[#0481A2] flex items-center justify-center">
-                      <Receipt size={18} />
-                    </div>
+                    <Receipt size={18} className="text-[#0481A2]" />
                     <h3 className="font-bold text-sm text-slate-900 font-sans">
                       Billing &amp; GST Details
                     </h3>
@@ -521,58 +547,58 @@ export function ClientDetailView({
                   </button>
                 </div>
 
-                <div className="space-y-3.5 text-xs">
+                <div className="space-y-4 text-xs">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <User size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <User size={15} className="text-slate-500" />
                       <span>Billing Name</span>
                     </div>
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-medium text-slate-900">
                       {client.billingName || client.companyName}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <UserCheck size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <User size={15} className="text-slate-500" />
                       <span>Billing Contact</span>
                     </div>
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-medium text-slate-900">
                       {client.billingContact || client.contactPerson}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <Mail size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <Mail size={15} className="text-slate-500" />
                       <span>Billing Email</span>
                     </div>
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-medium text-slate-900">
                       {client.billingEmail || client.email || "Not provided"}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <Hash size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <Hash size={15} className="text-slate-500" />
                       <span>GSTIN</span>
                     </div>
                     {client.gst ? (
-                      <span className="font-mono font-semibold text-slate-900">{client.gst}</span>
+                      <span className="font-mono font-medium text-slate-900">{client.gst}</span>
                     ) : (
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#FEF3C7] text-[#D97706]">
                         Not GST-registered
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#D97706]" />
                       </span>
                     )}
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <MapPin size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <MapPin size={15} className="text-slate-500" />
                       <span>Billing Address</span>
                     </div>
-                    <span className="font-medium text-slate-800 text-right max-w-[260px] truncate">
+                    <span className="font-medium text-slate-900 text-right max-w-[260px] truncate">
                       {client.billingAddress || client.address || "-"}
                     </span>
                   </div>
@@ -580,12 +606,10 @@ export function ClientDetailView({
               </div>
 
               {/* 4. Ownership & Timeline Card */}
-              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-[#0481A2]/10 text-[#0481A2] flex items-center justify-center">
-                      <Link2 size={18} />
-                    </div>
+                    <Link2 size={18} className="text-[#0481A2]" />
                     <h3 className="font-bold text-sm text-slate-900 font-sans">
                       Ownership &amp; Timeline
                     </h3>
@@ -595,42 +619,42 @@ export function ClientDetailView({
                   </button>
                 </div>
 
-                <div className="space-y-3.5 text-xs">
+                <div className="space-y-4 text-xs">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <User size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <User size={15} className="text-slate-500" />
                       <span>Salesperson</span>
                     </div>
-                    <span className="font-semibold text-slate-900">{client.salesperson}</span>
+                    <span className="font-medium text-slate-900">{client.salesperson}</span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <Zap size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <Zap size={15} className="text-slate-500" />
                       <span>Client Status</span>
                     </div>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#DCFCE7] text-[#16A34A]">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
                       {client.clientStatus || "Active"}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <Calendar size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <Calendar size={15} className="text-slate-500" />
                       <span>Client Since</span>
                     </div>
-                    <span className="font-semibold text-slate-900 font-number">
+                    <span className="font-medium text-slate-900 font-number">
                       {client.clientSince || "-"}
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-slate-500 font-medium">
-                      <Clock size={15} className="text-slate-400" />
+                    <div className="flex items-center gap-2.5 text-slate-500 font-normal">
+                      <Calendar size={15} className="text-slate-500" />
                       <span>Created On</span>
                     </div>
-                    <span className="font-semibold text-slate-900 font-number">
+                    <span className="font-medium text-slate-900 font-number">
                       {client.createdAt}
                     </span>
                   </div>
@@ -642,9 +666,7 @@ export function ClientDetailView({
             {client.additionalContacts && client.additionalContacts.length > 0 && (
               <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
                 <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-                  <div className="w-8 h-8 rounded-lg bg-[#0481A2]/10 text-[#0481A2] flex items-center justify-center">
-                    <Users size={18} />
-                  </div>
+                  <Users size={18} className="text-[#0481A2]" />
                   <h3 className="font-bold text-sm text-slate-900 font-sans">
                     Additional Contacts ({client.additionalContacts.length})
                   </h3>

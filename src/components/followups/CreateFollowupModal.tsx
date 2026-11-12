@@ -7,18 +7,15 @@ import { fetchClientsAction, fetchSalespeopleAction } from "@/app/actions/client
 import { useToast } from "@/components/common/ToastProvider";
 
 const FOLLOWUP_TYPES = [
-  "Phone Call",
+  "Call",
   "Email",
   "Meeting",
+  "Document Collection",
   "Payment Reminder",
-  "Document Request",
-  "Service Update",
-  "Renewal Reminder",
-  "Client Consultation",
-  "Other",
+  "General",
 ];
 
-const PRIORITIES = ["Low", "Medium", "High", "Urgent"];
+const PRIORITIES = ["Low", "Medium", "High"];
 const STATUSES = ["Pending", "In Progress", "Completed", "Cancelled"];
 const REMINDER_OPTIONS = [
   { value: "none", label: "No reminder" },

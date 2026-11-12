@@ -3,12 +3,17 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { validatePhoneNumber, parseInitialPhone } from "@/lib/validation/phone";
+import { checkClientDuplicatesAction } from "./duplicate-detection";
+import { DuplicateMatch } from "@/lib/validation/duplicate-detector";
 
 export interface CreateClientState {
   error?: string | null;
   fieldErrors?: Record<string, string>;
   success?: boolean;
   clientId?: string;
+  hasDuplicates?: boolean;
+  duplicateMatches?: DuplicateMatch[];
+  isBlockedByActiveEmail?: boolean;
 }
 
 export async function createClientAction(
@@ -73,9 +78,12 @@ export async function createClientAction(
   const pan_number = (formData.get("pan_number") as string)?.trim().toUpperCase() || null;
 
   // Section 5: Client Ownership
-  let assigned_salesperson = (formData.get("salesperson_id") as string || formData.get("assigned_salesperson") as string)?.trim() || user.id;
-  if (!isAdmin && !assigned_salesperson) {
-    assigned_salesperson = user.id;
+  let assigned_salesperson = user.id;
+  if (isAdmin) {
+    const selectedSalesperson = (formData.get("salesperson_id") as string || formData.get("assigned_salesperson") as string)?.trim();
+    if (selectedSalesperson) {
+      assigned_salesperson = selectedSalesperson;
+    }
   }
   const client_since = (formData.get("client_since") as string) || new Date().toISOString().split("T")[0];
 
@@ -146,6 +154,38 @@ export async function createClientAction(
     };
   }
 
+  // Feature 015: Duplicate Detection Check
+  const allowDuplicateOverride = formData.get("allow_duplicate_override") === "true";
+  const duplicateCheck = await checkClientDuplicatesAction({
+    companyName: company_name,
+    email,
+    phone,
+  });
+
+  // Strict prevention: Duplicate email on an active client is NEVER permitted
+  if (duplicateCheck.activeEmailMatch) {
+    return {
+      error: `A client with email "${email}" is already active in BRAND 360s CRM. Duplicate active client records with identical email are prevented.`,
+      fieldErrors: {
+        email: "This email address is already registered to an active client.",
+      },
+      hasDuplicates: true,
+      duplicateMatches: duplicateCheck.matches,
+      isBlockedByActiveEmail: true,
+      success: false,
+    };
+  }
+
+  // Non-blocking duplicate warning (Company name, phone, or archived email)
+  if (duplicateCheck.hasMatches && !allowDuplicateOverride) {
+    return {
+      error: "Potential duplicate client detected matching company name, phone, or existing records. Please review.",
+      hasDuplicates: true,
+      duplicateMatches: duplicateCheck.matches,
+      isBlockedByActiveEmail: false,
+      success: false,
+    };
+  }
   // Determine Payment Status
   let payment_status: "Paid in full" | "Upcoming" | "Overdue" | "Partially Paid" = "Upcoming";
   if (contract_value > 0 && balance_receivable === 0) {

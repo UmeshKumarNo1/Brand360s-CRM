@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState, useRef } from "react";
+import { useActionState, useEffect, useState, useRef, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -20,9 +20,15 @@ import {
   ArrowRight,
   Check,
   Info,
+  AlertTriangle,
+  ShieldAlert,
 } from "lucide-react";
 import { createClientAction, fetchSalespeopleAction, CreateClientState } from "@/app/actions/clients";
 import { useToast } from "@/components/common/ToastProvider";
+import { getCurrentUserProfileAction } from "@/app/actions/profile";
+import { PhoneInput } from "@/components/clients/PhoneInput";
+import { DuplicateWarningModal } from "@/components/clients/DuplicateWarningModal";
+import { DuplicateMatch } from "@/lib/validation/duplicate-detector";
 
 interface AdditionalContact {
   id: string;
@@ -55,9 +61,17 @@ const ENTITY_STRUCTURES = [
 
 export default function NewClientPage() {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const { success, error: toastError } = useToast();
   const [state, formAction, isPending] = useActionState(createClientAction, null);
   const handledStateRef = useRef<CreateClientState | null>(null);
+
+  // Duplicate Warning Modal State
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [duplicateMatches, setDuplicateMatches] = useState<DuplicateMatch[]>([]);
+  const [isBlockedByEmail, setIsBlockedByEmail] = useState(false);
+  const [isSubmittingOverride, startTransition] = useTransition();
 
   // Active step (1 to 7)
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -113,6 +127,12 @@ export default function NewClientPage() {
         setAssignedSalesperson(data[0].id);
       }
     });
+
+    getCurrentUserProfileAction().then((p) => {
+      if (p?.role === "admin") {
+        setIsAdmin(true);
+      }
+    });
   }, []);
 
   // Handle Response State
@@ -126,6 +146,13 @@ export default function NewClientPage() {
         router.push(`/clients/${state.clientId}?addService=true`);
       } else {
         router.push(`/clients/${state.clientId}`);
+      }
+    } else if (state.hasDuplicates && state.duplicateMatches) {
+      setDuplicateMatches(state.duplicateMatches);
+      setIsBlockedByEmail(!!state.isBlockedByActiveEmail);
+      setDuplicateModalOpen(true);
+      if (state.error) {
+        toastError("Duplicate client detected", state.error);
       }
     } else if (state.error) {
       toastError("Failed to save client", state.error);
@@ -228,6 +255,17 @@ export default function NewClientPage() {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (circumference * progressPercentage) / 100;
 
+  // Admin Proceed Anyway Handler
+  const handleProceedAnyway = () => {
+    if (!formRef.current) return;
+    const formData = new FormData(formRef.current);
+    formData.set("allow_duplicate_override", "true");
+
+    startTransition(async () => {
+      await formAction(formData);
+    });
+  };
+
   return (
     <div className="max-w-[1400px] mx-auto space-y-6 pb-20 font-sans">
       {/* Header: Back button + Title */}
@@ -249,13 +287,33 @@ export default function NewClientPage() {
       </div>
 
       {state?.error && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-700 shadow-2xs">
-          {state.error}
+        <div className={`p-3.5 border rounded-xl text-xs font-semibold flex items-center gap-2 shadow-2xs ${
+          state.isBlockedByActiveEmail
+            ? "bg-red-50 border-red-200 text-red-700"
+            : state.hasDuplicates
+            ? "bg-amber-50 border-amber-200 text-amber-800"
+            : "bg-red-50 border-red-200 text-red-700"
+        }`}>
+          {state.isBlockedByActiveEmail ? (
+            <ShieldAlert size={16} className="text-red-500 shrink-0" />
+          ) : (
+            <AlertTriangle size={16} className={state.hasDuplicates ? "text-amber-600 shrink-0" : "text-red-500 shrink-0"} />
+          )}
+          <span>{state.error}</span>
+          {state.hasDuplicates && (
+            <button
+              type="button"
+              onClick={() => setDuplicateModalOpen(true)}
+              className="ml-auto underline font-bold cursor-pointer hover:opacity-80"
+            >
+              View Matches ({state.duplicateMatches?.length || 0})
+            </button>
+          )}
         </div>
       )}
 
       {/* Main Grid: Form Card on Left, Progress Sidebar on Right */}
-      <form action={formAction}>
+      <form ref={formRef} action={formAction}>
         {/* Hidden inputs to guarantee all state values submit regardless of active step */}
         <input
           type="hidden"
@@ -1094,7 +1152,19 @@ export default function NewClientPage() {
             </div>
           </div>
         </div>
+
       </form>
+
+      {/* Duplicate Warning & Inspection Modal */}
+      <DuplicateWarningModal
+        isOpen={duplicateModalOpen}
+        onClose={() => setDuplicateModalOpen(false)}
+        matches={duplicateMatches}
+        isBlocked={isBlockedByEmail}
+        isAdmin={isAdmin}
+        onProceedAnyway={handleProceedAnyway}
+        isSubmitting={isSubmittingOverride}
+      />
     </div>
   );
 }

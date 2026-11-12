@@ -21,6 +21,7 @@ import {
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationModal";
 import { ReassignClientModal } from "@/components/clients/ReassignClientModal";
+import { ScanDuplicatesModal } from "@/components/clients/ScanDuplicatesModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { RefreshCw, Users, Archive, RotateCcw, Trash2, UserCheck, Layers } from "lucide-react";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
@@ -48,6 +49,9 @@ export default function ClientsPage() {
     ids: [],
     names: [],
   });
+
+  // Duplicate Scanner Modal state
+  const [scanModalOpen, setScanModalOpen] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSalesperson, setSelectedSalesperson] = useState("All");
@@ -278,7 +282,10 @@ export default function ClientsPage() {
 
   return (
     <div className="space-y-6 w-full">
-      <ClientsHeader />
+      <ClientsHeader
+        isAdmin={isAdmin}
+        onOpenScanDuplicates={() => setScanModalOpen(true)}
+      />
 
       <ClientStatsCards
         totalClients={activeCount}
@@ -472,6 +479,14 @@ export default function ClientsPage() {
         clientNames={reassignTargetClients.names}
         currentSalespersonName={reassignTargetClients.currentSalesperson}
       />
+
+      {/* Duplicate Scan Modal (Admin Only) */}
+      {isAdmin && (
+        <ScanDuplicatesModal
+          isOpen={scanModalOpen}
+          onClose={() => setScanModalOpen(false)}
+        />
+      )}
     </div>
   );
 }

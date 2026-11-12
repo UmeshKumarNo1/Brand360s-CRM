@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { validatePhoneNumber, parseInitialPhone } from "@/lib/validation/phone";
+import { checkClientDuplicatesAction } from "./duplicate-detection";
 
 export interface ClientFormState {
   error?: string | null;
@@ -163,6 +164,23 @@ export async function updateClientAction(
     };
   }
 
+  // Feature 015: Duplicate detection when updating email
+  const duplicateCheck = await checkClientDuplicatesAction({
+    companyName: company_name,
+    email,
+    phone,
+    excludeClientId: clientId,
+  });
+
+  if (duplicateCheck.activeEmailMatch) {
+    return {
+      error: `Another active client with email "${email}" already exists.`,
+      fieldErrors: {
+        email: "This email address is already registered to another active client.",
+      },
+      success: false,
+    };
+  }
   // Determine Payment Status
   let payment_status: "Paid in full" | "Upcoming" | "Overdue" | "Partially Paid" = "Upcoming";
   if (contract_value > 0 && balance_receivable === 0) {

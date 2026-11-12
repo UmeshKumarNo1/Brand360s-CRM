@@ -72,8 +72,13 @@ export function AppLayout({ children, userProfile }: AppLayoutProps) {
         </svg>
       </div>
 
-      {/* Desktop Sidebar (Sticky to full viewport height so when page scrolls, it never cuts off or exposes white space) */}
-      <div className="hidden lg:block sticky top-0 h-screen z-30 shrink-0">
+      {/* Desktop Sidebar (Fixed to full viewport height so when page scrolls, it remains anchored and never exposes white space) */}
+      <div 
+        className={`hidden lg:block fixed top-0 left-0 bottom-0 z-30 shrink-0 transition-all duration-300 ${
+          isCollapsed ? "w-20" : "w-64"
+        }`}
+        style={{ height: "100dvh", minHeight: "100vh" }}
+      >
         <AppSidebar
           isCollapsed={isCollapsed}
           setIsCollapsed={setIsCollapsed}
@@ -102,8 +107,12 @@ export function AppLayout({ children, userProfile }: AppLayoutProps) {
         </div>
       )}
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10">
+      {/* Main Content Area (Offset to match fixed sidebar width) */}
+      <div 
+        className={`flex-1 flex flex-col min-w-0 transition-all duration-300 relative z-10 ${
+          isCollapsed ? "lg:ml-20" : "lg:ml-64"
+        }`}
+      >
         <TopNavbar
           onMobileMenuToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
           userEmail={userProfile?.email || "admin@brand360s.co"}

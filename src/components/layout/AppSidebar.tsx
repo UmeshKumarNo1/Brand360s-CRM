@@ -84,13 +84,13 @@ export function AppSidebar({
           title={isCollapsed ? "Brand 360s Dashboard" : undefined}
         >
           {isCollapsed ? (
-            /* Clean Compact Logo Emblem when Sidebar shrinks (ChatGPT web style) */
-            <div className="w-8 h-8 rounded-full bg-[#007ea0] flex items-center justify-center shadow-xs overflow-hidden shrink-0 transition-transform hover:scale-105">
+            /* Clean Compact Avatar Image when Sidebar shrinks (ChatGPT web style) */
+            <div className="w-9 h-9 rounded-full ring-2 ring-[#007ea0]/50 flex items-center justify-center shadow-xs overflow-hidden shrink-0 transition-transform hover:scale-105 bg-[#007ea0]">
               <Image
-                src="/brand360s-mark.svg"
+                src="/avatar.webp"
                 alt="Brand 360s"
-                width={32}
-                height={32}
+                width={36}
+                height={36}
                 priority
                 className="w-full h-full object-cover"
               />

@@ -38,22 +38,22 @@ export function ClientsTable({
   onReassignClient,
 }: ClientsTableProps) {
   return (
-    <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden">
-      <div className="overflow-x-auto w-full">
+    <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden w-full max-w-full">
+      <div className="overflow-x-auto w-full custom-scrollbar">
         <table className="w-full text-left border-collapse text-xs sm:text-[13px]">
           {/* Navy Blue Table Header matching image */}
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide">
-              <th className="py-2.5 px-2 w-10 text-center font-semibold">No.</th>
-              <th className="py-2.5 px-2.5 min-w-[130px] font-semibold">Company Name</th>
-              <th className="py-2.5 px-2 min-w-[100px] font-semibold whitespace-nowrap">Date of Creation</th>
-              <th className="py-2.5 px-2 min-w-[90px] font-semibold">Salesperson</th>
-              <th className="py-2.5 px-2.5 min-w-[130px] font-semibold">Services Purchased</th>
+              <th className="py-2.5 px-2 w-9 text-center font-semibold">No.</th>
+              <th className="py-2.5 px-2.5 font-semibold">Company Name</th>
+              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Date of Creation</th>
+              <th className="py-2.5 px-2 font-semibold">Salesperson</th>
+              <th className="py-2.5 px-2.5 font-semibold">Services Purchased</th>
               <th className="py-2.5 px-2 text-right font-semibold whitespace-nowrap">Contract Value</th>
               <th className="py-2.5 px-2 text-right font-semibold whitespace-nowrap">Payment Received</th>
               <th className="py-2.5 px-2 text-right font-semibold whitespace-nowrap">Balance Receivable</th>
-              <th className="py-2.5 px-2.5 min-w-[105px] font-semibold whitespace-nowrap">Next Payment Due</th>
-              <th className="py-2.5 px-2 text-center min-w-[100px] w-28 font-semibold whitespace-nowrap">Actions</th>
+              <th className="py-2.5 px-2.5 font-semibold whitespace-nowrap">Next Payment Due</th>
+              <th className="py-2.5 px-2 text-center w-28 font-semibold whitespace-nowrap">Actions</th>
             </tr>
           </thead>
 
@@ -146,7 +146,7 @@ export function ClientsTable({
                     </td>
 
                     {/* Action Buttons */}
-                    <td className="py-2.5 px-2 text-center whitespace-nowrap min-w-[100px]">
+                    <td className="py-2.5 px-2 text-center whitespace-nowrap w-28">
                       <div className="inline-flex items-center justify-center gap-1.5 flex-nowrap">
                         {/* View Action */}
                         <Link

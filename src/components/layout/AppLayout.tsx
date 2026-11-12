@@ -119,7 +119,7 @@ export function AppLayout({ children, userProfile }: AppLayoutProps) {
           userRole={userProfile?.role === "admin" ? "Administrator" : "Employee"}
           userName={userProfile?.fullName || "Uki0070411"}
         />
-        <main className="flex-1 px-6 sm:px-8 py-4 sm:py-6 w-full">
+        <main className="flex-1 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 w-full max-w-full min-w-0 overflow-x-hidden">
           {children}
         </main>
       </div>

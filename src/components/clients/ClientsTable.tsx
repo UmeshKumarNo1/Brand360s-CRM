@@ -108,8 +108,18 @@ export function ClientsTable({
                     </td>
 
                     {/* Services Purchased */}
-                    <td className="py-2.5 px-2 text-slate-600 font-normal whitespace-nowrap">
-                      {client.servicesPurchased}
+                    <td className="py-2.5 px-2 text-slate-600 font-normal max-w-[170px]">
+                      {client.servicesPurchased ? (
+                        <div className="leading-snug">
+                          {client.servicesPurchased.split(", ").map((srv: string, idx: number) => (
+                            <span key={idx} className="block truncate">
+                              {srv}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        "-"
+                      )}
                     </td>
 
                     {/* Contract Value */}

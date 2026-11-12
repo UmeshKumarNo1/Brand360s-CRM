@@ -64,3 +64,4 @@ export function validateEmailFormat(email: string | null | undefined): { isValid
   }
   return { isValid: true };
 }
+

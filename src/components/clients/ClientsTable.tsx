@@ -24,8 +24,8 @@ export function ClientsTable({
 }: ClientsTableProps) {
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden">
-      <div>
-        <table className="w-full text-left border-collapse text-xs sm:text-sm">
+      <div className="overflow-x-auto xl:overflow-x-visible">
+        <table className="w-full min-w-[840px] xl:min-w-full text-left border-collapse text-xs sm:text-sm">
           {/* Navy Blue Table Header matching img2 */}
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide">

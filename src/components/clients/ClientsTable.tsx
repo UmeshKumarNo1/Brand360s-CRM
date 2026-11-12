@@ -40,20 +40,20 @@ export function ClientsTable({
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden w-full max-w-full">
       <div className="overflow-x-auto w-full custom-scrollbar">
-        <table className="w-full text-left border-collapse text-xs sm:text-[13px]">
+        <table className="w-full text-left border-collapse text-xs sm:text-[13px] table-auto">
           {/* Navy Blue Table Header matching image */}
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide">
               <th className="py-2.5 px-2 w-9 text-center font-semibold">No.</th>
-              <th className="py-2.5 px-2.5 font-semibold">Company Name</th>
+              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Company Name</th>
               <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Date of Creation</th>
-              <th className="py-2.5 px-2 font-semibold">Salesperson</th>
-              <th className="py-2.5 px-2.5 font-semibold">Services Purchased</th>
+              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Salesperson</th>
+              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Services Purchased</th>
               <th className="py-2.5 px-2 text-right font-semibold whitespace-nowrap">Contract Value</th>
               <th className="py-2.5 px-2 text-right font-semibold whitespace-nowrap">Payment Received</th>
               <th className="py-2.5 px-2 text-right font-semibold whitespace-nowrap">Balance Receivable</th>
-              <th className="py-2.5 px-2.5 font-semibold whitespace-nowrap">Next Payment Due</th>
-              <th className="py-2.5 px-2 text-center w-28 font-semibold whitespace-nowrap">Actions</th>
+              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Next Payment Due</th>
+              <th className="py-2.5 px-2 text-center font-semibold whitespace-nowrap min-w-[124px] w-[124px]">Actions</th>
             </tr>
           </thead>
 
@@ -81,7 +81,7 @@ export function ClientsTable({
                     </td>
 
                     {/* Company Name */}
-                    <td className="py-2.5 px-2.5 font-bold">
+                    <td className="py-2.5 px-2 font-bold whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <Link
                           href={`/clients/${client.id}`}
@@ -103,12 +103,12 @@ export function ClientsTable({
                     </td>
 
                     {/* Salesperson */}
-                    <td className="py-2.5 px-2 font-medium text-slate-700">
+                    <td className="py-2.5 px-2 font-medium text-slate-700 whitespace-nowrap">
                       {client.salesperson}
                     </td>
 
                     {/* Services Purchased */}
-                    <td className="py-2.5 px-2.5 text-slate-600 font-normal">
+                    <td className="py-2.5 px-2 text-slate-600 font-normal whitespace-nowrap">
                       {client.servicesPurchased}
                     </td>
 
@@ -128,7 +128,7 @@ export function ClientsTable({
                     </td>
 
                     {/* Next Payment Due */}
-                    <td className="py-2.5 px-2.5 whitespace-nowrap">
+                    <td className="py-2.5 px-2 whitespace-nowrap">
                       {client.paymentStatus === "Paid in full" || client.nextPaymentDueAmount === 0 ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           Paid in full
@@ -146,7 +146,7 @@ export function ClientsTable({
                     </td>
 
                     {/* Action Buttons */}
-                    <td className="py-2.5 px-2 text-center whitespace-nowrap w-28">
+                    <td className="py-2.5 px-2 text-center whitespace-nowrap min-w-[124px] w-[124px]">
                       <div className="inline-flex items-center justify-center gap-1.5 flex-nowrap">
                         {/* View Action */}
                         <Link

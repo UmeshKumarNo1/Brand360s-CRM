@@ -76,21 +76,21 @@ export function AppSidebar({
       {/* Brand Header */}
       <div className={cn(
         "flex items-center h-16 border-b border-[#1E3567]/50 relative z-10 shrink-0 bg-[#16284F] transition-all duration-300",
-        isCollapsed ? "justify-center px-2 flex-col gap-1 py-2 h-20" : "justify-between px-4 sm:px-5"
+        isCollapsed ? "justify-center px-2 flex-row gap-1.5 h-16" : "justify-between px-4 sm:px-5"
       )}>
         <Link 
           href="/dashboard" 
-          className="flex items-center justify-center"
+          className="flex items-center justify-center shrink-0"
           title={isCollapsed ? "Brand 360s Dashboard" : undefined}
         >
           {isCollapsed ? (
-            /* Fully visible Avatar Image when Sidebar shrinks without inner clipping */
-            <div className="w-10 h-10 flex items-center justify-center shrink-0 transition-transform hover:scale-105">
+            /* Fully visible Avatar Image when Sidebar shrinks */
+            <div className="w-8 h-8 flex items-center justify-center shrink-0 transition-transform hover:scale-105">
               <Image
                 src="/avatar.webp"
                 alt="Brand 360s"
-                width={40}
-                height={40}
+                width={32}
+                height={32}
                 priority
                 className="w-full h-full object-contain"
               />
@@ -114,11 +114,11 @@ export function AppSidebar({
           onClick={() => setIsCollapsed(!isCollapsed)}
           className={cn(
             "text-slate-400 hover:text-white rounded-lg hover:bg-[#1E3567]/60 transition-colors shrink-0 cursor-pointer",
-            isCollapsed ? "p-1 mt-0.5" : "p-1.5"
+            isCollapsed ? "p-1" : "p-1.5"
           )}
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={18} />}
+          {isCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={18} />}
         </button>
       </div>
 

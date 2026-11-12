@@ -108,15 +108,19 @@ export function ClientsTable({
                     </td>
 
                     {/* Services Purchased */}
-                    <td className="py-2.5 px-2 text-slate-600 font-normal max-w-[170px]">
+                    <td className="py-2.5 px-2 text-slate-600 font-normal leading-tight">
                       {client.servicesPurchased ? (
-                        <div className="leading-snug">
-                          {client.servicesPurchased.split(", ").map((srv: string, idx: number) => (
-                            <span key={idx} className="block truncate">
-                              {srv}
-                            </span>
-                          ))}
-                        </div>
+                        client.servicesPurchased.includes(",") ? (
+                          <div className="flex flex-col">
+                            {client.servicesPurchased.split(",").map((s: string, idx: number, arr: string[]) => (
+                              <span key={idx} className="whitespace-nowrap">
+                                {s.trim()}{idx < arr.length - 1 ? "," : ""}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="whitespace-nowrap">{client.servicesPurchased}</span>
+                        )
                       ) : (
                         "-"
                       )}

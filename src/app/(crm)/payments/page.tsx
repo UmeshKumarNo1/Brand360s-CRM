@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
-import { CreditCard, Calendar } from "lucide-react";
+import { CreditCard, Calendar, Layers } from "lucide-react";
 import {
   fetchPaymentsAction,
   fetchAllInstallmentsAction,
@@ -12,6 +12,7 @@ import { PaymentStatsCards } from "@/components/payments/PaymentStatsCards";
 import { PaymentFilters } from "@/components/payments/PaymentFilters";
 import { PaymentTransactionsTable } from "@/components/payments/PaymentTransactionsTable";
 import { InstallmentSchedulesTable } from "@/components/payments/InstallmentSchedulesTable";
+import { InvoiceAllocationsTable } from "@/components/payments/InvoiceAllocationsTable";
 import { ClientPagination } from "@/components/clients/ClientPagination";
 import { RecordPaymentModal } from "@/components/payments/RecordPaymentModal";
 import { CreateInstallmentModal } from "@/components/payments/CreateInstallmentModal";
@@ -24,7 +25,7 @@ import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 
 export default function PaymentsPage() {
-  const [activeTab, setActiveTab] = useState<"transactions" | "installments">("transactions");
+  const [activeTab, setActiveTab] = useState<"transactions" | "installments" | "allocations">("transactions");
   const [payments, setPayments] = useState<any[]>([]);
   const [installments, setInstallments] = useState<any[]>([]);
   const [isPaymentsLoading, setIsPaymentsLoading] = useState(true);
@@ -34,6 +35,8 @@ export default function PaymentsPage() {
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [methodFilter, setMethodFilter] = useState("All");
+  const [verificationFilter, setVerificationFilter] = useState("All");
 
   // Modals
   const [isRecordPaymentModalOpen, setIsRecordPaymentModalOpen] = useState(false);
@@ -48,11 +51,13 @@ export default function PaymentsPage() {
   const [installmentClientFilter, setInstallmentClientFilter] = useState("All");
   const [installmentDueDateFilter, setInstallmentDueDateFilter] = useState("All");
 
-  // Pagination for Transactions & Installments
+  // Pagination for Transactions, Installments, & Allocations
   const [transactionPage, setTransactionPage] = useState(1);
   const [transactionPageSize, setTransactionPageSize] = useState(10);
   const [installmentPage, setInstallmentPage] = useState(1);
   const [installmentPageSize, setInstallmentPageSize] = useState(10);
+  const [allocationPage, setAllocationPage] = useState(1);
+  const [allocationPageSize, setAllocationPageSize] = useState(10);
 
   // Quick pay from installment
   const [payForInstallment, setPayForInstallment] = useState<{
@@ -125,21 +130,51 @@ export default function PaymentsPage() {
   const overdueCount = activeInstallments.filter((i) => i.status === "Overdue").length;
   const upcomingCount = activeInstallments.filter((i) => i.status === "Upcoming" || i.status === "Due").length;
 
+  // Flatten all invoice allocations across payments
+  const allInvoiceAllocations = useMemo(() => {
+    const list: any[] = [];
+    payments.forEach((p) => {
+      (p.allocations || []).forEach((alloc: any) => {
+        list.push({
+          id: alloc.id,
+          clientId: p.clientId,
+          companyName: p.companyName,
+          clientCode: p.clientCode,
+          paymentId: p.id,
+          paymentAmount: p.amount,
+          paymentMethod: p.paymentMethod,
+          transactionRef: p.transactionRef,
+          paymentDate: p.paymentDate,
+          invoiceId: alloc.invoice?.id || alloc.invoice_id,
+          invoiceNumber: alloc.invoice?.invoice_number || alloc.invoice_number || "Invoice",
+          invoiceTotal: alloc.invoice?.total_amount || 0,
+          allocatedAmount: Number(alloc.allocated_amount) || 0,
+          allocatedDate: alloc.created_at ? alloc.created_at.split("T")[0] : p.paymentDate,
+          allocatedBy: p.recordedBy || "Staff",
+        });
+      });
+    });
+    return list;
+  }, [payments]);
+
   // Unique clients for filtering
   const uniqueClients = useMemo(() => {
     const map = new Map<string, string>();
+    payments.forEach((p) => {
+      if (p.clientId && p.companyName) map.set(p.clientId, p.companyName);
+    });
     installments.forEach((inst) => {
-      if (inst.clientId && inst.companyName) {
-        map.set(inst.clientId, inst.companyName);
-      }
+      if (inst.clientId && inst.companyName) map.set(inst.clientId, inst.companyName);
     });
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [installments]);
+  }, [payments, installments]);
 
   // Filtered Payments
   const filteredPayments = useMemo(() => {
     return payments.filter((p) => {
-      if (statusFilter !== "All" && p.status !== statusFilter) return false;
+      if (statusFilter !== "All" && p.allocationStatus !== statusFilter) return false;
+      if (verificationFilter !== "All" && p.status !== verificationFilter) return false;
+      if (methodFilter !== "All" && p.paymentMethod !== methodFilter) return false;
       if (!searchQuery.trim()) return true;
       const q = searchQuery.toLowerCase();
       return (
@@ -149,7 +184,7 @@ export default function PaymentsPage() {
         (p.transactionRef && p.transactionRef.toLowerCase().includes(q))
       );
     });
-  }, [payments, statusFilter, searchQuery]);
+  }, [payments, statusFilter, verificationFilter, methodFilter, searchQuery]);
 
   const totalTransactionPages = Math.ceil(filteredPayments.length / transactionPageSize) || 1;
   const paginatedPayments = useMemo(() => {
@@ -188,6 +223,28 @@ export default function PaymentsPage() {
     return filteredInstallments.slice(start, start + installmentPageSize);
   }, [filteredInstallments, installmentPage, installmentPageSize]);
 
+  // Filtered Allocations
+  const filteredAllocations = useMemo(() => {
+    return allInvoiceAllocations.filter((alloc) => {
+      if (installmentClientFilter !== "All" && alloc.clientId !== installmentClientFilter) return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        (alloc.companyName && alloc.companyName.toLowerCase().includes(q)) ||
+        (alloc.clientCode && alloc.clientCode.toLowerCase().includes(q)) ||
+        (alloc.invoiceNumber && alloc.invoiceNumber.toLowerCase().includes(q)) ||
+        (alloc.transactionRef && alloc.transactionRef.toLowerCase().includes(q)) ||
+        (alloc.allocatedBy && alloc.allocatedBy.toLowerCase().includes(q))
+      );
+    });
+  }, [allInvoiceAllocations, installmentClientFilter, searchQuery]);
+
+  const totalAllocationPages = Math.ceil(filteredAllocations.length / allocationPageSize) || 1;
+  const paginatedAllocations = useMemo(() => {
+    const start = (allocationPage - 1) * allocationPageSize;
+    return filteredAllocations.slice(start, start + allocationPageSize);
+  }, [filteredAllocations, allocationPage, allocationPageSize]);
+
   const handleDeleteInstallment = async (inst: any) => {
     if (!confirm(`Delete installment "${inst.title}" for ${inst.companyName}?`)) return;
 
@@ -206,15 +263,18 @@ export default function PaymentsPage() {
   const handleReset = () => {
     setSearchQuery("");
     setStatusFilter("All");
+    setMethodFilter("All");
+    setVerificationFilter("All");
     setInstallmentClientFilter("All");
     setInstallmentDueDateFilter("All");
     setTransactionPage(1);
     setInstallmentPage(1);
+    setAllocationPage(1);
   };
 
   return (
     <div className="space-y-6">
-      {/* 1. Header matching Clients page */}
+      {/* 1. Header matching reference Payments & Installments */}
       <PaymentsHeader
         onRefresh={loadData}
         isLoading={isPaymentsLoading || isInstallmentsLoading}
@@ -225,7 +285,7 @@ export default function PaymentsPage() {
         }}
       />
 
-      {/* 2. Summary KPI Cards matching Clients page style */}
+      {/* 2. 8 Summary KPI Cards in 2 rows of 4 cards on desktop */}
       <PaymentStatsCards
         totalVerifiedPayments={totalVerifiedPayments}
         paymentsCount={payments.length}
@@ -238,22 +298,22 @@ export default function PaymentsPage() {
         totalInstallmentRemaining={totalInstallmentRemaining}
       />
 
-      {/* 3. Navigation Tabs matching Active / Archived Clients style */}
-      <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
-        <div className="flex items-center gap-2">
+      {/* 3. Navigation Tabs matching reference UI (Teal active indicator & underline) */}
+      <div className="flex items-center justify-between border-b border-[#E2E8F0]">
+        <div className="flex items-center gap-6">
           <button
             onClick={() => {
               setActiveTab("transactions");
               setStatusFilter("All");
               setTransactionPage(1);
             }}
-            className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+            className={`inline-flex items-center gap-2 py-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
               activeTab === "transactions"
-                ? "bg-[#243E76] text-white shadow-2xs"
-                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                ? "border-[#077EA1] text-[#077EA1]"
+                : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
-            <CreditCard size={14} />
+            <CreditCard size={16} />
             <span>Transactions ({payments.length})</span>
           </button>
 
@@ -263,13 +323,13 @@ export default function PaymentsPage() {
               setStatusFilter("All");
               setInstallmentPage(1);
             }}
-            className={`inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+            className={`inline-flex items-center gap-2 py-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
               activeTab === "installments"
-                ? "bg-[#243E76] text-white shadow-2xs"
-                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                ? "border-[#077EA1] text-[#077EA1]"
+                : "border-transparent text-slate-500 hover:text-slate-800"
             }`}
           >
-            <Calendar size={14} />
+            <Calendar size={16} />
             <span>Installment Schedules ({installments.length})</span>
             {overdueCount > 0 && (
               <span className="px-1.5 py-0.2 bg-rose-500 text-white text-[10px] font-bold rounded-full">
@@ -277,10 +337,26 @@ export default function PaymentsPage() {
               </span>
             )}
           </button>
+
+          <button
+            onClick={() => {
+              setActiveTab("allocations");
+              setStatusFilter("All");
+              setAllocationPage(1);
+            }}
+            className={`inline-flex items-center gap-2 py-3 text-sm font-semibold border-b-2 transition-all cursor-pointer ${
+              activeTab === "allocations"
+                ? "border-[#077EA1] text-[#077EA1]"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <Layers size={16} />
+            <span>Invoice Allocations ({allInvoiceAllocations.length})</span>
+          </button>
         </div>
       </div>
 
-      {/* 4. Filter Toolbar matching ClientFilters */}
+      {/* 4. Filter Toolbar matching reference design */}
       <PaymentFilters
         activeTab={activeTab}
         searchQuery={searchQuery}
@@ -288,17 +364,30 @@ export default function PaymentsPage() {
           setSearchQuery(val);
           setTransactionPage(1);
           setInstallmentPage(1);
+          setAllocationPage(1);
         }}
         statusFilter={statusFilter}
         setStatusFilter={(val) => {
           setStatusFilter(val);
           setTransactionPage(1);
           setInstallmentPage(1);
+          setAllocationPage(1);
+        }}
+        methodFilter={methodFilter}
+        setMethodFilter={(val) => {
+          setMethodFilter(val);
+          setTransactionPage(1);
+        }}
+        verificationFilter={verificationFilter}
+        setVerificationFilter={(val) => {
+          setVerificationFilter(val);
+          setTransactionPage(1);
         }}
         installmentClientFilter={installmentClientFilter}
         setInstallmentClientFilter={(val) => {
           setInstallmentClientFilter(val);
           setInstallmentPage(1);
+          setAllocationPage(1);
         }}
         installmentDueDateFilter={installmentDueDateFilter}
         setInstallmentDueDateFilter={(val) => {
@@ -368,6 +457,29 @@ export default function PaymentsPage() {
               onPageSizeChange={(size) => {
                 setInstallmentPageSize(size);
                 setInstallmentPage(1);
+              }}
+            />
+          )}
+        </>
+      )}
+
+      {/* 7. Invoice Allocations Table */}
+      {!errorMessage && activeTab === "allocations" && (
+        <>
+          <InvoiceAllocationsTable
+            allocations={paginatedAllocations}
+            onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
+          />
+
+          {filteredAllocations.length > 0 && (
+            <ClientPagination
+              currentPage={allocationPage}
+              totalPages={totalAllocationPages}
+              pageSize={allocationPageSize}
+              onPageChange={setAllocationPage}
+              onPageSizeChange={(size) => {
+                setAllocationPageSize(size);
+                setAllocationPage(1);
               }}
             />
           )}

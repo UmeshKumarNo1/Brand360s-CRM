@@ -19,7 +19,7 @@ export function PaymentsHeader({
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
         <h1 className="text-3xl sm:text-4xl font-bold font-heading text-[#1B3260] tracking-tight">
-          Payments
+          Payments & Installments
         </h1>
         <p className="text-sm text-slate-500 mt-1 font-normal">
           Track client payments, invoice allocations, and installment collections.

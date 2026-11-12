@@ -68,13 +68,13 @@ export function AppSidebar({
     <aside 
       className={cn(
         "relative flex flex-col justify-between transition-all duration-300 select-none shrink-0 shadow-xl overflow-hidden h-full min-h-screen",
-        "bg-[#14244B] border-r border-[#1B2F5B]/80",
+        "bg-[#16284F] border-r border-[#1E3567]/80",
         isCollapsed ? "w-20" : "w-64"
       )}
-      style={{ height: "100dvh", minHeight: "100vh" }}
+      style={{ height: "100dvh", minHeight: "100vh", backgroundColor: "#16284F" }}
     >
       {/* Brand Header */}
-      <div className="flex items-center justify-between px-4 sm:px-5 h-20 border-b border-[#1E3567]/50 relative z-10 shrink-0">
+      <div className="flex items-center justify-between px-4 sm:px-5 h-20 border-b border-[#1E3567]/50 relative z-10 shrink-0 bg-[#16284F]">
         <Link href="/dashboard" className="flex items-center">
           <div className={cn(
             "relative shrink-0 flex items-center transition-all duration-300",
@@ -103,7 +103,7 @@ export function AppSidebar({
       </div>
 
       {/* Navigation Links (Scrolls independently if screen height is small) */}
-      <div className="flex-1 py-4 px-3 space-y-1.5 overflow-y-auto relative z-10 font-sans custom-scrollbar">
+      <div className="flex-1 py-4 px-3 space-y-1.5 overflow-y-auto relative z-10 font-sans custom-scrollbar bg-[#16284F]">
         {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
           const Icon = item.icon;
@@ -116,7 +116,7 @@ export function AppSidebar({
                 "flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 relative",
                 isActive 
                   ? "bg-[#0481A2] text-white shadow-md font-semibold"
-                  : "text-slate-300 hover:bg-[#1B2F5B]/60 hover:text-white"
+                  : "text-slate-300 hover:bg-[#1E3567]/60 hover:text-white"
               )}
               title={isCollapsed ? item.label : undefined}
             >
@@ -145,7 +145,7 @@ export function AppSidebar({
                     "flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150",
                     isActive 
                       ? "bg-[#0481A2] text-white shadow-md font-semibold" 
-                      : "text-slate-300 hover:bg-[#1B2F5B]/60 hover:text-white"
+                      : "text-slate-300 hover:bg-[#1E3567]/60 hover:text-white"
                   )}
                   title={isCollapsed ? item.label : undefined}
                 >
@@ -158,40 +158,11 @@ export function AppSidebar({
         )}
       </div>
 
-      {/* Decorative Cyan / Teal Curved Waves at bottom of sidebar (contained within background) */}
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-44 overflow-hidden z-0 opacity-70">
-        <svg 
-          viewBox="0 0 240 180" 
-          className="absolute bottom-0 left-0 w-full h-full"
-          preserveAspectRatio="none"
-          fill="none" 
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path 
-            d="M0 80 C80 120, 160 50, 240 90 L240 180 L0 180 Z" 
-            fill="#1B3E75" 
-            opacity="0.6" 
-          />
-          <path 
-            d="M-20 120 C60 70, 140 160, 240 110 L240 180 L-20 180 Z" 
-            fill="#0481A2" 
-            opacity="0.35" 
-          />
-          <path 
-            d="M-10 145 C50 115, 120 170, 240 135 L240 180 L-10 180 Z" 
-            fill="#0481A2" 
-            opacity="0.6" 
-          />
-          <path 
-            d="M-20 165 C40 140, 100 175, 200 160 L200 180 L-20 180 Z" 
-            fill="#0696BC" 
-            opacity="0.75" 
-          />
-        </svg>
-      </div>
-
-      {/* Pinned Profile Footer */}
-      <div className="p-3 border-t border-[#1E3567]/60 bg-[#0F1C3C]/80 relative z-10 backdrop-blur-xs mt-auto shrink-0">
+      {/* Pinned Profile Footer with Solid Navy Background */}
+      <div 
+        className="p-3 border-t border-[#1E3567]/60 relative z-10 mt-auto shrink-0"
+        style={{ backgroundColor: "#16284F" }}
+      >
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-full bg-[#243E76] text-white text-xs font-bold flex items-center justify-center border border-[#3B5998] shrink-0">
             {initials}

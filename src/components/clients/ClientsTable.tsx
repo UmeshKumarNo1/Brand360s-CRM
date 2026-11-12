@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Eye, Trash2, RotateCcw, UserCheck } from "lucide-react";
+import { Eye, Edit3, Trash2, RotateCcw, UserCheck } from "lucide-react";
 import { ClientRecord } from "@/data/mockClients";
 import { formatINR } from "@/lib/utils";
 
@@ -39,21 +39,21 @@ export function ClientsTable({
 }: ClientsTableProps) {
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden">
-      <div className="overflow-x-auto xl:overflow-x-visible">
-        <table className="w-full min-w-[840px] xl:min-w-full text-left border-collapse text-xs sm:text-sm">
+      <div className="overflow-x-auto w-full">
+        <table className="w-full min-w-[1080px] text-left border-collapse text-xs sm:text-sm">
           {/* Navy Blue Table Header matching image */}
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide">
-              <th className="py-3.5 px-3 w-10 text-center font-semibold">No.</th>
+              <th className="py-3.5 px-3 w-12 text-center font-semibold">No.</th>
               <th className="py-3.5 px-4 min-w-[170px] font-semibold">Company Name</th>
-              <th className="py-3.5 px-3.5 min-w-[120px] font-semibold">Date of Creation</th>
-              <th className="py-3.5 px-3 font-semibold">Salesperson</th>
-              <th className="py-3.5 px-3.5 min-w-[180px] font-semibold">Services Purchased</th>
+              <th className="py-3.5 px-3.5 min-w-[125px] font-semibold whitespace-nowrap">Date of Creation</th>
+              <th className="py-3.5 px-3 min-w-[110px] font-semibold">Salesperson</th>
+              <th className="py-3.5 px-3.5 min-w-[170px] font-semibold">Services Purchased</th>
               <th className="py-3.5 px-3 text-right font-semibold whitespace-nowrap">Contract Value</th>
               <th className="py-3.5 px-3 text-right font-semibold whitespace-nowrap">Payment Received</th>
               <th className="py-3.5 px-3 text-right font-semibold whitespace-nowrap">Balance Receivable</th>
-              <th className="py-3.5 px-3.5 font-semibold whitespace-nowrap">Next Payment Due</th>
-              <th className="py-3.5 px-3 text-center w-24 font-semibold whitespace-nowrap">Actions</th>
+              <th className="py-3.5 px-3.5 min-w-[130px] font-semibold whitespace-nowrap">Next Payment Due</th>
+              <th className="py-3.5 px-4 text-center min-w-[130px] w-36 font-semibold whitespace-nowrap">Actions</th>
             </tr>
           </thead>
 
@@ -146,21 +146,31 @@ export function ClientsTable({
                     </td>
 
                     {/* Action Buttons */}
-                    <td className="py-4 px-3 text-center whitespace-nowrap">
-                      <div className="inline-flex items-center justify-center gap-1">
+                    <td className="py-4 px-4 text-center whitespace-nowrap min-w-[130px]">
+                      <div className="inline-flex items-center justify-center gap-1.5 flex-nowrap">
+                        {/* View Action */}
                         <Link
                           href={`/clients/${client.id}`}
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-[#F0F8FA] hover:bg-[#E0F2F7] text-[#0481A2] border border-[#D5EBF1] transition-all shadow-2xs"
+                          className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-lg bg-[#F0F8FA] hover:bg-[#E0F2F7] text-[#0481A2] border border-[#D5EBF1] transition-all shadow-2xs"
                           title="View client details"
                         >
                           <Eye size={13} strokeWidth={2} />
+                        </Link>
+
+                        {/* Edit Action */}
+                        <Link
+                          href={`/clients/${client.id}/edit`}
+                          className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-lg bg-sky-50 hover:bg-sky-100 text-[#077EA1] border border-sky-200 transition-all shadow-2xs"
+                          title="Edit client details"
+                        >
+                          <Edit3 size={13} strokeWidth={2} />
                         </Link>
 
                         {/* Admin Reassign Quick Action */}
                         {isAdmin && onReassignClient && (
                           <button
                             onClick={() => onReassignClient(client)}
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 transition-all shadow-2xs cursor-pointer"
+                            className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 transition-all shadow-2xs cursor-pointer"
                             title="Reassign Salesperson (Admin)"
                           >
                             <UserCheck size={13} strokeWidth={2} />
@@ -171,18 +181,18 @@ export function ClientsTable({
                         {isAdmin && isArchived && onRestoreClient && (
                           <button
                             onClick={() => onRestoreClient(client)}
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-600 border border-teal-200 transition-all shadow-2xs cursor-pointer"
+                            className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-lg bg-teal-50 hover:bg-teal-100 text-teal-600 border border-teal-200 transition-all shadow-2xs cursor-pointer"
                             title="Restore Client to Active"
                           >
                             <RotateCcw size={13} strokeWidth={2} />
                           </button>
                         )}
 
-                        {/* Admin Delete Action */}
+                        {/* Admin Delete / Archive Action */}
                         {isAdmin && onDeleteClient && (
                           <button
                             onClick={() => onDeleteClient(client)}
-                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all shadow-2xs cursor-pointer"
+                            className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-all shadow-2xs cursor-pointer"
                             title="Delete or Archive Client (Admin)"
                           >
                             <Trash2 size={13} strokeWidth={2} />

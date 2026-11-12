@@ -2,9 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { validatePhoneNumber, parseInitialPhone } from "@/lib/validation/phone";
 
 export interface CreateClientState {
   error?: string | null;
+  fieldErrors?: Record<string, string>;
   success?: boolean;
   clientId?: string;
 }
@@ -20,7 +22,7 @@ export async function createClientAction(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { error: "Authentication required to create a client." };
+    return { error: "Authentication required to create a client.", success: false };
   }
 
   // Get current user's profile to verify role
@@ -47,7 +49,7 @@ export async function createClientAction(
   const designation = (formData.get("designation") as string)?.trim() || null;
   const phone = (formData.get("phone") as string)?.trim();
   const alternate_phone = (formData.get("alternate_phone") as string)?.trim() || null;
-  const email = (formData.get("email") as string)?.trim() || null;
+  const email = (formData.get("email") as string)?.trim().toLowerCase() || null;
 
   // Section 3: Additional Contacts (JSON stringified)
   let additional_contacts: any[] = [];
@@ -66,11 +68,12 @@ export async function createClientAction(
   const billing_contact = (formData.get("billing_contact") as string)?.trim() || null;
   const billing_email = (formData.get("billing_email") as string)?.trim() || null;
   const is_not_gst_registered = formData.get("is_not_gst_registered") === "true";
-  const raw_gst_number = (formData.get("gst_number") as string)?.trim() || null;
+  const raw_gst_number = (formData.get("gstin") as string || formData.get("gst_number") as string)?.trim().toUpperCase() || null;
   const gst_number = is_not_gst_registered ? "Not GST-registered" : raw_gst_number;
+  const pan_number = (formData.get("pan_number") as string)?.trim().toUpperCase() || null;
 
   // Section 5: Client Ownership
-  let assigned_salesperson = (formData.get("assigned_salesperson") as string) || user.id;
+  let assigned_salesperson = (formData.get("salesperson_id") as string || formData.get("assigned_salesperson") as string)?.trim() || user.id;
   if (!isAdmin && !assigned_salesperson) {
     assigned_salesperson = user.id;
   }
@@ -83,23 +86,64 @@ export async function createClientAction(
   const notes = (formData.get("notes") as string)?.trim() || null;
 
   // Optional Commercials (if passed or default)
-  const services_purchased = (formData.get("services_purchased") as string) || "General";
-  const contract_value = parseFloat(formData.get("contract_value") as string) || 0;
-  const payments_received = parseFloat(formData.get("payments_received") as string) || 0;
+  const services_purchased = (formData.get("services_purchased") as string)?.trim() || "General";
+  const rawContractVal = formData.get("contract_value") as string;
+  const rawPaymentsRec = formData.get("payments_received") as string;
+  const contract_value = rawContractVal !== "" && rawContractVal !== null && !isNaN(Number(rawContractVal)) ? parseFloat(rawContractVal) : 0;
+  const payments_received = rawPaymentsRec !== "" && rawPaymentsRec !== null && !isNaN(Number(rawPaymentsRec)) ? parseFloat(rawPaymentsRec) : 0;
   const balance_receivable = Math.max(0, contract_value - payments_received);
 
-  // Validation
+  // Field validation
+  const fieldErrors: Record<string, string> = {};
+
   if (!company_name) {
-    return { error: "Company Legal Name is required." };
+    fieldErrors.company_name = "Company Legal Name is required.";
   }
   if (!contact_person) {
-    return { error: "Primary Contact Full Name is required." };
+    fieldErrors.contact_person = "Primary Contact Full Name is required.";
   }
   if (!phone) {
-    return { error: "Primary Contact Mobile Number is required." };
+    fieldErrors.phone = "Primary Mobile Number is required.";
+  } else {
+    try {
+      const parsed = parseInitialPhone(phone);
+      const phoneCheck = validatePhoneNumber(parsed.nationalNumber, parsed.country, true);
+      if (!phoneCheck.isValid) {
+        fieldErrors.phone = phoneCheck.error || "Invalid phone number.";
+      }
+    } catch {}
   }
-  if (!assigned_salesperson) {
-    return { error: "Salesperson Who Brought In the Client is required." };
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    fieldErrors.email = "Please enter a valid email address.";
+  }
+
+  if (alternate_phone) {
+    try {
+      const parsedAlt = parseInitialPhone(alternate_phone);
+      const altCheck = validatePhoneNumber(parsedAlt.nationalNumber, parsedAlt.country, false);
+      if (!altCheck.isValid) {
+        fieldErrors.alternate_phone = altCheck.error || "Invalid alternate phone number.";
+      }
+    } catch {}
+  }
+
+  if (isNaN(contract_value) || contract_value < 0) {
+    fieldErrors.contract_value = "Contract value cannot be negative.";
+  }
+  if (isNaN(payments_received) || payments_received < 0) {
+    fieldErrors.payments_received = "Payments received cannot be negative.";
+  } else if (contract_value > 0 && payments_received > contract_value) {
+    fieldErrors.payments_received = `Payments received (₹${payments_received.toLocaleString()}) cannot exceed total contract value (₹${contract_value.toLocaleString()}).`;
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    const firstErrorMessage = Object.values(fieldErrors)[0];
+    return {
+      error: firstErrorMessage,
+      fieldErrors,
+      success: false,
+    };
   }
 
   // Determine Payment Status
@@ -126,6 +170,7 @@ export async function createClientAction(
     pincode,
     country,
     gst_number,
+    pan_number,
     is_not_gst_registered,
     billing_name,
     billing_address,
@@ -187,6 +232,7 @@ export async function createClientAction(
         pincode,
         country,
         gst_number: is_not_gst_registered ? "Not GST-registered" : gst_number,
+        pan_number,
         services_purchased,
         contract_value,
         payments_received,
@@ -211,7 +257,7 @@ export async function createClientAction(
   }
 
   if (error) {
-    return { error: error.message };
+    return { error: error.message, success: false };
   }
 
   revalidatePath("/clients");
@@ -242,10 +288,15 @@ export async function fetchClientsAction() {
 export async function fetchSalespeopleAction() {
   const supabase = await createClient();
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, email, role")
+    .select("id, full_name, email, role, is_active")
     .order("full_name");
+
+  if (error) {
+    console.error("Error fetching salespeople:", error);
+    return [];
+  }
 
   return data || [];
 }

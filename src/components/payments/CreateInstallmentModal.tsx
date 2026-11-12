@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { Calendar, X, Loader2, IndianRupee } from "lucide-react";
-import { createInstallmentAction } from "@/app/actions/payments";
+import { createInstallmentAction, fetchClientInvoicesForAllocationAction } from "@/app/actions/payments";
 import { fetchClientsAction } from "@/app/actions/clients";
 
 interface CreateInstallmentModalProps {
@@ -17,17 +17,33 @@ export function CreateInstallmentModal({
   isOpen,
   onClose,
   onSuccess,
-  clientId,
+  clientId: initialClientId,
   clientName,
 }: CreateInstallmentModalProps) {
   const [state, formAction, isPending] = useActionState(createInstallmentAction, null);
   const [clients, setClients] = useState<any[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>(initialClientId || "");
+  const [invoices, setInvoices] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!clientId && isOpen) {
+    if (initialClientId) {
+      setSelectedClientId(initialClientId);
+    }
+  }, [initialClientId]);
+
+  useEffect(() => {
+    if (!initialClientId && isOpen) {
       fetchClientsAction().then((data) => setClients(data || []));
     }
-  }, [clientId, isOpen]);
+  }, [initialClientId, isOpen]);
+
+  useEffect(() => {
+    if (selectedClientId && isOpen) {
+      fetchClientInvoicesForAllocationAction(selectedClientId).then((invs) => setInvoices(invs || []));
+    } else {
+      setInvoices([]);
+    }
+  }, [selectedClientId, isOpen]);
 
   useEffect(() => {
     if (state?.success) {
@@ -62,15 +78,17 @@ export function CreateInstallmentModal({
 
         {/* Form Body */}
         <form action={formAction} className="p-6 space-y-4 text-xs">
-          {clientId ? (
-            <input type="hidden" name="client_id" value={clientId} />
+          {initialClientId ? (
+            <input type="hidden" name="client_id" value={initialClientId} />
           ) : (
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Client *</label>
               <select
                 name="client_id"
                 required
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
+                value={selectedClientId}
+                onChange={(e) => setSelectedClientId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
               >
                 <option value="">Select Client...</option>
                 {clients.map((c) => (
@@ -81,6 +99,24 @@ export function CreateInstallmentModal({
               </select>
             </div>
           )}
+
+          {/* Optional Linked Invoice */}
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">
+              Link to Tax Invoice <span className="text-slate-400 font-normal">(Optional)</span>
+            </label>
+            <select
+              name="invoice_id"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#077EA1]"
+            >
+              <option value="">No linked invoice (General contract milestone)</option>
+              {invoices.map((inv) => (
+                <option key={inv.id} value={inv.id}>
+                  {inv.invoiceNumber} — Balance ₹{inv.balanceDue} ({inv.status})
+                </option>
+              ))}
+            </select>
+          </div>
 
           {state?.error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg font-semibold text-red-700">

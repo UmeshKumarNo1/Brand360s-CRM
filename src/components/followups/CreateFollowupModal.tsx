@@ -1,35 +1,41 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { CheckSquare, X, Loader2, Calendar, Clock, AlertTriangle, User } from "lucide-react";
+import { CheckSquare, X, Loader2, Calendar, Clock, AlertTriangle, User, Phone, Bell } from "lucide-react";
 import { createFollowupAction, updateFollowupAction } from "@/app/actions/followups";
-import { fetchClientsAction } from "@/app/actions/clients";
-import { fetchSalespeopleAction } from "@/app/actions/clients";
+import { fetchClientsAction, fetchSalespeopleAction } from "@/app/actions/clients";
 import { useToast } from "@/components/common/ToastProvider";
+
+const FOLLOWUP_TYPES = [
+  "Phone Call",
+  "Email",
+  "Meeting",
+  "Payment Reminder",
+  "Document Request",
+  "Service Update",
+  "Renewal Reminder",
+  "Client Consultation",
+  "Other",
+];
+
+const PRIORITIES = ["Low", "Medium", "High", "Urgent"];
+const STATUSES = ["Pending", "In Progress", "Completed", "Cancelled"];
+const REMINDER_OPTIONS = [
+  { value: "none", label: "No reminder" },
+  { value: "on_due_date", label: "On due date (Morning 9:00 AM)" },
+  { value: "1_day_before", label: "1 day before" },
+  { value: "3_days_before", label: "3 days before" },
+];
 
 interface FollowupModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   mode?: "create" | "edit";
-  initialData?: {
-    id?: string;
-    clientId?: string;
-    client_id?: string;
-    assignedToId?: string;
-    assigned_to?: string;
-    title?: string;
-    followUpType?: string;
-    type?: string;
-    due_date?: string;
-    dueDate?: string;
-    priority?: string;
-    status?: string;
-    notes?: string;
-    description?: string;
-  } | null;
+  initialData?: any | null;
   defaultClientId?: string;
   defaultClientName?: string;
+  isAdmin?: boolean;
 }
 
 export function CreateFollowupModal({
@@ -40,6 +46,7 @@ export function CreateFollowupModal({
   initialData,
   defaultClientId,
   defaultClientName,
+  isAdmin = false,
 }: FollowupModalProps) {
   const isEdit = mode === "edit" && !!initialData?.id;
   const actionToUse = isEdit ? updateFollowupAction : createFollowupAction;
@@ -47,256 +54,363 @@ export function CreateFollowupModal({
 
   const [clients, setClients] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [selectedAssignedTo, setSelectedAssignedTo] = useState<string>("");
+
   const { success, error: toastError } = useToast();
 
-  // Form values state for reliable prefill during edit mode
-  const resolvedClientId = initialData?.clientId || initialData?.client_id || defaultClientId || "";
-  const resolvedAssignedTo = initialData?.assignedToId || initialData?.assigned_to || "";
-  const resolvedTitle = initialData?.title || "";
-  const resolvedType = initialData?.followUpType || initialData?.type || "Call";
-  const resolvedDueDate = initialData?.dueDate || initialData?.due_date || new Date().toISOString().split("T")[0];
-  const resolvedPriority = initialData?.priority || "Medium";
-  const resolvedStatus = initialData?.status || "Pending";
-  const resolvedNotes = initialData?.notes || initialData?.description || "";
-
-  const [clientId, setClientId] = useState(resolvedClientId);
-  const [assignedTo, setAssignedTo] = useState(resolvedAssignedTo);
-  const [title, setTitle] = useState(resolvedTitle);
-  const [followUpType, setFollowUpType] = useState(resolvedType);
-  const [dueDate, setDueDate] = useState(resolvedDueDate);
-  const [priority, setPriority] = useState(resolvedPriority);
-  const [status, setStatus] = useState(resolvedStatus);
-  const [notes, setNotes] = useState(resolvedNotes);
-
+  // Load clients and employees
   useEffect(() => {
     if (isOpen) {
-      // Re-sync values when opening
-      setClientId(initialData?.clientId || initialData?.client_id || defaultClientId || "");
-      setAssignedTo(initialData?.assignedToId || initialData?.assigned_to || "");
-      setTitle(initialData?.title || "");
-      setFollowUpType(initialData?.followUpType || initialData?.type || "Call");
-      setDueDate(initialData?.dueDate || initialData?.due_date || new Date().toISOString().split("T")[0]);
-      setPriority(initialData?.priority || "Medium");
-      setStatus(initialData?.status || "Pending");
-      setNotes(initialData?.notes || initialData?.description || "");
+      fetchClientsAction().then((data) => {
+        // Exclude archived clients for new followups unless editing
+        const available = isEdit ? data : (data || []).filter((c: any) => c.client_status !== "Archived");
+        setClients(available || []);
+      });
 
-      // Load clients if not pre-bound
-      fetchClientsAction().then((data) => setClients(data || []));
-      fetchSalespeopleAction().then((data) => setEmployees(data || []));
+      if (isAdmin) {
+        fetchSalespeopleAction().then((data) => {
+          setEmployees(data || []);
+        });
+      }
+    }
+  }, [isOpen, isEdit, isAdmin]);
+
+  // Sync initial selections
+  useEffect(() => {
+    if (isOpen) {
+      const cId = initialData?.clientId || initialData?.client_id || defaultClientId || "";
+      setSelectedClientId(cId);
+
+      const aId = initialData?.assignedToId || initialData?.assigned_to || "";
+      setSelectedAssignedTo(aId);
     }
   }, [isOpen, initialData, defaultClientId]);
 
+  // Handle successful submission
   useEffect(() => {
     if (state?.success) {
       success(
-        isEdit ? "Follow-up updated" : "Follow-up created",
-        isEdit ? "Changes saved successfully." : "Reminder scheduled successfully."
+        isEdit ? "Follow-up Updated" : "Follow-up Created",
+        isEdit ? "Changes saved successfully." : "New reminder task added."
       );
       onSuccess();
       onClose();
     } else if (state?.error) {
-      toastError(isEdit ? "Failed to update follow-up" : "Failed to schedule follow-up", state.error);
+      toastError("Failed to save follow-up", state.error);
     }
-  }, [state, onSuccess, onClose, success, toastError, isEdit]);
+  }, [state, isEdit, success, toastError, onSuccess, onClose]);
 
   if (!isOpen) return null;
 
+  const resolvedTitle = initialData?.title || "";
+  const resolvedType = initialData?.followUpType || initialData?.type || "Phone Call";
+  const resolvedDueDate = initialData?.dueDate || initialData?.due_date || new Date().toISOString().split("T")[0];
+  const resolvedDueTime = initialData?.dueTime || initialData?.due_time || "";
+  const resolvedPriority = initialData?.priority || "Medium";
+  const resolvedStatus = initialData?.status || "Pending";
+  const resolvedNotes = initialData?.notes || initialData?.description || "";
+  const resolvedContactPerson = initialData?.contactPerson || initialData?.contact_person || "";
+  const resolvedContactMethod = initialData?.contactMethod || initialData?.contact_method || "Phone";
+  const resolvedReminder = initialData?.reminderSetting || initialData?.reminder_setting || "none";
+
+  const selectedClient = clients.find((c) => c.id === selectedClientId);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full overflow-hidden animate-in fade-in-50 zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+      <div className="bg-white rounded-2xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#0481A2] flex items-center justify-center font-bold">
-              <CheckSquare size={16} />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">
-                {isEdit ? "Edit Follow-up Task" : "Create Follow-up Reminder"}
-              </h3>
-              <p className="text-[11px] text-slate-500">
-                {isEdit ? "Modify task details, deadlines, and assignment" : "Document requests, status check-ins, calls"}
-              </p>
-            </div>
+        <div className="p-4 sm:p-5 flex items-start gap-3 border-b border-slate-100 bg-[#F0F8FA]">
+          <div className="p-2.5 bg-[#E0F2F7] text-[#0481A2] rounded-xl shrink-0">
+            <CheckSquare size={20} />
           </div>
-          <button 
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base font-bold text-slate-900">
+              {isEdit ? "Edit Follow-up Task" : "Create Follow-up Reminder"}
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {isEdit ? "Update communication schedules, status, or details" : "Schedule a reminder, client call, or compliance milestone"}
+            </p>
+          </div>
+          <button
             onClick={onClose}
-            type="button"
-            className="text-slate-400 hover:text-slate-700 p-1 rounded-md transition-colors cursor-pointer"
+            disabled={isPending}
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-white transition-colors cursor-pointer"
           >
-            <X size={16} />
+            <X size={18} />
           </button>
         </div>
 
         {/* Form Body */}
-        <form action={formAction} className="p-6 space-y-4 text-xs">
-          {/* Hidden ID if editing */}
-          {isEdit && <input type="hidden" name="id" value={initialData?.id} />}
+        <form action={formAction} className="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs flex-1">
+          {isEdit && <input type="hidden" name="id" value={initialData.id} />}
 
           {state?.error && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 font-semibold">
-              {state.error}
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center gap-2 font-medium">
+              <AlertTriangle size={15} className="shrink-0 text-red-500" />
+              <span>{state.error}</span>
             </div>
           )}
 
+          {/* Title */}
+          <div>
+            <label className="block text-slate-700 font-semibold mb-1">
+              Follow-up Title *
+            </label>
+            <input
+              type="text"
+              name="title"
+              required
+              defaultValue={resolvedTitle}
+              placeholder="e.g. Call regarding GST certificate & payment"
+              className={`w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:border-[#0481A2] ${
+                state?.fieldErrors?.title ? "border-red-300 bg-red-50/30" : "border-slate-200"
+              }`}
+            />
+            {state?.fieldErrors?.title && (
+              <p className="text-[11px] text-red-600 mt-1">{state.fieldErrors.title}</p>
+            )}
+          </div>
+
           {/* Client Selection */}
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">Associated Client *</label>
-            {defaultClientId ? (
-              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800 font-semibold flex items-center justify-between">
-                <span>{defaultClientName || "Selected Client"}</span>
+            <label className="block text-slate-700 font-semibold mb-1">
+              Associated Client *
+            </label>
+            {defaultClientId && !isEdit ? (
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-semibold">
+                {defaultClientName || "Selected Client"}
                 <input type="hidden" name="client_id" value={defaultClientId} />
               </div>
             ) : (
               <select
                 name="client_id"
                 required
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2] font-medium"
+                value={selectedClientId}
+                onChange={(e) => setSelectedClientId(e.target.value)}
+                className={`w-full px-3 py-2 border rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer ${
+                  state?.fieldErrors?.client_id ? "border-red-300" : "border-slate-200"
+                }`}
               >
-                <option value="">Select Client...</option>
+                <option value="">Select a client...</option>
                 {clients.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.company_name} ({c.client_code})
+                    {c.client_status === "Archived" ? " [Archived]" : ""}
                   </option>
                 ))}
               </select>
             )}
-          </div>
 
-          {/* Title */}
-          <div>
-            <label className="block font-semibold text-slate-700 mb-1">Task / Reminder Title *</label>
-            <input
-              name="title"
-              required
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Request signed MOA from director..."
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
-            />
+            {/* Display Selected Client quick info */}
+            {selectedClient && (
+              <div className="mt-1.5 p-2 bg-slate-50 border border-slate-200/80 rounded-lg flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+                <span>Contact: <strong className="text-slate-800">{selectedClient.contact_person}</strong></span>
+                <span>Phone: <strong className="text-slate-800">{selectedClient.phone}</strong></span>
+                <span>Lead: <strong className="text-slate-800">{selectedClient.assigned_profile?.full_name || "Unassigned"}</strong></span>
+              </div>
+            )}
           </div>
 
           {/* Type & Priority */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Follow-up Type</label>
+              <label className="block text-slate-700 font-semibold mb-1">
+                Follow-up Type *
+              </label>
               <select
                 name="follow_up_type"
-                value={followUpType}
-                onChange={(e) => setFollowUpType(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
+                defaultValue={resolvedType}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer"
               >
-                <option value="Call">Phone Call</option>
-                <option value="Email">Email</option>
-                <option value="Meeting">Meeting</option>
-                <option value="Document Collection">Document Collection</option>
-                <option value="Payment Reminder">Payment Reminder</option>
-                <option value="General">General</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Priority</label>
-              <select
-                name="priority"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
-              >
-                <option value="High">High Priority</option>
-                <option value="Medium">Medium Priority</option>
-                <option value="Low">Low Priority</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Due Date & Status */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Due Date *</label>
-              <input
-                name="due_date"
-                required
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
-              />
-            </div>
-
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Status</label>
-              <select
-                name="status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
-              >
-                <option value="Pending">Pending</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-                <option value="Cancelled">Cancelled</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Assigned Employee */}
-          {employees.length > 0 && (
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">Assigned Employee</label>
-              <select
-                name="assigned_to"
-                value={assignedTo}
-                onChange={(e) => setAssignedTo(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
-              >
-                <option value="">Select Employee...</option>
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.id}>
-                    {emp.full_name} ({emp.role})
+                {FOLLOWUP_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
                   </option>
                 ))}
               </select>
             </div>
-          )}
 
-          {/* Notes */}
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">
+                Priority *
+              </label>
+              <select
+                name="priority"
+                defaultValue={resolvedPriority}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer"
+              >
+                {PRIORITIES.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Due Date & Time */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">
+                Due Date *
+              </label>
+              <div className="relative">
+                <input
+                  type="date"
+                  name="due_date"
+                  required
+                  defaultValue={resolvedDueDate}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">
+                Due Time (Optional)
+              </label>
+              <input
+                type="time"
+                name="due_time"
+                defaultValue={resolvedDueTime}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2]"
+              />
+            </div>
+          </div>
+
+          {/* Assignment (Admin Reassignment) & Status */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1 flex items-center justify-between">
+                <span>Assigned Employee</span>
+                {isAdmin && <span className="text-[10px] text-slate-400 font-normal">Admin Override</span>}
+              </label>
+              {isAdmin ? (
+                <select
+                  name="assigned_to"
+                  value={selectedAssignedTo}
+                  onChange={(e) => setSelectedAssignedTo(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer"
+                >
+                  <option value="">Auto-assign Current User</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.full_name} ({emp.role === "admin" ? "Admin" : "Sales"})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 font-medium flex items-center gap-1.5">
+                  <User size={13} className="text-[#0481A2]" />
+                  <span>Assigned to You</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">
+                Status
+              </label>
+              <select
+                name="status"
+                defaultValue={resolvedStatus}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer"
+              >
+                {STATUSES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Contact Details & Reminder */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">
+                Contact Person & Method
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  name="contact_person"
+                  defaultValue={resolvedContactPerson}
+                  placeholder="e.g. Rahul (Director)"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0481A2]"
+                />
+                <select
+                  name="contact_method"
+                  defaultValue={resolvedContactMethod}
+                  className="px-2 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none"
+                >
+                  <option value="Phone">Phone</option>
+                  <option value="WhatsApp">WhatsApp</option>
+                  <option value="Email">Email</option>
+                  <option value="In-person">In-person</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1 flex items-center gap-1">
+                <Bell size={12} className="text-slate-400" />
+                <span>Reminder Setting</span>
+              </label>
+              <select
+                name="reminder_setting"
+                defaultValue={resolvedReminder}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer"
+              >
+                {REMINDER_OPTIONS.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Description & Internal Notes */}
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">Notes / Description</label>
+            <label className="block text-slate-700 font-semibold mb-1">
+              Description & Internal Notes
+            </label>
             <textarea
               name="notes"
-              rows={2}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Additional details regarding callback or required documentation..."
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
+              rows={3}
+              defaultValue={resolvedNotes}
+              placeholder="Add key discussion topics, documents requested, or action items..."
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0481A2]"
             />
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+          {/* Footer Actions */}
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
               disabled={isPending}
-              className="px-3.5 py-1.5 font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="px-4 py-1.5 font-semibold text-white bg-[#0481A2] hover:bg-[#036c88] rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-70 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors disabled:opacity-60 cursor-pointer"
             >
               {isPending ? (
                 <>
-                  <Loader2 size={13} className="animate-spin" />
-                  <span>{isEdit ? "Saving..." : "Scheduling..."}</span>
+                  <Loader2 size={14} className="animate-spin" />
+                  <span>Saving...</span>
                 </>
               ) : (
-                <span>{isEdit ? "Save Changes" : "Schedule Follow-up"}</span>
+                <>
+                  <CheckSquare size={14} />
+                  <span>{isEdit ? "Update Follow-up" : "Create Follow-up"}</span>
+                </>
               )}
             </button>
           </div>
@@ -305,5 +419,3 @@ export function CreateFollowupModal({
     </div>
   );
 }
-
-export { CreateFollowupModal as EditFollowupModal };

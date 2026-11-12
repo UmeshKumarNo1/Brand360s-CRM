@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint"
   },
@@ -16,8 +16,9 @@
     "clsx": "^2.1.1",
     "html2pdf.js": "^0.14.0",
     "jspdf": "^4.2.1",
+    "libphonenumber-js": "^1.13.16",
     "lucide-react": "^1.71.0",
-    "next": "^15.2.1",
+    "next": "^16.4.6",
     "postcss": "^8.5.32",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

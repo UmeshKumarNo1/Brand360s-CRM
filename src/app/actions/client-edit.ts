@@ -2,9 +2,11 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { validatePhoneNumber, parseInitialPhone } from "@/lib/validation/phone";
 
 export interface ClientFormState {
   error?: string | null;
+  fieldErrors?: Record<string, string>;
   success?: boolean;
   clientId?: string;
 }
@@ -20,7 +22,7 @@ export async function updateClientAction(
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { error: "Authentication required to update a client." };
+    return { error: "Authentication required to update a client.", success: false };
   }
 
   // Verify role
@@ -34,19 +36,27 @@ export async function updateClientAction(
 
   const clientId = formData.get("client_id") as string;
   if (!clientId) {
-    return { error: "Missing Client ID." };
+    return { error: "Missing Client ID.", success: false };
   }
 
-  // If not admin, check if user is the assigned salesperson or creator
-  if (!isAdmin) {
-    const { data: existingClient } = await supabase
-      .from("clients")
-      .select("assigned_salesperson, created_by")
-      .eq("id", clientId)
-      .single();
+  // Fetch the existing client to guarantee we preserve existing values and verify ownership
+  const { data: existingClient, error: fetchError } = await supabase
+    .from("clients")
+    .select("assigned_salesperson, created_by, contract_value, payments_received")
+    .eq("id", clientId)
+    .single();
 
-    if (!existingClient || (existingClient.assigned_salesperson !== user.id && existingClient.created_by !== user.id)) {
-      return { error: "You are not authorized to edit this client record." };
+  if (fetchError || !existingClient) {
+    return { error: "Client not found or could not be loaded.", success: false };
+  }
+
+  // Authorization check: Non-admin can only edit if assigned or creator
+  if (!isAdmin) {
+    if (
+      existingClient.assigned_salesperson !== user.id &&
+      existingClient.created_by !== user.id
+    ) {
+      return { error: "You are not authorized to edit this client record.", success: false };
     }
   }
 
@@ -56,7 +66,7 @@ export async function updateClientAction(
   const company_type = (formData.get("company_type") as string) || "Private Limited (Pvt Ltd)";
   const contact_person = (formData.get("contact_person") as string)?.trim();
   const designation = (formData.get("designation") as string)?.trim() || null;
-  const email = (formData.get("email") as string)?.trim();
+  const email = (formData.get("email") as string)?.trim().toLowerCase() || null;
   const phone = (formData.get("phone") as string)?.trim();
   const alternate_phone = (formData.get("alternate_phone") as string)?.trim() || null;
   const website = (formData.get("website") as string)?.trim() || null;
@@ -83,34 +93,85 @@ export async function updateClientAction(
   const billing_contact = (formData.get("billing_contact") as string)?.trim() || null;
   const billing_email = (formData.get("billing_email") as string)?.trim() || null;
   const is_not_gst_registered = formData.get("is_not_gst_registered") === "true";
-  const raw_gst_number = (formData.get("gst_number") as string)?.trim() || null;
+  const raw_gst_number = (formData.get("gstin") as string || formData.get("gst_number") as string)?.trim().toUpperCase() || null;
   const gst_number = is_not_gst_registered ? "Not GST-registered" : raw_gst_number;
-  const pan_number = (formData.get("pan_number") as string)?.trim() || null;
+  const pan_number = (formData.get("pan_number") as string)?.trim().toUpperCase() || null;
 
-  const services_purchased = (formData.get("services_purchased") as string) || "Company Registration";
+  const services_purchased = (formData.get("services_purchased") as string)?.trim() || "Company Registration";
   const client_status = (formData.get("client_status") as string) || "Active";
   const client_since = (formData.get("client_since") as string) || null;
   const notes = (formData.get("notes") as string)?.trim() || null;
-  const contract_value = parseFloat(formData.get("contract_value") as string) || 0;
-  const payments_received = parseFloat(formData.get("payments_received") as string) || 0;
+  
+  const rawContractVal = formData.get("contract_value") as string;
+  const rawPaymentsRec = formData.get("payments_received") as string;
+  const contract_value = rawContractVal !== "" && rawContractVal !== null && !isNaN(Number(rawContractVal)) ? parseFloat(rawContractVal) : 0;
+  const payments_received = rawPaymentsRec !== "" && rawPaymentsRec !== null && !isNaN(Number(rawPaymentsRec)) ? parseFloat(rawPaymentsRec) : 0;
   const balance_receivable = Math.max(0, contract_value - payments_received);
   const next_payment_due_date = (formData.get("next_payment_due_date") as string) || null;
 
-  if (!company_name || !contact_person || !phone) {
-    return { error: "Please fill in all required fields (Company name, contact person, and phone)." };
+  const fieldErrors: Record<string, string> = {};
+
+  // Validations
+  if (!company_name) {
+    fieldErrors.company_name = "Company name is required.";
+  }
+  if (!contact_person) {
+    fieldErrors.contact_person = "Contact person is required.";
+  }
+  if (!phone) {
+    fieldErrors.phone = "Primary phone number is required.";
+  } else {
+    try {
+      const parsed = parseInitialPhone(phone);
+      const phoneCheck = validatePhoneNumber(parsed.nationalNumber, parsed.country, true);
+      if (!phoneCheck.isValid) {
+        fieldErrors.phone = phoneCheck.error || "Invalid phone number.";
+      }
+    } catch {}
+  }
+
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    fieldErrors.email = "Please enter a valid email address.";
+  }
+
+  if (alternate_phone) {
+    try {
+      const parsedAlt = parseInitialPhone(alternate_phone);
+      const altCheck = validatePhoneNumber(parsedAlt.nationalNumber, parsedAlt.country, false);
+      if (!altCheck.isValid) {
+        fieldErrors.alternate_phone = altCheck.error || "Invalid alternate phone number.";
+      }
+    } catch {}
+  }
+
+  // Commercial / Numeric Validations
+  if (isNaN(contract_value) || contract_value < 0) {
+    fieldErrors.contract_value = "Contract value cannot be negative.";
+  }
+  if (isNaN(payments_received) || payments_received < 0) {
+    fieldErrors.payments_received = "Payments received cannot be negative.";
+  } else if (contract_value > 0 && payments_received > contract_value) {
+    fieldErrors.payments_received = `Payments received (₹${payments_received.toLocaleString()}) cannot exceed total contract value (₹${contract_value.toLocaleString()}).`;
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    const firstErrorMessage = Object.values(fieldErrors)[0];
+    return {
+      error: firstErrorMessage,
+      fieldErrors,
+      success: false,
+    };
   }
 
   // Determine Payment Status
   let payment_status: "Paid in full" | "Upcoming" | "Overdue" | "Partially Paid" = "Upcoming";
-  const formPaymentStatus = formData.get("payment_status") as string;
-  if (formPaymentStatus) {
-    payment_status = formPaymentStatus as any;
-  } else if (contract_value > 0 && balance_receivable === 0) {
+  if (contract_value > 0 && balance_receivable === 0) {
     payment_status = "Paid in full";
   } else if (payments_received > 0) {
     payment_status = "Partially Paid";
   }
 
+  // Construct update payload
   const updatePayload: Record<string, any> = {
     company_name,
     trade_name,
@@ -127,16 +188,15 @@ export async function updateClientAction(
     pincode,
     country,
     gst_number,
+    pan_number,
     is_not_gst_registered,
     billing_name,
     billing_address,
     billing_contact,
     billing_email,
     additional_contacts,
-    client_since,
-    pan_number,
-    services_purchased,
     client_status,
+    services_purchased,
     contract_value,
     payments_received,
     balance_receivable,
@@ -147,12 +207,24 @@ export async function updateClientAction(
     updated_at: new Date().toISOString(),
   };
 
-  // Only Admin can reassign assigned_salesperson
+  if (client_since) {
+    updatePayload.client_since = client_since;
+  }
+
+  // Salesperson assignment logic:
+  // Strictly protect assigned_salesperson from being unintentionally overwritten or reset!
   if (isAdmin) {
-    const selectedSalesperson = formData.get("assigned_salesperson") as string;
-    if (selectedSalesperson) {
-      updatePayload.assigned_salesperson = selectedSalesperson;
+    const selectedSalesperson = (formData.get("salesperson_id") as string || formData.get("assigned_salesperson") as string);
+    // Only update if explicitly provided and not empty
+    if (selectedSalesperson && selectedSalesperson.trim() !== "") {
+      updatePayload.assigned_salesperson = selectedSalesperson.trim();
+    } else {
+      // If untouched or omitted, preserve existing assignment
+      updatePayload.assigned_salesperson = existingClient.assigned_salesperson;
     }
+  } else {
+    // Non-admin can NEVER reassign salesperson; explicitly lock to existing
+    updatePayload.assigned_salesperson = existingClient.assigned_salesperson;
   }
 
   let { error } = await supabase
@@ -211,10 +283,11 @@ export async function updateClientAction(
   }
 
   if (error) {
-    return { error: error.message };
+    return { error: error.message, success: false };
   }
 
   revalidatePath(`/clients/${clientId}`);
+  revalidatePath(`/clients/${clientId}/edit`);
   revalidatePath("/clients");
   revalidatePath("/dashboard");
 
@@ -228,7 +301,7 @@ export async function fetchClientByIdAction(clientId: string) {
     .from("clients")
     .select(`
       *,
-      assigned_profile:profiles!assigned_salesperson(id, full_name, email)
+      assigned_profile:profiles!assigned_salesperson(id, full_name, email, role, is_active)
     `)
     .eq("id", clientId)
     .single();

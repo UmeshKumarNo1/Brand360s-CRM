@@ -74,31 +74,51 @@ export function AppSidebar({
       style={{ height: "100dvh", minHeight: "100vh", backgroundColor: "#16284F" }}
     >
       {/* Brand Header */}
-      <div className="flex items-center justify-between px-4 sm:px-5 h-20 border-b border-[#1E3567]/50 relative z-10 shrink-0 bg-[#16284F]">
-        <Link href="/dashboard" className="flex items-center">
-          <div className={cn(
-            "relative shrink-0 flex items-center transition-all duration-300",
-            isCollapsed ? "h-9 w-9 overflow-hidden" : "h-10 w-auto"
-          )}>
-            <Image
-              src="/brand360s-darkmodelogo.svg"
-              alt="BRAND 360s"
-              width={160}
-              height={42}
-              priority
-              className={cn(
-                "object-contain transition-all duration-300",
-                isCollapsed ? "h-9 w-auto max-w-none object-left" : "h-[38px] w-auto object-left"
-              )}
-            />
-          </div>
+      <div className={cn(
+        "flex items-center h-16 border-b border-[#1E3567]/50 relative z-10 shrink-0 bg-[#16284F] transition-all duration-300",
+        isCollapsed ? "justify-center px-2 flex-col gap-1 py-2 h-20" : "justify-between px-4 sm:px-5"
+      )}>
+        <Link 
+          href="/dashboard" 
+          className="flex items-center justify-center"
+          title={isCollapsed ? "Brand 360s Dashboard" : undefined}
+        >
+          {isCollapsed ? (
+            /* Clean Compact Logo Emblem when Sidebar shrinks (ChatGPT web style) */
+            <div className="w-8 h-8 rounded-full bg-[#007ea0] flex items-center justify-center shadow-xs overflow-hidden shrink-0 transition-transform hover:scale-105">
+              <Image
+                src="/brand360s-mark.svg"
+                alt="Brand 360s"
+                width={32}
+                height={32}
+                priority
+                className="w-full h-full object-cover"
+              />
+            </div>
+          ) : (
+            /* Full Logo when expanded */
+            <div className="relative shrink-0 flex items-center h-10 w-auto">
+              <Image
+                src="/brand360s-darkmodelogo.svg"
+                alt="BRAND 360s"
+                width={150}
+                height={38}
+                priority
+                className="h-[36px] w-auto object-left object-contain"
+              />
+            </div>
+          )}
         </Link>
+
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-[#1E3567]/60 transition-colors shrink-0 cursor-pointer"
+          className={cn(
+            "text-slate-400 hover:text-white rounded-lg hover:bg-[#1E3567]/60 transition-colors shrink-0 cursor-pointer",
+            isCollapsed ? "p-1 mt-0.5" : "p-1.5"
+          )}
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {isCollapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={18} />}
         </button>
       </div>
 
@@ -160,11 +180,17 @@ export function AppSidebar({
 
       {/* Pinned Profile Footer with Solid Navy Background */}
       <div 
-        className="p-3 border-t border-[#1E3567]/60 relative z-10 mt-auto shrink-0"
+        className={cn(
+          "p-3 border-t border-[#1E3567]/60 relative z-10 mt-auto shrink-0 flex items-center transition-all duration-300",
+          isCollapsed ? "justify-center px-1" : "justify-start px-3"
+        )}
         style={{ backgroundColor: "#16284F" }}
       >
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-[#243E76] text-white text-xs font-bold flex items-center justify-center border border-[#3B5998] shrink-0">
+        <div 
+          className="flex items-center gap-2.5 cursor-pointer"
+          title={isCollapsed ? `${userFullName} (${userRole})` : undefined}
+        >
+          <div className="w-8 h-8 rounded-full bg-[#243E76] text-white text-xs font-bold flex items-center justify-center border border-[#3B5998] shrink-0 shadow-xs">
             {initials}
           </div>
           {!isCollapsed && (

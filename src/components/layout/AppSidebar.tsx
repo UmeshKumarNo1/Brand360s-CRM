@@ -84,15 +84,15 @@ export function AppSidebar({
           title={isCollapsed ? "Brand 360s Dashboard" : undefined}
         >
           {isCollapsed ? (
-            /* Clean Compact Avatar Image when Sidebar shrinks (ChatGPT web style) */
-            <div className="w-9 h-9 rounded-full ring-2 ring-[#007ea0]/50 flex items-center justify-center shadow-xs overflow-hidden shrink-0 transition-transform hover:scale-105 bg-[#007ea0]">
+            /* Fully visible Avatar Image when Sidebar shrinks without inner clipping */
+            <div className="w-10 h-10 flex items-center justify-center shrink-0 transition-transform hover:scale-105">
               <Image
                 src="/avatar.webp"
                 alt="Brand 360s"
-                width={36}
-                height={36}
+                width={40}
+                height={40}
                 priority
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
           ) : (

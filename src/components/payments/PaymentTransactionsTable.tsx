@@ -49,15 +49,15 @@ export function PaymentTransactionsTable({
                 return (
                   <tr
                     key={p.id}
-                    className="hover:bg-slate-50/70 transition-colors duration-150 h-[68px]"
+                    className="hover:bg-slate-50/70 transition-colors duration-150 min-h-[58px]"
                   >
                     {/* Index Number */}
-                    <td className="py-2 px-2 text-center font-semibold text-slate-600 align-middle">
+                    <td className="py-2.5 px-2 text-center font-semibold text-slate-600 align-middle">
                       {index + 1}
                     </td>
 
                     {/* Client */}
-                    <td className="py-2 px-2.5 font-bold align-middle">
+                    <td className="py-2.5 px-2.5 font-bold align-middle">
                       <div className="flex flex-col justify-center leading-tight">
                         <Link
                           href={`/clients/${p.clientId}`}
@@ -76,12 +76,12 @@ export function PaymentTransactionsTable({
                     </td>
 
                     {/* Amount */}
-                    <td className="py-2 px-2 text-right font-extrabold text-slate-900 font-sans font-number whitespace-nowrap align-middle">
+                    <td className="py-2.5 px-2 text-right font-extrabold text-slate-900 font-sans font-number whitespace-nowrap align-middle">
                       {formatINR(p.amount)}
                     </td>
 
                     {/* Allocation */}
-                    <td className="py-2 px-2 text-center whitespace-nowrap align-middle">
+                    <td className="py-2.5 px-2 text-center whitespace-nowrap align-middle">
                       <span
                         className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
                           p.allocationStatus === "Fully Allocated"
@@ -95,12 +95,12 @@ export function PaymentTransactionsTable({
                       </span>
                     </td>
 
-                    {/* Linked Invoices (Column layout: stacked vertically one after other, increased height) */}
+                    {/* Linked Invoices (Column layout: stacked vertically one by one, increased card height without widening column) */}
                     <td className="py-2.5 px-2.5 whitespace-nowrap align-middle">
                       {linkedAllocations.length === 0 ? (
                         <span className="text-slate-400 text-xs">None</span>
                       ) : (
-                        <div className="flex flex-col items-start gap-1.5 py-0.5">
+                        <div className="flex flex-col items-stretch gap-2 py-1 max-w-[136px]">
                           {linkedAllocations.map((alloc: any) => {
                             const invNumber =
                               alloc.invoice?.invoice_number ||
@@ -112,11 +112,13 @@ export function PaymentTransactionsTable({
                               <button
                                 key={alloc.id}
                                 onClick={() => onPreviewInvoice(invId)}
-                                className="inline-flex flex-col items-center justify-center px-2.5 py-1.5 min-h-[38px] rounded-md bg-[#EEF2F6] hover:bg-[#E2E8F0] text-slate-700 font-mono text-[11px] border border-slate-200 transition-colors cursor-pointer leading-snug shrink-0 shadow-2xs"
+                                className="w-full inline-flex flex-col items-center justify-center px-2.5 py-2.5 min-h-[46px] rounded-lg bg-[#EEF2F6] hover:bg-[#E2E8F0] text-slate-700 font-mono text-[11px] border border-slate-200 transition-all cursor-pointer leading-tight shadow-2xs group"
                                 title={`Allocated: ${formatINR(allocAmount)} - Click to preview ${invNumber}`}
                               >
-                                <span className="font-semibold text-[#1B3260] tracking-tight">{invNumber}</span>
-                                <span className="text-slate-500 font-medium text-[10px] mt-0.5">
+                                <span className="font-bold text-[#1B3260] tracking-tight group-hover:text-[#0481A2]">
+                                  {invNumber}
+                                </span>
+                                <span className="text-slate-500 font-semibold text-[10px] mt-1 font-sans">
                                   ({formatINR(allocAmount)})
                                 </span>
                               </button>
@@ -127,27 +129,27 @@ export function PaymentTransactionsTable({
                     </td>
 
                     {/* Date */}
-                    <td className="py-2 px-2 text-slate-600 font-medium whitespace-nowrap align-middle">
+                    <td className="py-2.5 px-2 text-slate-600 font-medium whitespace-nowrap align-middle">
                       {p.paymentDate}
                     </td>
 
                     {/* Method */}
-                    <td className="py-2 px-2 text-slate-700 whitespace-nowrap align-middle">
+                    <td className="py-2.5 px-2 text-slate-700 whitespace-nowrap align-middle">
                       {p.paymentMethod}
                     </td>
 
                     {/* Reference / UTR */}
-                    <td className="py-2 px-2 font-mono text-xs text-slate-500 whitespace-nowrap align-middle">
+                    <td className="py-2.5 px-2 font-mono text-xs text-slate-500 whitespace-nowrap align-middle">
                       {p.transactionRef || "-"}
                     </td>
 
                     {/* Recorded By */}
-                    <td className="py-2 px-2 text-slate-600 whitespace-nowrap align-middle">
+                    <td className="py-2.5 px-2 text-slate-600 whitespace-nowrap align-middle">
                       {p.recordedBy || "Staff"}
                     </td>
 
                     {/* Status */}
-                    <td className="py-2 px-2 whitespace-nowrap align-middle">
+                    <td className="py-2.5 px-2 whitespace-nowrap align-middle">
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
                           p.status === "Verified"
@@ -167,7 +169,7 @@ export function PaymentTransactionsTable({
                     </td>
 
                     {/* Actions matching reference UI */}
-                    <td className="py-2 px-2 text-center whitespace-nowrap align-middle">
+                    <td className="py-2.5 px-2 text-center whitespace-nowrap align-middle">
                       <div className="flex items-center justify-center gap-1">
                         <Link
                           href={`/clients/${p.clientId}`}

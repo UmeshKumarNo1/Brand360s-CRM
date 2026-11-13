@@ -11,100 +11,78 @@ interface ReportStatsCardsProps {
 export function ReportStatsCards({ kpis }: ReportStatsCardsProps) {
   const cards = [
     {
-      label: "Total Revenue",
+      label: "TOTAL REVENUE",
       value: formatINR(kpis.totalRevenue),
-      sublabel: "Contract volume",
+      sublabel: "Contract value volume",
       icon: IndianRupee,
-      iconBg: "bg-[#243E76]",
-      iconColor: "text-white",
+      color: "bg-[#243E76]/10 text-[#243E76]",
     },
     {
-      label: "Payments Received",
+      label: "PAYMENTS RECEIVED",
       value: formatINR(kpis.paymentsReceived),
       sublabel: "Verified collected funds",
       icon: CreditCard,
-      iconBg: "bg-[#E0F3F7]",
-      iconColor: "text-[#0481A2]",
+      color: "bg-emerald-50 text-emerald-600",
     },
     {
-      label: "Outstanding Balance",
+      label: "OUTSTANDING RECEIVABLES",
       value: formatINR(kpis.outstandingReceivables),
-      sublabel: "Pending client receivables",
+      sublabel: "Pending client balances",
       icon: AlertCircle,
-      iconBg: kpis.outstandingReceivables > 0 ? "bg-rose-500" : "bg-[#243E76]",
-      iconColor: "text-white",
+      color: "bg-amber-50 text-amber-600",
     },
     {
-      label: "Total Invoiced",
+      label: "TOTAL INVOICED",
       value: formatINR(kpis.totalInvoiced),
-      sublabel: "Issued tax bills",
+      sublabel: "Total tax invoices issued",
       icon: FileText,
-      iconBg: "bg-[#0481A2]",
-      iconColor: "text-white",
+      color: "bg-blue-50 text-blue-600",
     },
     {
-      label: "New Clients",
+      label: "NEW CLIENTS",
       value: kpis.newClients.toString(),
       sublabel: "Onboarded accounts",
       icon: UserPlus,
-      iconBg: "bg-[#243E76]",
-      iconColor: "text-white",
+      color: "bg-indigo-50 text-indigo-600",
     },
     {
-      label: "Active Services",
+      label: "ACTIVE SERVICES",
       value: kpis.activeServices.toString(),
-      sublabel: "In fulfillment",
+      sublabel: "In-progress fulfillments",
       icon: Layers,
-      iconBg: "bg-[#E0F3F7]",
-      iconColor: "text-[#0481A2]",
+      color: "bg-teal-50 text-teal-600",
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 w-full">
-      {cards.map((stat, idx) => {
-        const Icon = stat.icon;
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 w-full">
+      {cards.map((c, idx) => {
+        const Icon = c.icon;
         return (
           <div
             key={idx}
-            className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-center gap-3.5 transition-all duration-200 hover:shadow-xs min-h-[96px] min-w-0"
+            className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100/90 shadow-2xs hover:shadow-xs transition-shadow relative flex flex-col justify-between min-h-[110px]"
           >
-            {/* Soft decorative wave background on bottom right */}
-            <div className="pointer-events-none absolute right-0 bottom-0 w-24 h-16 opacity-35">
-              <svg viewBox="0 0 120 80" fill="none" className="w-full h-full">
-                <path
-                  d="M120 80C90 75 70 50 80 20C90 -5 110 5 120 0V80Z"
-                  fill="#0481A2"
-                  opacity="0.2"
-                />
-                <path
-                  d="M120 80C80 80 50 65 60 40C70 15 100 25 120 15V80Z"
-                  fill="#38BDF8"
-                  opacity="0.15"
-                />
-              </svg>
-            </div>
-
-            {/* Icon Circle */}
-            <div
-              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center ${stat.iconBg} ${stat.iconColor} shadow-2xs z-10`}
-            >
-              <Icon size={19} strokeWidth={2.2} />
-            </div>
-
-            {/* Value & Label */}
-            <div className="z-10 min-w-0 flex-1">
-              <div className="text-lg sm:text-xl font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number whitespace-nowrap">
-                {stat.value}
+            {/* Top row: Label uppercase on left, small Icon on top right */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate">
+                {c.label}
+              </span>
+              <div
+                className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${c.color}`}
+              >
+                <Icon size={16} strokeWidth={2} />
               </div>
-              <p className="text-xs font-semibold text-slate-500 mt-1 leading-snug">
-                {stat.label}
+            </div>
+
+            {/* Bottom area: Value & Description */}
+            <div className="mt-2">
+              <div className="text-xl sm:text-[22px] font-bold font-number text-[#1B3260] leading-tight truncate">
+                {c.value}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1 truncate">
+                {c.sublabel}
               </p>
-              {stat.sublabel && (
-                <p className="text-[11px] font-medium text-slate-400 mt-0.5 truncate">
-                  {stat.sublabel}
-                </p>
-              )}
             </div>
           </div>
         );

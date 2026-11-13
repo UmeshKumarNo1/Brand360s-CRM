@@ -21,100 +21,78 @@ export function FollowupStatsCards({
 }: FollowupStatsCardsProps) {
   const cards = [
     {
-      label: "Total Follow-ups",
+      label: "TOTAL FOLLOW-UPS",
       value: totalCount,
-      sublabel: "All scheduled",
+      sublabel: "All scheduled tasks",
       icon: ListTodo,
-      iconBg: "bg-[#E0F3F7]",
-      iconColor: "text-[#0481A2]",
+      color: "bg-[#243E76]/10 text-[#243E76]",
     },
     {
-      label: "Pending Tasks",
+      label: "PENDING TASKS",
       value: pendingCount,
-      sublabel: "To be completed",
+      sublabel: "Action required",
       icon: Clock,
-      iconBg: "bg-[#0481A2]",
-      iconColor: "text-white",
+      color: "bg-amber-50 text-amber-600",
     },
     {
-      label: "Today's Tasks",
+      label: "TODAY'S TASKS",
       value: todayCount,
-      sublabel: "Action required today",
+      sublabel: "Due today",
       icon: Calendar,
-      iconBg: "bg-[#243E76]",
-      iconColor: "text-white",
+      color: "bg-[#0481A2]/10 text-[#0481A2]",
     },
     {
-      label: "Upcoming Tasks",
+      label: "UPCOMING TASKS",
       value: upcomingCount,
       sublabel: "Future scheduled",
       icon: CheckSquare,
-      iconBg: "bg-[#243E76]",
-      iconColor: "text-white",
+      color: "bg-blue-50 text-blue-600",
     },
     {
-      label: "Overdue Reminders",
+      label: "OVERDUE REMINDERS",
       value: overdueCount,
       sublabel: "Past deadline",
       icon: AlertTriangle,
-      iconBg: overdueCount > 0 ? "bg-rose-500" : "bg-[#243E76]",
-      iconColor: "text-white",
+      color: overdueCount > 0 ? "bg-rose-50 text-rose-600" : "bg-slate-100 text-slate-600",
     },
     {
-      label: "Completed",
+      label: "COMPLETED",
       value: completedCount,
-      sublabel: "Marked done",
+      sublabel: "Successfully done",
       icon: CheckCircle2,
-      iconBg: "bg-[#E0F3F7]",
-      iconColor: "text-[#0481A2]",
+      color: "bg-emerald-50 text-emerald-600",
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 w-full">
-      {cards.map((stat, idx) => {
-        const Icon = stat.icon;
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 w-full">
+      {cards.map((c, idx) => {
+        const Icon = c.icon;
         return (
           <div
             key={idx}
-            className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-center gap-3.5 transition-all duration-200 hover:shadow-xs min-h-[96px] min-w-0"
+            className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100/90 shadow-2xs hover:shadow-xs transition-shadow relative flex flex-col justify-between min-h-[110px]"
           >
-            {/* Soft decorative wave background on bottom right */}
-            <div className="pointer-events-none absolute right-0 bottom-0 w-24 h-16 opacity-35">
-              <svg viewBox="0 0 120 80" fill="none" className="w-full h-full">
-                <path
-                  d="M120 80C90 75 70 50 80 20C90 -5 110 5 120 0V80Z"
-                  fill="#0481A2"
-                  opacity="0.2"
-                />
-                <path
-                  d="M120 80C80 80 50 65 60 40C70 15 100 25 120 15V80Z"
-                  fill="#38BDF8"
-                  opacity="0.15"
-                />
-              </svg>
-            </div>
-
-            {/* Icon Circle */}
-            <div
-              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center ${stat.iconBg} ${stat.iconColor} shadow-2xs z-10`}
-            >
-              <Icon size={19} strokeWidth={2.2} />
-            </div>
-
-            {/* Value & Label */}
-            <div className="z-10 min-w-0 flex-1">
-              <div className="text-xl sm:text-2xl font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number whitespace-nowrap">
-                {stat.value}
+            {/* Top row: Label uppercase on left, small Icon on top right */}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider truncate">
+                {c.label}
+              </span>
+              <div
+                className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${c.color}`}
+              >
+                <Icon size={16} strokeWidth={2} />
               </div>
-              <p className="text-xs font-semibold text-slate-500 mt-1 leading-snug">
-                {stat.label}
+            </div>
+
+            {/* Bottom area: Value & Description */}
+            <div className="mt-2">
+              <div className="text-2xl sm:text-[26px] font-bold font-number text-[#1B3260] leading-tight">
+                {c.value}
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1 truncate">
+                {c.sublabel}
               </p>
-              {stat.sublabel && (
-                <p className="text-[11px] font-medium text-slate-400 mt-0.5 truncate">
-                  {stat.sublabel}
-                </p>
-              )}
             </div>
           </div>
         );

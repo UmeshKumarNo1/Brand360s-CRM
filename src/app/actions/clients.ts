@@ -6,6 +6,13 @@ import { validatePhoneNumber, parseInitialPhone } from "@/lib/validation/phone";
 import { checkClientDuplicatesAction } from "./duplicate-detection";
 import { DuplicateMatch } from "@/lib/validation/duplicate-detector";
 import { autoGenerateInvoiceForClientAction } from "@/app/actions/invoices";
+import {
+  validateGstin,
+  validatePan,
+  validatePincode,
+  validateEmailFormat,
+} from "@/lib/validation/client-validation";
+import { recordAuditLog } from "@/lib/audit/audit-logger";
 
 export interface CreateClientState {
   error?: string | null;
@@ -123,8 +130,39 @@ export async function createClientAction(
     } catch {}
   }
 
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    fieldErrors.email = "Please enter a valid email address.";
+  if (email) {
+    const emailCheck = validateEmailFormat(email);
+    if (!emailCheck.isValid) {
+      fieldErrors.email = emailCheck.error || "Please enter a valid email address.";
+    }
+  }
+
+  if (pincode) {
+    const pinCheck = validatePincode(pincode);
+    if (!pinCheck.isValid) {
+      fieldErrors.pincode = pinCheck.error || "PIN Code must be a 6-digit number.";
+    }
+  }
+
+  if (!is_not_gst_registered && raw_gst_number) {
+    const gstCheck = validateGstin(raw_gst_number);
+    if (!gstCheck.isValid) {
+      fieldErrors.gstin = gstCheck.error || "Invalid GSTIN format.";
+    }
+  }
+
+  if (pan_number) {
+    const panCheck = validatePan(pan_number);
+    if (!panCheck.isValid) {
+      fieldErrors.pan_number = panCheck.error || "Invalid PAN format.";
+    }
+  }
+
+  if (billing_email) {
+    const billingEmailCheck = validateEmailFormat(billing_email);
+    if (!billingEmailCheck.isValid) {
+      fieldErrors.billing_email = billingEmailCheck.error || "Invalid billing email address.";
+    }
   }
 
   if (alternate_phone) {
@@ -159,6 +197,7 @@ export async function createClientAction(
   const allowDuplicateOverride = formData.get("allow_duplicate_override") === "true";
   const duplicateCheck = await checkClientDuplicatesAction({
     companyName: company_name,
+    tradeName: trade_name,
     email,
     phone,
   });
@@ -202,7 +241,7 @@ export async function createClientAction(
     company_type,
     contact_person,
     designation,
-    email: email || `${phone.replace(/\D/g, "")}@client.brand360s.in`,
+    email: email || null,
     phone,
     alternate_phone,
     address,
@@ -264,7 +303,7 @@ export async function createClientAction(
         company_name,
         company_type,
         contact_person,
-        email: email || `${phone.replace(/\D/g, "")}@client.brand360s.in`,
+        email: email || null,
         phone,
         alternate_phone,
         address,
@@ -312,6 +351,22 @@ export async function createClientAction(
     } catch (autoInvErr) {
       console.warn("Auto-invoice generation warning on client creation:", autoInvErr);
     }
+  }
+
+  if (data?.id) {
+    await recordAuditLog({
+      action: "CREATE",
+      entityType: "client",
+      entityId: data.id,
+      entityName: company_name,
+      details: {
+        trade_name,
+        assigned_salesperson,
+        client_status,
+        contract_value,
+        duplicate_override: allowDuplicateOverride,
+      },
+    });
   }
 
   revalidatePath("/clients");

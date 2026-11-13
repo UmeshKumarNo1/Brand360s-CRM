@@ -65,7 +65,7 @@ export function RenewalStatsCards({ stats }: RenewalStatsCardsProps) {
         return (
           <div
             key={idx}
-            className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-center gap-3.5 transition-all duration-200 hover:shadow-xs min-h-[96px] min-w-0"
+            className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-start justify-between gap-3 transition-all duration-200 hover:shadow-xs min-h-[96px] min-w-0"
           >
             {/* Subtle organic decorative wave matching Clients and Payments cards */}
             <div className="pointer-events-none absolute right-0 bottom-0 w-24 h-16 opacity-35">
@@ -83,16 +83,9 @@ export function RenewalStatsCards({ stats }: RenewalStatsCardsProps) {
               </svg>
             </div>
 
-            {/* Icon Circle on left */}
-            <div
-              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center ${card.iconBg} ${card.iconColor} shadow-2xs z-10`}
-            >
-              <Icon size={20} strokeWidth={2.2} />
-            </div>
-
-            {/* Value & Label on right */}
+            {/* Left side: Full content (Value on top, label below, sublabel) */}
             <div className="z-10 min-w-0 flex-1">
-              <div className="text-xl sm:text-2xl font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number whitespace-nowrap">
+              <div className="text-2xl sm:text-[26px] font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number whitespace-nowrap">
                 {card.value}
               </div>
               <p className="text-xs font-semibold text-slate-500 mt-1 leading-snug">
@@ -103,6 +96,13 @@ export function RenewalStatsCards({ stats }: RenewalStatsCardsProps) {
                   {card.sublabel}
                 </p>
               )}
+            </div>
+
+            {/* Right side: Icon on top right */}
+            <div
+              className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full shrink-0 flex items-center justify-center ${card.iconBg} ${card.iconColor} shadow-2xs z-10`}
+            >
+              <Icon size={18} strokeWidth={2.2} />
             </div>
           </div>
         );

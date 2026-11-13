@@ -34,6 +34,7 @@ import { FollowupDetailModal } from "@/components/followups/FollowupDetailModal"
 import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
+import { FollowupStatsCards } from "@/components/followups/FollowupStatsCards";
 
 export default function FollowupsPage() {
   const [followups, setFollowups] = useState<FollowupItem[]>([]);
@@ -205,35 +206,15 @@ export default function FollowupsPage() {
         </div>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[11px] text-slate-500 font-medium">Total Follow-ups</span>
-          <p className="text-2xl font-bold text-slate-900 mt-1">{totalCount}</p>
-        </div>
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[11px] text-slate-500 font-medium">Pending Tasks</span>
-          <p className="text-2xl font-bold text-amber-600 mt-1">{pendingCount}</p>
-        </div>
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[11px] text-slate-500 font-medium">Today's Tasks</span>
-          <p className="text-2xl font-bold text-[#0481A2] mt-1">{todayCount}</p>
-        </div>
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[11px] text-slate-500 font-medium">Upcoming</span>
-          <p className="text-2xl font-bold text-blue-600 mt-1">{upcomingCount}</p>
-        </div>
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[11px] text-slate-500 font-medium">Overdue Reminders</span>
-          <p className={`text-2xl font-bold mt-1 ${overdueCount > 0 ? "text-rose-600" : "text-slate-900"}`}>
-            {overdueCount}
-          </p>
-        </div>
-        <div className="bg-white border border-[#E2E8F0] rounded-xl p-3.5 shadow-2xs">
-          <span className="text-[11px] text-slate-500 font-medium">Completed</span>
-          <p className="text-2xl font-bold text-emerald-600 mt-1">{completedCount}</p>
-        </div>
-      </div>
+      {/* Summary KPI Cards matching Clients & Payments card design */}
+      <FollowupStatsCards
+        totalCount={totalCount}
+        pendingCount={pendingCount}
+        todayCount={todayCount}
+        upcomingCount={upcomingCount}
+        overdueCount={overdueCount}
+        completedCount={completedCount}
+      />
 
       {/* Tabs */}
       <div className="flex border-b border-[#E2E8F0] overflow-x-auto text-xs font-semibold text-slate-600 gap-1">

@@ -2,6 +2,11 @@ export interface ClientRecord {
   id: string;
   no: number;
   companyName: string;
+  tradeName?: string;
+  clientCode?: string;
+  contactPerson?: string;
+  email?: string;
+  phone?: string;
   dateOfCreation?: string;
   createdAt?: string;
   salesperson: string;
@@ -12,7 +17,7 @@ export interface ClientRecord {
   nextPaymentDueAmount: number;
   nextPaymentDueDate: string;
   paymentStatus: 'Paid in full' | 'Overdue' | 'Upcoming' | 'Partially Paid';
-  clientStatus?: 'Active' | 'Pending Onboarding' | 'On Hold' | 'Archived';
+  clientStatus?: 'Active' | 'Pending Onboarding' | 'On Hold' | 'Completed' | 'Inactive' | 'Archived';
 }
 
 export const MOCK_CLIENTS: ClientRecord[] = [

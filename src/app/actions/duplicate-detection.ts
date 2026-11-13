@@ -11,8 +11,9 @@ import {
 
 export interface CheckClientDuplicatesParams {
   companyName: string;
-  email: string;
-  phone: string;
+  tradeName?: string | null;
+  email?: string | null;
+  phone?: string | null;
   excludeClientId?: string; // used when editing
 }
 
@@ -38,11 +39,12 @@ export async function checkClientDuplicatesAction(
     };
   }
 
-  const targetEmail = normalizeEmail(params.email);
-  const targetPhone = normalizePhone(params.phone);
-  const targetNormCompany = normalizeCompanyName(params.companyName);
+  const targetEmail = normalizeEmail(params.email || "");
+  const targetPhone = normalizePhone(params.phone || "");
+  const targetNormCompany = normalizeCompanyName(params.companyName || "");
+  const targetNormTrade = normalizeCompanyName(params.tradeName || "");
 
-  if (!targetEmail && !targetPhone && !targetNormCompany) {
+  if (!targetEmail && !targetPhone && !targetNormCompany && !targetNormTrade) {
     return {
       hasMatches: false,
       hasExactEmailMatch: false,
@@ -51,14 +53,72 @@ export async function checkClientDuplicatesAction(
     };
   }
 
-  // Fetch all existing clients (both Active & Archived)
-  // We query company_name, email, phone, client_code, contact_person, client_status, contract_value, assigned_salesperson
+  // 1. Try secure database function check_client_duplicate_conflicts first
+  try {
+    const { data: rpcMatches, error: rpcError } = await supabase.rpc(
+      "check_client_duplicate_conflicts",
+      {
+        p_company_name: params.companyName || "",
+        p_trade_name: params.tradeName || null,
+        p_email: targetEmail || null,
+        p_phone: targetPhone || null,
+        p_exclude_id: params.excludeClientId || null,
+      }
+    );
+
+    if (!rpcError && Array.isArray(rpcMatches) && rpcMatches.length > 0) {
+      const matchMap = new Map<string, DuplicateMatch>();
+
+      for (const m of rpcMatches) {
+        const existing = matchMap.get(m.id);
+        const reason = (m.match_reason || "companyName") as "email" | "phone" | "companyName";
+        if (existing) {
+          if (!existing.matchReasons.includes(reason)) {
+            existing.matchReasons.push(reason);
+          }
+        } else {
+          matchMap.set(m.id, {
+            id: m.id,
+            clientCode: m.client_code,
+            companyName: m.company_name,
+            contactPerson: m.contact_person,
+            email: m.email,
+            phone: m.phone,
+            clientStatus: m.client_status,
+            contractValue: Number(m.contract_value) || 0,
+            assignedSalespersonName: m.assigned_salesperson_name || "Unassigned",
+            matchReasons: [reason],
+          });
+        }
+      }
+
+      const matches = Array.from(matchMap.values());
+      const activeEmailMatch = matches.some(
+        (m) => m.clientStatus !== "Archived" && targetEmail && normalizeEmail(m.email) === targetEmail
+      );
+      const hasExactEmailMatch = matches.some(
+        (m) => targetEmail && normalizeEmail(m.email) === targetEmail
+      );
+
+      return {
+        hasMatches: matches.length > 0,
+        hasExactEmailMatch,
+        activeEmailMatch,
+        matches,
+      };
+    }
+  } catch {
+    // Fall back to table query below if migration 015 function is not yet deployed
+  }
+
+  // 2. Direct table query fallback
   let query = supabase
     .from("clients")
     .select(`
       id,
       client_code,
       company_name,
+      trade_name,
       contact_person,
       email,
       phone,
@@ -91,7 +151,7 @@ export async function checkClientDuplicatesAction(
     const reasons: ("email" | "phone" | "companyName")[] = [];
 
     // 1. Email check (Case-insensitive)
-    if (targetEmail && normalizeEmail(c.email) === targetEmail) {
+    if (targetEmail && c.email && normalizeEmail(c.email) === targetEmail) {
       reasons.push("email");
       hasExactEmailMatch = true;
       if (c.client_status !== "Archived") {
@@ -100,12 +160,20 @@ export async function checkClientDuplicatesAction(
     }
 
     // 2. Phone check (Normalized comparison)
-    if (targetPhone && normalizePhone(c.phone) === targetPhone) {
+    if (targetPhone && c.phone && normalizePhone(c.phone) === targetPhone) {
       reasons.push("phone");
     }
 
-    // 3. Normalized Company Name check
-    if (targetNormCompany && normalizeCompanyName(c.company_name) === targetNormCompany) {
+    // 3. Normalized Company Name / Trade Name check
+    const clientNormCompany = normalizeCompanyName(c.company_name);
+    const clientNormTrade = normalizeCompanyName(c.trade_name || "");
+
+    const companyMatches =
+      (targetNormCompany && clientNormCompany === targetNormCompany) ||
+      (targetNormCompany && clientNormTrade === targetNormCompany) ||
+      (targetNormTrade && clientNormCompany === targetNormTrade);
+
+    if (companyMatches) {
       reasons.push("companyName");
     }
 

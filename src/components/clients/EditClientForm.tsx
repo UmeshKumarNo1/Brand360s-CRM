@@ -120,7 +120,7 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Company Name *</label>
+              <label className="block font-medium text-slate-700 mb-1">Company Legal Name *</label>
               <input
                 name="company_name"
                 required
@@ -135,6 +135,16 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
               )}
             </div>
             <div>
+              <label className="block font-medium text-slate-700 mb-1">Trade Name (Optional)</label>
+              <input
+                name="trade_name"
+                type="text"
+                defaultValue={client.trade_name || ""}
+                placeholder="Brand / DBA name"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0481A2]"
+              />
+            </div>
+            <div>
               <label className="block font-medium text-slate-700 mb-1">Company Type</label>
               <select
                 name="company_type"
@@ -144,7 +154,11 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
                 <option value="Private Limited (Pvt Ltd)">Private Limited (Pvt Ltd)</option>
                 <option value="Limited Liability Partnership (LLP)">Limited Liability Partnership (LLP)</option>
                 <option value="Sole Proprietorship">Sole Proprietorship</option>
-                <option value="Public Limited">Public Limited</option>
+                <option value="Partnership Firm">Partnership Firm</option>
+                <option value="Public Limited Company">Public Limited Company</option>
+                <option value="Section 8 Company (NGO)">Section 8 Company (NGO)</option>
+                <option value="One Person Company (OPC)">One Person Company (OPC)</option>
+                <option value="Individual / Freelancer">Individual / Freelancer</option>
               </select>
             </div>
             <div>
@@ -154,7 +168,7 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
                 type="text"
                 defaultValue={client.pan_number || ""}
                 placeholder="ABCDE1234F"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none uppercase"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none uppercase font-mono"
               />
             </div>
             <div>
@@ -164,8 +178,23 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
                 type="text"
                 defaultValue={client.gst_number || ""}
                 placeholder="27AAAAA0000A1Z5"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none uppercase"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none uppercase font-mono"
               />
+            </div>
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Client Lifecycle Status</label>
+              <select
+                name="client_status"
+                defaultValue={client.client_status || "Active"}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white"
+              >
+                <option value="Active">Active</option>
+                <option value="Pending Onboarding">Pending Onboarding</option>
+                <option value="On Hold">On Hold</option>
+                <option value="Completed">Completed</option>
+                <option value="Inactive">Inactive</option>
+                {isAdmin && <option value="Archived">Archived</option>}
+              </select>
             </div>
             <div className="md:col-span-2">
               <label className="block font-medium text-slate-700 mb-1">Registered Address</label>
@@ -196,19 +225,26 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
               />
             </div>
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Client Status</label>
-              <select
-                name="client_status"
-                defaultValue={client.client_status || "Active"}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white"
-              >
-                <option value="Active">Active</option>
-                <option value="Pending Onboarding">Pending Onboarding</option>
-                <option value="On Hold">On Hold</option>
-                <option value="Archived">Archived</option>
-              </select>
+              <label className="block font-medium text-slate-700 mb-1">PIN Code</label>
+              <input
+                name="pincode"
+                type="text"
+                maxLength={6}
+                defaultValue={client.pincode || ""}
+                placeholder="6-digit PIN"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-mono"
+              />
             </div>
             <div>
+              <label className="block font-medium text-slate-700 mb-1">Country</label>
+              <input
+                name="country"
+                type="text"
+                defaultValue={client.country || "India"}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
+              />
+            </div>
+            <div className="md:col-span-2">
               <label className="block font-medium text-slate-700 mb-1">Website</label>
               <input
                 name="website"
@@ -244,12 +280,22 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
               )}
             </div>
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Email *</label>
+              <label className="block font-medium text-slate-700 mb-1">Designation</label>
+              <input
+                name="designation"
+                type="text"
+                defaultValue={client.designation || ""}
+                placeholder="e.g. Managing Director, CFO"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0481A2]"
+              />
+            </div>
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Email (Optional)</label>
               <input
                 name="email"
-                required
                 type="email"
-                defaultValue={client.email}
+                defaultValue={client.email || ""}
+                placeholder="client@company.com"
                 className={`w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:border-[#0481A2] ${
                   state?.fieldErrors?.email ? "border-red-300 bg-red-50/30" : "border-slate-200"
                 }`}
@@ -271,14 +317,77 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
             </div>
 
             {/* International Phone Input for Alternate Phone */}
-            <div>
+            <div className="md:col-span-2">
               <PhoneInput
-                label="Alternate Phone"
+                label="Alternate Phone (Optional)"
                 name="alternate_phone"
                 required={false}
                 defaultValue={client.alternate_phone}
                 error={state?.fieldErrors?.alternate_phone}
               />
+            </div>
+          </div>
+        </div>
+
+        {/* Section: Billing Details & Tax */}
+        <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs space-y-4">
+          <div className="flex items-center gap-2 pb-2 border-b border-slate-100 text-slate-800 font-semibold text-sm">
+            <Building size={16} className="text-[#0481A2]" />
+            <h3>Billing & Tax Information</h3>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Billing Entity Name</label>
+              <input
+                name="billing_name"
+                type="text"
+                defaultValue={client.billing_name || ""}
+                placeholder="Entity name on invoices"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
+              />
+            </div>
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Billing Contact Person</label>
+              <input
+                name="billing_contact"
+                type="text"
+                defaultValue={client.billing_contact || ""}
+                placeholder="Accounts Department / Finance Head"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block font-medium text-slate-700 mb-1">Billing Address</label>
+              <input
+                name="billing_address"
+                type="text"
+                defaultValue={client.billing_address || ""}
+                placeholder="Full address for tax invoices"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
+              />
+            </div>
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">Billing Email</label>
+              <input
+                name="billing_email"
+                type="email"
+                defaultValue={client.billing_email || ""}
+                placeholder="invoices@company.com"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs"
+              />
+            </div>
+            <div>
+              <label className="block font-medium text-slate-700 mb-1">GST Registration Status</label>
+              <label className="flex items-center gap-2 mt-2 cursor-pointer text-xs text-slate-600">
+                <input
+                  type="checkbox"
+                  name="is_not_gst_registered"
+                  value="true"
+                  defaultChecked={client.is_not_gst_registered || false}
+                  className="rounded text-[#0481A2] focus:ring-[#0481A2]"
+                />
+                <span>Client is not GST-registered</span>
+              </label>
             </div>
           </div>
         </div>

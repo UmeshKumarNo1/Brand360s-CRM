@@ -29,6 +29,7 @@ import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { PhoneInput } from "@/components/clients/PhoneInput";
 import { DuplicateWarningModal } from "@/components/clients/DuplicateWarningModal";
 import { DuplicateMatch } from "@/lib/validation/duplicate-detector";
+import { validateGstin, validatePincode, validateEmailFormat } from "@/lib/validation/client-validation";
 
 interface AdditionalContact {
   id: string;
@@ -111,7 +112,7 @@ export default function NewClientPage() {
   const [clientSince, setClientSince] = useState(new Date().toISOString().split("T")[0]);
 
   // 6. Client Status
-  const [clientStatus, setClientStatus] = useState<"Active" | "Inactive">("Active");
+  const [clientStatus, setClientStatus] = useState<"Active" | "Pending Onboarding" | "On Hold" | "Completed" | "Inactive">("Active");
 
   // 7. Notes
   const [notes, setNotes] = useState("");
@@ -223,6 +224,10 @@ export default function NewClientPage() {
         toastError("PIN Code required", "Please enter PIN Code.");
         return false;
       }
+      if (!validatePincode(pincode)) {
+        toastError("Invalid PIN Code", "Please enter a valid 6-digit Indian PIN code.");
+        return false;
+      }
     }
     if (step === 2) {
       if (!contactPerson.trim()) {
@@ -231,6 +236,37 @@ export default function NewClientPage() {
       }
       if (!phone.trim()) {
         toastError("Mobile Number required", "Please enter the Mobile Number.");
+        return false;
+      }
+      if (email.trim() && !validateEmailFormat(email)) {
+        toastError("Invalid Email Format", "Please enter a valid email address or leave it empty.");
+        return false;
+      }
+    }
+    if (step === 3) {
+      for (let i = 0; i < additionalContacts.length; i++) {
+        const contact = additionalContacts[i];
+        if (contact.email && contact.email.trim() && !validateEmailFormat(contact.email)) {
+          toastError(`Invalid Email in Contact #${i + 1}`, "Please enter a valid email format.");
+          return false;
+        }
+      }
+    }
+    if (step === 4) {
+      if (!isNotGstRegistered && gstin.trim()) {
+        if (!validateGstin(gstin)) {
+          toastError("Invalid GSTIN", "Please enter a valid 15-character GSTIN format (e.g. 29AAAAA0000A1Z5) or check 'Not GST-registered'.");
+          return false;
+        }
+      }
+      if (billingEmail.trim() && !validateEmailFormat(billingEmail)) {
+        toastError("Invalid Billing Email", "Please enter a valid billing email address.");
+        return false;
+      }
+    }
+    if (step === 5) {
+      if (!assignedSalesperson) {
+        toastError("Salesperson Required", "Please select the salesperson who brought in the client.");
         return false;
       }
     }
@@ -897,46 +933,35 @@ export default function NewClientPage() {
                   <label className="block font-semibold text-slate-700 text-xs">
                     Account Status
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg">
-                    <label
-                      className={`flex items-center gap-3 p-3.5 border rounded-xl cursor-pointer transition-all ${
-                        clientStatus === "Active"
-                          ? "border-[#0481A2] bg-[#0481A2]/5 ring-1 ring-[#0481A2]"
-                          : "border-slate-200 hover:bg-slate-50"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="status_radio"
-                        checked={clientStatus === "Active"}
-                        onChange={() => setClientStatus("Active")}
-                        className="text-[#0481A2] focus:ring-[#0481A2] w-4 h-4 cursor-pointer"
-                      />
-                      <div>
-                        <div className="font-bold text-slate-900 text-xs">Active</div>
-                        <div className="text-slate-500 text-[11px]">Regular business relationship</div>
-                      </div>
-                    </label>
-
-                    <label
-                      className={`flex items-center gap-3 p-3.5 border rounded-xl cursor-pointer transition-all ${
-                        clientStatus === "Inactive"
-                          ? "border-[#0481A2] bg-[#0481A2]/5 ring-1 ring-[#0481A2]"
-                          : "border-slate-200 hover:bg-slate-50"
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="status_radio"
-                        checked={clientStatus === "Inactive"}
-                        onChange={() => setClientStatus("Inactive")}
-                        className="text-[#0481A2] focus:ring-[#0481A2] w-4 h-4 cursor-pointer"
-                      />
-                      <div>
-                        <div className="font-bold text-slate-900 text-xs">Inactive</div>
-                        <div className="text-slate-500 text-[11px]">Dormant or archived account</div>
-                      </div>
-                    </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                    {[
+                      { value: "Active", label: "Active", desc: "Regular active client relationship" },
+                      { value: "Pending Onboarding", label: "Pending Onboarding", desc: "Awaiting onboarding & agreement" },
+                      { value: "On Hold", label: "On Hold", desc: "Temporarily paused relationship" },
+                      { value: "Completed", label: "Completed", desc: "All projects successfully completed" },
+                      { value: "Inactive", label: "Inactive", desc: "Dormant or archived account" },
+                    ].map((opt) => (
+                      <label
+                        key={opt.value}
+                        className={`flex items-start gap-3 p-3.5 border rounded-xl cursor-pointer transition-all ${
+                          clientStatus === opt.value
+                            ? "border-[#0481A2] bg-[#0481A2]/5 ring-1 ring-[#0481A2]"
+                            : "border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="status_radio"
+                          checked={clientStatus === opt.value}
+                          onChange={() => setClientStatus(opt.value as any)}
+                          className="mt-0.5 text-[#0481A2] focus:ring-[#0481A2] w-4 h-4 cursor-pointer"
+                        />
+                        <div>
+                          <div className="font-bold text-slate-900 text-xs">{opt.label}</div>
+                          <div className="text-slate-500 text-[11px] leading-snug">{opt.desc}</div>
+                        </div>
+                      </label>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -997,7 +1022,7 @@ export default function NewClientPage() {
                 <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
                   <button
                     type="submit"
-                    disabled={isPending}
+                    disabled={isPending || isSubmittingOverride}
                     onClick={() => setSubmitIntent("save")}
                     className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white border border-[#243E76] text-[#243E76] hover:bg-[#243E76]/10 font-semibold text-xs sm:text-sm rounded-xl shadow-2xs transition-colors cursor-pointer disabled:opacity-60"
                   >
@@ -1021,7 +1046,7 @@ export default function NewClientPage() {
                   ) : (
                     <button
                       type="submit"
-                      disabled={isPending}
+                      disabled={isPending || isSubmittingOverride}
                       onClick={() => setSubmitIntent("save_and_add_service")}
                       className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#0481A2] hover:bg-[#036c88] text-white font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-60"
                     >

@@ -12,6 +12,7 @@ import {
   validatePincode,
   validateEmailFormat,
 } from "@/lib/validation/client-validation";
+
 import { recordAuditLog } from "@/lib/audit/audit-logger";
 
 export interface CreateClientState {
@@ -341,18 +342,24 @@ export async function createClientAction(
   }
 
   // Feature: Automatic Invoice Creation upon Client Engagement
-  // If contract value > 0, automatically generate an official tax invoice immediately
+  // Generate initial invoice when contract value > 0
   if (contract_value > 0 && data?.id) {
     try {
       await autoGenerateInvoiceForClientAction(data.id, {
         amount: contract_value,
-        description: services_purchased || "Professional Legal, Compliance & Registration Services",
+        description:
+          services_purchased ||
+          "Professional Legal, Compliance & Registration Services",
       });
     } catch (autoInvErr) {
-      console.warn("Auto-invoice generation warning on client creation:", autoInvErr);
+      console.warn(
+        "Auto-invoice generation warning on client creation:",
+        autoInvErr
+      );
     }
   }
 
+  // Record client creation in audit history
   if (data?.id) {
     await recordAuditLog({
       action: "CREATE",

@@ -48,31 +48,20 @@ export function NotificationBellDropdown() {
     }
   }, [activeTab]);
 
+  // Initial load on mount and when tab changes
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
 
-  // Realtime subscription using Supabase Realtime
+  // Controlled background polling every 60 seconds (with visibility check) instead of aggressive refetches
   useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel("realtime-notifications")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-        },
-        () => {
-          loadNotifications();
-        }
-      )
-      .subscribe();
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        loadNotifications();
+      }
+    }, 60000);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => clearInterval(interval);
   }, [loadNotifications]);
 
   // Click outside to close

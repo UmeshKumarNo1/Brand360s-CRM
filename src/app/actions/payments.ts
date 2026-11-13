@@ -446,6 +446,13 @@ export async function createInstallmentAction(
     });
 
   if (error) {
+    console.error("Error creating installment schedule:", error);
+    // Provide user-friendly guidance if constraint is pending migration
+    if (error.message?.includes("payment_schedules_status_check")) {
+      return { 
+        error: "Database constraint mismatch: Please run migration 020_payment_schedules_status_fix.sql in Supabase to support 'Upcoming' and 'Due' milestone statuses." 
+      };
+    }
     return { error: error.message };
   }
 
@@ -520,6 +527,12 @@ export async function updateInstallmentAction(
     .eq("id", installmentId);
 
   if (error) {
+    console.error("Error updating installment schedule:", error);
+    if (error.message?.includes("payment_schedules_status_check")) {
+      return { 
+        error: "Database constraint mismatch: Please run migration 020_payment_schedules_status_fix.sql in Supabase to support 'Upcoming' and 'Due' milestone statuses." 
+      };
+    }
     return { error: error.message };
   }
 
@@ -695,8 +708,14 @@ export async function fetchClientFinancialsAction(clientId: string) {
  * Fetch open / eligible invoices for a client for payment allocation
  */
 export async function fetchClientInvoicesForAllocationAction(clientId: string) {
-  const supabase = await createClient();
+  if (!clientId || typeof clientId !== "string" || clientId.trim() === "") {
+    return [];
+  }
 
+  const supabase = await createClient();
+  const cleanClientId = clientId.trim();
+
+  // 1. Fetch invoices directly for this client UUID
   const { data: invoices, error } = await supabase
     .from("invoices")
     .select(`
@@ -710,8 +729,7 @@ export async function fetchClientInvoicesForAllocationAction(clientId: string) {
       balance_due,
       status
     `)
-    .eq("client_id", clientId)
-    .neq("status", "Cancelled")
+    .eq("client_id", cleanClientId)
     .order("issue_date", { ascending: true });
 
   if (error) {
@@ -719,33 +737,61 @@ export async function fetchClientInvoicesForAllocationAction(clientId: string) {
     return [];
   }
 
+  // 2. Fetch existing allocations for these invoices to calculate real live balances
+  const invoiceIds = (invoices || []).map((i: any) => i.id);
+  let liveAllocationsByInvoice: Record<string, number> = {};
+
+  if (invoiceIds.length > 0) {
+    const { data: allocationsData } = await supabase
+      .from("invoice_payment_allocations")
+      .select("invoice_id, allocated_amount")
+      .in("invoice_id", invoiceIds);
+
+    if (allocationsData && allocationsData.length > 0) {
+      allocationsData.forEach((a: any) => {
+        liveAllocationsByInvoice[a.invoice_id] =
+          (liveAllocationsByInvoice[a.invoice_id] || 0) + (Number(a.allocated_amount) || 0);
+      });
+    }
+  }
+
   const today = new Date().toISOString().split("T")[0];
 
-  return (invoices || []).map((inv: any) => {
-    const total = Number(inv.total_amount) || 0;
-    const paid = Number(inv.amount_paid) || 0;
-    const balance = Math.max(0, total - paid);
+  return (invoices || [])
+    .filter((inv: any) => {
+      // Exclude cancelled invoices regardless of case
+      const statusStr = String(inv.status || "").toLowerCase().trim();
+      return statusStr !== "cancelled";
+    })
+    .map((inv: any) => {
+      const total = Number(inv.total_amount) || 0;
+      // Use sum from invoice_payment_allocations if available, otherwise fallback to inv.amount_paid
+      const allocSum = liveAllocationsByInvoice[inv.id];
+      const paid = typeof allocSum === "number" ? allocSum : Number(inv.amount_paid) || 0;
+      const balance = Math.max(0, total - paid);
 
-    let computedStatus = inv.status;
-    if (balance <= 0 && total > 0) {
-      computedStatus = "Paid";
-    } else if (paid > 0) {
-      computedStatus = inv.due_date < today ? "Overdue" : "Partially Paid";
-    } else if (inv.due_date < today) {
-      computedStatus = "Overdue";
-    }
+      let computedStatus = inv.status || "Issued";
+      if (balance <= 0 && total > 0) {
+        computedStatus = "Paid";
+      } else if (paid > 0) {
+        computedStatus = inv.due_date < today ? "Overdue" : "Partially Paid";
+      } else if (inv.due_date < today) {
+        computedStatus = "Overdue";
+      } else {
+        computedStatus = "Issued";
+      }
 
-    return {
-      id: inv.id,
-      invoiceNumber: inv.invoice_number,
-      issueDate: inv.issue_date,
-      dueDate: inv.due_date,
-      totalAmount: total,
-      amountPaid: paid,
-      balanceDue: balance,
-      status: computedStatus,
-    };
-  });
+      return {
+        id: inv.id,
+        invoiceNumber: inv.invoice_number,
+        issueDate: inv.issue_date,
+        dueDate: inv.due_date,
+        totalAmount: total,
+        amountPaid: paid,
+        balanceDue: balance,
+        status: computedStatus,
+      };
+    });
 }
 
 /**
@@ -872,7 +918,7 @@ export async function allocatePaymentToInvoicesAction(
       p_amount: allocAmount,
     });
 
-    if (!recError && recData && recData.success) {
+    if (!recError && recData && (recData.success === true || (typeof recData === "object" && !recData.error))) {
       results.push(recData);
       allocatedSuccess = true;
     } else {
@@ -882,7 +928,7 @@ export async function allocatePaymentToInvoicesAction(
         p_amount: allocAmount,
       });
 
-      if (!rpcError && rpcData && rpcData.success) {
+      if (!rpcError && rpcData && (rpcData.success === true || (typeof rpcData === "object" && !rpcData.error))) {
         results.push(rpcData);
         allocatedSuccess = true;
       }

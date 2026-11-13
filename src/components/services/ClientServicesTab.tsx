@@ -34,9 +34,11 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
   const { success, error: toastError } = useToast();
   const requestIdRef = useRef(0);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (silent = false) => {
     const currentReqId = ++requestIdRef.current;
-    setIsLoading(true);
+    if (!silent) {
+      setIsLoading(true);
+    }
     setErrorMessage(null);
 
     try {
@@ -44,22 +46,23 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
       if (currentReqId === requestIdRef.current) {
         setServices(data || []);
 
-        // Also update manageVendorsService if it was open
-        if (manageVendorsService) {
-          const updated = (data || []).find((s: any) => s.id === manageVendorsService.id);
-          if (updated) setManageVendorsService(updated);
-        }
+        // Also update manageVendorsService if it was open without triggering re-render cascade
+        setManageVendorsService((prev: any) => {
+          if (!prev) return null;
+          const updated = (data || []).find((s: any) => s.id === prev.id);
+          return updated || prev;
+        });
       }
     } catch (err: any) {
       if (currentReqId === requestIdRef.current) {
         setErrorMessage(err.message || "Failed to load client services.");
       }
     } finally {
-      if (currentReqId === requestIdRef.current) {
+      if (currentReqId === requestIdRef.current && !silent) {
         setIsLoading(false);
       }
     }
-  }, [clientId, manageVendorsService]);
+  }, [clientId]);
 
   useEffect(() => {
     loadData();
@@ -406,7 +409,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
         <ManageServiceVendorsModal
           isOpen={!!manageVendorsService}
           onClose={() => setManageVendorsService(null)}
-          onRefresh={() => loadData()}
+          onRefresh={() => loadData(true)}
           onOpenAssignVendor={() => {
             setVendorModalService(manageVendorsService);
             setManageVendorsService(null);

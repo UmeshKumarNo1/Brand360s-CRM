@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { autoGenerateInvoiceForClientAction } from "@/app/actions/invoices";
 
 export interface ServiceActionState {
   error?: string | null;
@@ -144,7 +145,7 @@ export async function assignClientServiceAction(
 
   const totalAmount = serviceFee + govtFee;
 
-  const { error } = await supabase
+  const { data: newClientService, error } = await supabase
     .from("client_services")
     .insert({
       client_id: clientId,
@@ -158,7 +159,9 @@ export async function assignClientServiceAction(
       service_status: serviceStatus,
       assigned_employee_id: assignedEmployeeId,
       notes,
-    });
+    })
+    .select("id")
+    .single();
 
   if (error) {
     return { error: error.message };
@@ -178,9 +181,26 @@ export async function assignClientServiceAction(
       .eq("id", clientId);
   }
 
+  // Feature: Auto-generate invoice for this service deliverable if not already covered
+  if (totalAmount > 0 && newClientService?.id) {
+    try {
+      await autoGenerateInvoiceForClientAction(clientId, {
+        serviceName,
+        clientServiceId: newClientService.id,
+        amount: totalAmount,
+        description: `${serviceName} - Professional Deliverable`,
+        dueDate: expectedCompletionDate || undefined,
+      });
+    } catch (invErr) {
+      console.warn("Auto-invoice generation on service assignment warning:", invErr);
+    }
+  }
+
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/clients");
   revalidatePath("/services");
+  revalidatePath("/invoices");
+  revalidatePath("/payments");
   return { success: true };
 }
 

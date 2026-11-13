@@ -120,15 +120,15 @@ export function RenewalsTable({
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold">
-              <th className="py-2.5 px-3 font-semibold text-xs tracking-wider">Client</th>
-              <th className="py-2.5 px-3 font-semibold text-xs tracking-wider">Service</th>
-              <th className="py-2.5 px-2 font-semibold text-xs tracking-wider whitespace-nowrap">Previous Expiry</th>
-              <th className="py-2.5 px-2 font-semibold text-xs tracking-wider whitespace-nowrap">Renewal Start</th>
-              <th className="py-2.5 px-2 font-semibold text-xs tracking-wider whitespace-nowrap">Renewal End</th>
+              <th className="py-2.5 px-3 font-semibold text-xs tracking-wider text-left">Client</th>
+              <th className="py-2.5 px-3 font-semibold text-xs tracking-wider text-left">Service</th>
+              <th className="py-2.5 px-2 font-semibold text-xs tracking-wider text-left whitespace-nowrap">Previous Expiry</th>
+              <th className="py-2.5 px-2 font-semibold text-xs tracking-wider text-left whitespace-nowrap">Renewal Start</th>
+              <th className="py-2.5 px-2 font-semibold text-xs tracking-wider text-left whitespace-nowrap">Renewal End</th>
               <th className="py-2.5 px-2 text-right font-semibold text-xs tracking-wider whitespace-nowrap">Amount</th>
               <th className="py-2.5 px-2 text-center font-semibold text-xs tracking-wider whitespace-nowrap">Payment</th>
               <th className="py-2.5 px-2 text-center font-semibold text-xs tracking-wider whitespace-nowrap">Status</th>
-              <th className="py-2.5 px-3 font-semibold text-xs tracking-wider text-right whitespace-nowrap">Actions</th>
+              <th className="py-2.5 px-3 font-semibold text-xs tracking-wider text-center whitespace-nowrap">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -226,8 +226,8 @@ export function RenewalsTable({
                   </td>
 
                   {/* Actions */}
-                  <td className="py-2 px-3 text-right whitespace-nowrap align-middle">
-                    <div className="inline-flex items-center gap-1.5 justify-end flex-nowrap">
+                  <td className="py-2 px-3 text-center whitespace-nowrap align-middle">
+                    <div className="inline-flex items-center gap-1.5 justify-center flex-nowrap">
                       {/* View Details */}
                       {onOpenDetails && (
                         <button

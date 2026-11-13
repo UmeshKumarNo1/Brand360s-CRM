@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState, useEffect, useState, useRef } from "react";
-import { CreditCard, X, Loader2, IndianRupee, Calendar, FileText, Plus, Trash2, CheckCircle2 } from "lucide-react";
+import { CreditCard, X, Loader2, IndianRupee, Calendar, FileText, Plus, Trash2, CheckCircle2, Sparkles } from "lucide-react";
 import { recordPaymentAction, fetchClientInvoicesForAllocationAction } from "@/app/actions/payments";
 import { fetchClientsAction } from "@/app/actions/clients";
+import { autoGenerateInvoiceForClientAction } from "@/app/actions/invoices";
 import { formatINR } from "@/lib/utils";
+import { useToast } from "@/components/common/ToastProvider";
 
 interface AllocationLine {
   id: string; // temp key
@@ -42,6 +44,7 @@ export function RecordPaymentModal({
   availableInstallments = [],
 }: RecordPaymentModalProps) {
   const [state, formAction, isPending] = useActionState(recordPaymentAction, null);
+  const handledStateRef = useRef<any>(null);
   const [clients, setClients] = useState<any[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>(defaultClientId || "");
   const [selectedInstallmentId, setSelectedInstallmentId] = useState<string>(defaultInstallmentId || "");
@@ -51,25 +54,19 @@ export function RecordPaymentModal({
   const [clientInvoices, setClientInvoices] = useState<any[]>([]);
   const [allocationLines, setAllocationLines] = useState<AllocationLine[]>([]);
   const [isLoadingInvoices, setIsLoadingInvoices] = useState(false);
+  const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
   const reqIdRef = useRef(0);
+  const { success } = useToast();
 
-  useEffect(() => {
-    if (!defaultClientId && isOpen) {
-      fetchClientsAction().then((data) => setClients(data || []));
-    }
-  }, [defaultClientId, isOpen]);
-
-  // Load client invoices when client changes, clear allocations
-  useEffect(() => {
-    setAllocationLines([]);
-    if (!selectedClientId) {
+  const loadClientInvoices = (cId: string) => {
+    if (!cId) {
       setClientInvoices([]);
       return;
     }
 
     const currentReq = ++reqIdRef.current;
     setIsLoadingInvoices(true);
-    fetchClientInvoicesForAllocationAction(selectedClientId)
+    fetchClientInvoicesForAllocationAction(cId)
       .then((invs) => {
         if (currentReq !== reqIdRef.current) return;
         // Exclude paid and cancelled invoices
@@ -86,7 +83,41 @@ export function RecordPaymentModal({
           setIsLoadingInvoices(false);
         }
       });
+  };
+
+  useEffect(() => {
+    if (!defaultClientId && isOpen) {
+      fetchClientsAction().then((data) => setClients(data || []));
+    }
+  }, [defaultClientId, isOpen]);
+
+  // Load client invoices when client changes, clear allocations
+  useEffect(() => {
+    setAllocationLines([]);
+    loadClientInvoices(selectedClientId);
   }, [selectedClientId]);
+
+  const handleQuickGenerateInvoice = async () => {
+    if (!selectedClientId) return;
+    setIsGeneratingInvoice(true);
+
+    try {
+      const amt = parseFloat(amountValue);
+      const res = await autoGenerateInvoiceForClientAction(selectedClientId, {
+        amount: amt > 0 ? amt : undefined,
+        description: `Professional Services - ${defaultClientName || "Client"}`,
+      });
+
+      if (res.success) {
+        success("Invoice Created", "Official tax invoice generated. You can now allocate this payment.");
+        loadClientInvoices(selectedClientId);
+      }
+    } catch (err: any) {
+      console.error("Quick invoice generation error:", err);
+    } finally {
+      setIsGeneratingInvoice(false);
+    }
+  };
 
   useEffect(() => {
     if (defaultClientId) setSelectedClientId(defaultClientId);
@@ -95,7 +126,10 @@ export function RecordPaymentModal({
   }, [defaultClientId, defaultInstallmentId, defaultAmount, isOpen]);
 
   useEffect(() => {
-    if (state?.success) {
+    if (!state || handledStateRef.current === state) return;
+    handledStateRef.current = state;
+
+    if (state.success) {
       onSuccess();
       onClose();
     }
@@ -279,9 +313,29 @@ export function RecordPaymentModal({
                   <span>Loading open invoices...</span>
                 </div>
               ) : clientInvoices.length === 0 ? (
-                <p className="text-[11px] text-slate-400 italic py-1">
-                  No unpaid invoices found for this client. Payment will be stored as general client credit.
-                </p>
+                <div className="p-3 bg-amber-50/50 border border-amber-200/80 rounded-lg text-center space-y-2">
+                  <p className="text-[11px] text-slate-600">
+                    No open invoices found for this client. You can generate an invoice now to allocate immediately.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleQuickGenerateInvoice}
+                    disabled={isGeneratingInvoice}
+                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#0481A2] hover:bg-[#036c88] text-white text-[11px] font-semibold rounded-md shadow-2xs transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    {isGeneratingInvoice ? (
+                      <>
+                        <Loader2 size={11} className="animate-spin" />
+                        <span>Generating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={11} />
+                        <span>Generate Invoice Now</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               ) : allocationLines.length === 0 ? (
                 <div className="p-2.5 bg-white border border-dashed border-slate-200 rounded-lg text-center">
                   <p className="text-[11px] text-slate-500">

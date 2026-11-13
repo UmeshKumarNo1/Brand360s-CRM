@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { validatePhoneNumber, parseInitialPhone } from "@/lib/validation/phone";
 import { checkClientDuplicatesAction } from "./duplicate-detection";
 import { DuplicateMatch } from "@/lib/validation/duplicate-detector";
+import { autoGenerateInvoiceForClientAction } from "@/app/actions/invoices";
 
 export interface CreateClientState {
   error?: string | null;
@@ -300,7 +301,22 @@ export async function createClientAction(
     return { error: error.message, success: false };
   }
 
+  // Feature: Automatic Invoice Creation upon Client Engagement
+  // If contract value > 0, automatically generate an official tax invoice immediately
+  if (contract_value > 0 && data?.id) {
+    try {
+      await autoGenerateInvoiceForClientAction(data.id, {
+        amount: contract_value,
+        description: services_purchased || "Professional Legal, Compliance & Registration Services",
+      });
+    } catch (autoInvErr) {
+      console.warn("Auto-invoice generation warning on client creation:", autoInvErr);
+    }
+  }
+
   revalidatePath("/clients");
+  revalidatePath("/invoices");
+  revalidatePath("/payments");
   revalidatePath("/dashboard");
 
   return { success: true, clientId: data.id };

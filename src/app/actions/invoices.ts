@@ -43,12 +43,13 @@ export interface CreateInvoicePayload {
 
 /**
  * Fetch all invoices with client details and computed summary stats
+ * Optional clientId to fetch strictly for one client without downloading entire portfolio
  */
-export async function fetchInvoicesAction() {
+export async function fetchInvoicesAction(clientId?: string) {
   const supabase = await createClient();
 
   try {
-    const { data: invoices, error } = await supabase
+    let query = supabase
       .from("invoices")
       .select(`
         *,
@@ -83,6 +84,12 @@ export async function fetchInvoicesAction() {
         )
       `)
       .order("created_at", { ascending: false });
+
+    if (clientId && typeof clientId === "string" && clientId.trim() !== "") {
+      query = query.eq("client_id", clientId.trim());
+    }
+
+    const { data: invoices, error } = await query;
 
     if (error) {
       console.error("Error fetching invoices:", error);
@@ -593,4 +600,198 @@ export async function sendInvoiceEmailAction(
 
   revalidatePath("/invoices");
   return { success: true };
+}
+
+/**
+ * Automatically or idempotently generate a tax invoice for a newly created client
+ * or whenever an invoice is requested for an uninvoiced client.
+ *
+ * Rules:
+ * - Checks if an invoice already exists for this client (or for this client service).
+ * - Avoids generating duplicates if active invoices exist or contract value is <= 0.
+ * - Extracts amount from contract_value or client_services.
+ * - Sets status = "Issued" ("Unpaid"), amount_paid = 0, balance_due = total_amount.
+ * - Generates unique invoice number atomically.
+ */
+export async function autoGenerateInvoiceForClientAction(
+  clientId: string,
+  options?: {
+    forceNew?: boolean;
+    serviceName?: string;
+    clientServiceId?: string;
+    amount?: number;
+    description?: string;
+    dueDate?: string;
+  }
+): Promise<InvoiceActionState> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Authentication required to generate invoice." };
+
+  if (!clientId || typeof clientId !== "string" || clientId.trim() === "") {
+    return { error: "Client ID is required." };
+  }
+
+  const cleanClientId = clientId.trim();
+
+  // 1. Fetch Client Details
+  const { data: client, error: clientErr } = await supabase
+    .from("clients")
+    .select("id, company_name, client_code, contract_value, services_purchased, state, assigned_salesperson, created_by")
+    .eq("id", cleanClientId)
+    .single();
+
+  if (clientErr || !client) {
+    return { error: "Client not found." };
+  }
+
+  // 2. Unless forceNew is set, verify if client already has active (non-cancelled) invoices
+  if (!options?.forceNew && !options?.clientServiceId) {
+    const { data: existingInvoices } = await supabase
+      .from("invoices")
+      .select("id, invoice_number, total_amount, balance_due, status")
+      .eq("client_id", cleanClientId)
+      .neq("status", "Cancelled");
+
+    if (existingInvoices && existingInvoices.length > 0) {
+      // Already has active invoice(s); return the existing invoice without duplicating
+      return {
+        success: true,
+        invoiceId: existingInvoices[0].id,
+        invoice: existingInvoices[0],
+      };
+    }
+  }
+
+  // If clientServiceId is provided, check if that specific service has already been invoiced
+  if (options?.clientServiceId) {
+    const { data: existingServiceItem } = await supabase
+      .from("invoice_items")
+      .select("id, invoice_id, invoice:invoices!invoice_id(id, invoice_number, status)")
+      .eq("client_service_id", options.clientServiceId);
+
+    const nonCancelledMatch = (existingServiceItem || []).find((item: any) => {
+      const invStatus = String(item.invoice?.status || "").toLowerCase();
+      return invStatus !== "cancelled";
+    });
+
+    if (nonCancelledMatch) {
+      return {
+        success: true,
+        invoiceId: nonCancelledMatch.invoice_id,
+      };
+    }
+  }
+
+  // 3. Determine Billable Amount & Description
+  let rawAmount = options?.amount ?? (Number(client.contract_value) || 0);
+
+  // If amount is 0 and client has services, check services
+  if (rawAmount <= 0) {
+    const { data: services } = await supabase
+      .from("client_services")
+      .select("id, service_name, total_amount, service_fee, govt_fee")
+      .eq("client_id", cleanClientId);
+
+    if (services && services.length > 0) {
+      rawAmount = services.reduce(
+        (sum, s) => sum + (Number(s.total_amount) || (Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0)),
+        0
+      );
+    }
+  }
+
+  // If still 0 or negative, cannot generate meaningful billing
+  if (rawAmount <= 0) {
+    return { error: "Contract value or service fee must be greater than zero to generate an invoice." };
+  }
+
+  // 4. Calculate Tax Details (18% Standard GST)
+  const clientState = String(client.state || "").trim().toLowerCase();
+  const isTamilNadu = clientState.includes("tamil nadu") || clientState.includes("tn");
+  const taxType: "CGST + SGST" | "IGST" = isTamilNadu ? "CGST + SGST" : "IGST";
+  const taxRate = 18;
+
+  const subtotal = Math.round((rawAmount / 1.18) * 100) / 100;
+  const taxAmount = Math.round((rawAmount - subtotal) * 100) / 100;
+  const totalAmount = rawAmount;
+
+  const cgstAmount = taxType === "CGST + SGST" ? Math.round((taxAmount / 2) * 100) / 100 : 0;
+  const sgstAmount = taxType === "CGST + SGST" ? Math.round((taxAmount / 2) * 100) / 100 : 0;
+  const igstAmount = taxType === "IGST" ? taxAmount : 0;
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const dueDate = options?.dueDate || todayStr;
+
+  const desc = options?.description ||
+    options?.serviceName ||
+    client.services_purchased ||
+    "Professional Consulting, Legal & Regulatory Compliance Services";
+
+  // 5. Generate Atomic Sequential Invoice Number
+  const invoiceNumber = await generateInvoiceNumberAction();
+
+  // 6. Insert Invoice Record
+  const { data: newInvoice, error: invError } = await supabase
+    .from("invoices")
+    .insert({
+      invoice_number: invoiceNumber,
+      client_id: cleanClientId,
+      issue_date: todayStr,
+      due_date: dueDate,
+      billing_type: "Full Payment",
+      payment_terms: "Due on Receipt",
+      subtotal,
+      discount_amount: 0,
+      tax_rate: taxRate,
+      tax_type: taxType,
+      cgst_amount: cgstAmount,
+      sgst_amount: sgstAmount,
+      igst_amount: igstAmount,
+      tax_amount: taxAmount,
+      total_amount: totalAmount,
+      amount_paid: 0,
+      balance_due: totalAmount,
+      status: "Issued", // Initial unpaid status
+      notes: "Auto-generated upon service engagement. Brand 360s CRM.",
+      terms: "Payment due within terms. Brand 360s Enterprises.",
+      created_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (invError || !newInvoice) {
+    return { error: invError?.message || "Failed to auto-generate invoice." };
+  }
+
+  // 7. Insert Line Item
+  const { error: itemError } = await supabase
+    .from("invoice_items")
+    .insert({
+      invoice_id: newInvoice.id,
+      client_service_id: options?.clientServiceId || null,
+      description: desc,
+      quantity: 1,
+      unit_price: subtotal,
+      discount_amount: 0,
+      tax_rate: taxRate,
+      tax_amount: taxAmount,
+      total: totalAmount,
+    });
+
+  if (itemError) {
+    console.error("Error creating line item for auto-invoice:", itemError);
+  }
+
+  revalidatePath("/invoices");
+  revalidatePath("/payments");
+  revalidatePath(`/clients/${cleanClientId}`);
+  revalidatePath("/dashboard");
+
+  return {
+    success: true,
+    invoiceId: newInvoice.id,
+    invoice: newInvoice,
+  };
 }

@@ -95,12 +95,12 @@ export function PaymentTransactionsTable({
                       </span>
                     </td>
 
-                    {/* Linked Invoices (Compact 2-line badge: invoice number on top, amount below) */}
-                    <td className="py-2 px-2.5 whitespace-nowrap align-middle">
+                    {/* Linked Invoices (Column layout: stacked vertically one after other, increased height) */}
+                    <td className="py-2.5 px-2.5 whitespace-nowrap align-middle">
                       {linkedAllocations.length === 0 ? (
                         <span className="text-slate-400 text-xs">None</span>
                       ) : (
-                        <div className="flex items-center gap-1.5 flex-nowrap">
+                        <div className="flex flex-col items-start gap-1.5 py-0.5">
                           {linkedAllocations.map((alloc: any) => {
                             const invNumber =
                               alloc.invoice?.invoice_number ||
@@ -112,11 +112,11 @@ export function PaymentTransactionsTable({
                               <button
                                 key={alloc.id}
                                 onClick={() => onPreviewInvoice(invId)}
-                                className="inline-flex flex-col items-center justify-center px-2 py-0.5 rounded-md bg-[#EEF2F6] hover:bg-[#E2E8F0] text-slate-700 font-mono text-[11px] border border-slate-200 transition-colors cursor-pointer leading-tight shrink-0 shadow-2xs"
+                                className="inline-flex flex-col items-center justify-center px-2.5 py-1.5 min-h-[38px] rounded-md bg-[#EEF2F6] hover:bg-[#E2E8F0] text-slate-700 font-mono text-[11px] border border-slate-200 transition-colors cursor-pointer leading-snug shrink-0 shadow-2xs"
                                 title={`Allocated: ${formatINR(allocAmount)} - Click to preview ${invNumber}`}
                               >
                                 <span className="font-semibold text-[#1B3260] tracking-tight">{invNumber}</span>
-                                <span className="text-slate-500 font-medium text-[10px]">
+                                <span className="text-slate-500 font-medium text-[10px] mt-0.5">
                                   ({formatINR(allocAmount)})
                                 </span>
                               </button>

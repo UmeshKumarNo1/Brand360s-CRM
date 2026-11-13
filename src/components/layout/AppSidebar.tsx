@@ -76,7 +76,7 @@ export function AppSidebar({
       {/* Brand Header */}
       <div className={cn(
         "flex items-center h-16 border-b border-[#1E3567]/50 relative z-10 shrink-0 bg-[#16284F] transition-all duration-300",
-        isCollapsed ? "justify-center px-2 flex-row gap-1.5 h-16" : "justify-between px-4 sm:px-5"
+        isCollapsed ? "flex-row items-center justify-between px-3 h-16" : "justify-between px-4 sm:px-5"
       )}>
         <Link 
           href="/dashboard" 
@@ -114,7 +114,7 @@ export function AppSidebar({
           onClick={() => setIsCollapsed(!isCollapsed)}
           className={cn(
             "text-slate-400 hover:text-white rounded-lg hover:bg-[#1E3567]/60 transition-colors shrink-0 cursor-pointer",
-            isCollapsed ? "p-1" : "p-1.5"
+            isCollapsed ? "p-1 ml-auto" : "p-1.5"
           )}
           title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >

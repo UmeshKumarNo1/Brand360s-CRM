@@ -95,13 +95,13 @@ export function PaymentStatsCards({
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 w-full">
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 w-full">
       {cards.map((card, idx) => {
         const Icon = card.icon;
         return (
           <div
             key={idx}
-            className="bg-white rounded-2xl p-3.5 sm:p-4 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-center gap-3 transition-all duration-200 hover:shadow-xs min-h-[82px] min-w-0"
+            className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-center gap-3.5 transition-all duration-200 hover:shadow-xs min-h-[96px] min-w-0"
           >
             {/* Subtle organic decorative wave matching reference design and Clients stats cards */}
             <div className="pointer-events-none absolute right-0 bottom-0 w-20 h-14 opacity-30">

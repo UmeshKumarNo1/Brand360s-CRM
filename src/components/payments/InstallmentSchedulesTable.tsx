@@ -58,14 +58,14 @@ export function InstallmentSchedulesTable({
           {/* Navy Blue Table Header matching ClientsTable */}
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide">
-              <th className="py-3.5 px-3.5 font-semibold">Client</th>
-              <th className="py-3.5 px-3 font-semibold whitespace-nowrap">Linked Invoice</th>
-              <th className="py-3.5 px-3.5 font-semibold">Milestone</th>
+              <th className="py-3.5 px-3.5 font-semibold text-left">Client</th>
+              <th className="py-3.5 px-3 font-semibold text-left whitespace-nowrap">Linked Invoice</th>
+              <th className="py-3.5 px-3.5 font-semibold text-left">Milestone</th>
               <th className="py-3.5 px-3 text-right font-semibold whitespace-nowrap">Expected Amount</th>
               <th className="py-3.5 px-3 text-right font-semibold whitespace-nowrap">Received Amount</th>
               <th className="py-3.5 px-3 text-right font-semibold whitespace-nowrap">Outstanding Balance</th>
-              <th className="py-3.5 px-3.5 font-semibold whitespace-nowrap">Due Date</th>
-              <th className="py-3.5 px-3 font-semibold whitespace-nowrap">Status</th>
+              <th className="py-3.5 px-3.5 font-semibold text-left whitespace-nowrap">Due Date</th>
+              <th className="py-3.5 px-3 font-semibold text-center whitespace-nowrap">Status</th>
               <th className="py-3.5 px-3 text-center w-32 font-semibold whitespace-nowrap">Actions</th>
             </tr>
           </thead>

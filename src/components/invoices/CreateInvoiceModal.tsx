@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useRef } from "react";
 import { FileText, X, Loader2, IndianRupee, Calendar } from "lucide-react";
 import { createInvoiceAction } from "@/app/actions/invoices";
 import { fetchClientsAction } from "@/app/actions/clients";
@@ -21,6 +21,7 @@ export function CreateInvoiceModal({
   defaultClientName,
 }: CreateInvoiceModalProps) {
   const [state, formAction, isPending] = useActionState(createInvoiceAction, null);
+  const handledStateRef = useRef<any>(null);
   const [clients, setClients] = useState<any[]>([]);
 
   useEffect(() => {
@@ -30,7 +31,10 @@ export function CreateInvoiceModal({
   }, [defaultClientId, isOpen]);
 
   useEffect(() => {
-    if (state?.success) {
+    if (!state || handledStateRef.current === state) return;
+    handledStateRef.current = state;
+
+    if (state.success) {
       onSuccess();
       onClose();
     }

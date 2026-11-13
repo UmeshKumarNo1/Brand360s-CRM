@@ -51,26 +51,28 @@ export function ClientPaymentsTab({
   const { success, error: toastError } = useToast();
   const requestIdRef = useRef(0);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (silent = false) => {
     const currentReqId = ++requestIdRef.current;
-    setIsLoading(true);
+    if (!silent) {
+      setIsLoading(true);
+    }
     setErrorMessage(null);
 
     try {
-      const [res, allInvoices] = await Promise.all([
+      const [res, clientInvoicesData] = await Promise.all([
         fetchClientFinancialsAction(clientId),
-        fetchInvoicesAction(),
+        fetchInvoicesAction(clientId),
       ]);
       if (currentReqId === requestIdRef.current) {
         setData(res);
-        setClientInvoices((allInvoices || []).filter((inv: any) => inv.clientId === clientId));
+        setClientInvoices(clientInvoicesData || []);
       }
     } catch (err: any) {
       if (currentReqId === requestIdRef.current) {
         setErrorMessage(err.message || "Failed to load financial data.");
       }
     } finally {
-      if (currentReqId === requestIdRef.current) {
+      if (currentReqId === requestIdRef.current && !silent) {
         setIsLoading(false);
       }
     }
@@ -435,7 +437,7 @@ export function ClientPaymentsTab({
       <CreateInvoiceModal
         isOpen={isInvoiceModalOpen}
         onClose={() => setIsInvoiceModalOpen(false)}
-        onSuccess={() => loadData()}
+        onSuccess={() => loadData(true)}
         defaultClientId={clientId}
         defaultClientName={clientName}
       />
@@ -454,7 +456,7 @@ export function ClientPaymentsTab({
           setIsPaymentModalOpen(false);
           setSelectedForPayment(null);
         }}
-        onSuccess={() => loadData()}
+        onSuccess={() => loadData(true)}
         defaultClientId={clientId}
         defaultClientName={clientName}
         defaultInstallmentId={selectedForPayment?.id}
@@ -465,7 +467,7 @@ export function ClientPaymentsTab({
       <CreateInstallmentModal
         isOpen={isInstallmentModalOpen}
         onClose={() => setIsInstallmentModalOpen(false)}
-        onSuccess={() => loadData()}
+        onSuccess={() => loadData(true)}
         clientId={clientId}
         clientName={clientName}
       />
@@ -474,14 +476,14 @@ export function ClientPaymentsTab({
         isOpen={!!editingInstallment}
         installment={editingInstallment}
         onClose={() => setEditingInstallment(null)}
-        onSuccess={() => loadData()}
+        onSuccess={() => loadData(true)}
       />
 
       <AllocatePaymentModal
         isOpen={!!allocatingPayment}
         payment={allocatingPayment}
         onClose={() => setAllocatingPayment(null)}
-        onSuccess={() => loadData()}
+        onSuccess={() => loadData(true)}
       />
     </div>
   );

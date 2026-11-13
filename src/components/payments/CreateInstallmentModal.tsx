@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useRef } from "react";
 import { Calendar, X, Loader2, IndianRupee } from "lucide-react";
 import { createInstallmentAction, fetchClientInvoicesForAllocationAction } from "@/app/actions/payments";
 import { fetchClientsAction } from "@/app/actions/clients";
@@ -21,6 +21,7 @@ export function CreateInstallmentModal({
   clientName,
 }: CreateInstallmentModalProps) {
   const [state, formAction, isPending] = useActionState(createInstallmentAction, null);
+  const handledStateRef = useRef<any>(null);
   const [clients, setClients] = useState<any[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>(initialClientId || "");
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -46,7 +47,10 @@ export function CreateInstallmentModal({
   }, [selectedClientId, isOpen]);
 
   useEffect(() => {
-    if (state?.success) {
+    if (!state || handledStateRef.current === state) return;
+    handledStateRef.current = state;
+
+    if (state.success) {
       onSuccess();
       onClose();
     }

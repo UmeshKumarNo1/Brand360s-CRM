@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { X, CheckCircle2, AlertCircle, FileText, ArrowRight, Loader2, DollarSign } from "lucide-react";
+import { X, CheckCircle2, AlertCircle, FileText, ArrowRight, Loader2, DollarSign, PlusCircle, Sparkles } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import {
   fetchClientInvoicesForAllocationAction,
   allocatePaymentToInvoicesAction,
 } from "@/app/actions/payments";
+import { autoGenerateInvoiceForClientAction } from "@/app/actions/invoices";
 import { useToast } from "@/components/common/ToastProvider";
 
 interface AllocatePaymentModalProps {
@@ -47,6 +48,7 @@ export function AllocatePaymentModal({
   const [allocationInputs, setAllocationInputs] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const { success, error: toastError } = useToast();
@@ -57,20 +59,16 @@ export function AllocatePaymentModal({
   const alreadyAllocated = payment?.totalAllocated || 0;
   const initialAvailable = Math.max(0, paymentTotal - alreadyAllocated);
 
-  // Load client's unpaid or partially paid invoices
-  useEffect(() => {
-    if (!isOpen || !payment?.clientId) {
-      setInvoices([]);
-      setAllocationInputs({});
-      setErrorMsg(null);
-      return;
-    }
+  const paymentId = payment?.id;
+  const paymentClientId = payment?.clientId;
 
+  const loadInvoices = () => {
+    if (!paymentClientId) return;
     const currentReq = ++reqIdRef.current;
     setIsLoading(true);
     setErrorMsg(null);
 
-    fetchClientInvoicesForAllocationAction(payment.clientId)
+    fetchClientInvoicesForAllocationAction(paymentClientId)
       .then((invs) => {
         if (currentReq !== reqIdRef.current) return;
         setInvoices(invs || []);
@@ -84,7 +82,45 @@ export function AllocatePaymentModal({
           setIsLoading(false);
         }
       });
-  }, [isOpen, payment]);
+  };
+
+  // Load client's unpaid or partially paid invoices
+  useEffect(() => {
+    if (!isOpen || !paymentClientId) {
+      setInvoices([]);
+      setAllocationInputs({});
+      setErrorMsg(null);
+      return;
+    }
+
+    loadInvoices();
+  }, [isOpen, paymentId, paymentClientId]);
+
+  // Handler to directly generate an invoice from the modal if none exist
+  const handleGenerateInvoiceNow = async () => {
+    if (!paymentClientId) return;
+    setIsGeneratingInvoice(true);
+    setErrorMsg(null);
+
+    try {
+      const res = await autoGenerateInvoiceForClientAction(paymentClientId, {
+        amount: initialAvailable > 0 ? initialAvailable : undefined,
+        description: `Professional Services - ${payment?.companyName}`,
+      });
+
+      if (res.success) {
+        success("Invoice Created", "Official tax invoice generated. Ready for payment allocation.");
+        // Refresh invoices in modal immediately
+        loadInvoices();
+      } else {
+        setErrorMsg(res.error || "Failed to generate invoice for client.");
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || "Server connection error while generating invoice.");
+    } finally {
+      setIsGeneratingInvoice(false);
+    }
+  };
 
   if (!isOpen || !payment) return null;
 
@@ -259,12 +295,36 @@ export function AllocatePaymentModal({
               <span>Fetching client invoices...</span>
             </div>
           ) : invoices.length === 0 ? (
-            <div className="py-10 text-center text-xs text-slate-400 border border-dashed border-slate-200 rounded-xl">
-              <FileText size={28} className="mx-auto text-slate-300 mb-2" />
-              <p className="font-semibold text-slate-600">No open invoices found for this client.</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Generate a tax invoice in the Invoices tab first to allocate this payment.
-              </p>
+            <div className="py-10 px-4 text-center text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50/50 space-y-3">
+              <div className="w-10 h-10 rounded-full bg-sky-50 text-[#0481A2] flex items-center justify-center mx-auto">
+                <FileText size={20} />
+              </div>
+              <div className="space-y-1">
+                <p className="font-bold text-slate-800 text-sm">No invoices available for this client.</p>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Create an invoice to allocate this payment directly without leaving this screen.
+                </p>
+              </div>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleGenerateInvoiceNow}
+                  disabled={isGeneratingInvoice}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {isGeneratingInvoice ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Generating Invoice...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={14} />
+                      <span>Generate Invoice</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-3">

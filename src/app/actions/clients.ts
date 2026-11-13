@@ -5,12 +5,15 @@ import { revalidatePath } from "next/cache";
 import { validatePhoneNumber, parseInitialPhone } from "@/lib/validation/phone";
 import { checkClientDuplicatesAction } from "./duplicate-detection";
 import { DuplicateMatch } from "@/lib/validation/duplicate-detector";
+import { autoGenerateInvoiceForClientAction } from "@/app/actions/invoices";
+
 import {
   validateGstin,
   validatePan,
   validatePincode,
   validateEmailFormat,
 } from "@/lib/validation/client-validation";
+
 import { recordAuditLog } from "@/lib/audit/audit-logger";
 
 export interface CreateClientState {
@@ -339,23 +342,45 @@ export async function createClientAction(
     return { error: error.message, success: false };
   }
 
-  if (data?.id) {
-    await recordAuditLog({
-      action: "CREATE",
-      entityType: "client",
-      entityId: data.id,
-      entityName: company_name,
-      details: {
-        trade_name,
-        assigned_salesperson,
-        client_status,
-        contract_value,
-        duplicate_override: allowDuplicateOverride,
-      },
+// Feature: Automatic Invoice Creation upon Client Engagement
+// Generate initial invoice when contract value > 0
+if (contract_value > 0 && data?.id) {
+  try {
+    await autoGenerateInvoiceForClientAction(data.id, {
+      amount: contract_value,
+      description:
+        services_purchased ||
+        "Professional Legal, Compliance & Registration Services",
     });
+  } catch (autoInvErr) {
+    console.warn(
+      "Auto-invoice generation warning on client creation:",
+      autoInvErr
+    );
+  }
+}
+
+// Record client creation in audit history
+if (data?.id) {
+  await recordAuditLog({
+    action: "CREATE",
+    entityType: "client",
+    entityId: data.id,
+    entityName: company_name,
+    details: {
+      trade_name,
+      assigned_salesperson,
+      client_status,
+      contract_value,
+      duplicate_override: allowDuplicateOverride,
+    },
+  });
+}
   }
 
   revalidatePath("/clients");
+  revalidatePath("/invoices");
+  revalidatePath("/payments");
   revalidatePath("/dashboard");
 
   return { success: true, clientId: data.id };

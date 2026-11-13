@@ -40,20 +40,51 @@ export function ClientsTable({
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden w-full max-w-full">
       <div className="overflow-x-auto w-full custom-scrollbar">
-        <table className="w-full text-left border-collapse text-xs sm:text-[13px] table-auto">
+        <table className="w-full text-left border-collapse text-xs sm:text-[13px] table-fixed">
+          {/* Colgroup to define balanced proportional widths that sum to 100% */}
+          <colgroup>
+            <col className="w-[4%]" />
+            <col className="w-[16%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
+            <col className="w-[15%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
+            <col className="w-[10%]" />
+            <col className="w-[11%]" />
+            <col className="w-[14%]" />
+          </colgroup>
           {/* Navy Blue Table Header matching image */}
           <thead>
-            <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide">
-              <th className="py-2.5 px-2 w-9 text-center font-semibold">No.</th>
-              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Company Name</th>
-              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Date of Creation</th>
-              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Salesperson</th>
-              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Services Purchased</th>
-              <th className="py-2.5 px-2 text-right font-semibold whitespace-nowrap">Contract Value</th>
-              <th className="py-2.5 px-2 text-right font-semibold whitespace-nowrap">Payment Received</th>
-              <th className="py-2.5 px-2 text-right font-semibold whitespace-nowrap">Balance Receivable</th>
-              <th className="py-2.5 px-2 font-semibold whitespace-nowrap">Next Payment Due</th>
-              <th className="py-2.5 px-2 text-center font-semibold whitespace-nowrap min-w-[124px] w-[124px]">Actions</th>
+            <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide align-middle">
+              <th className="py-2.5 px-2 text-center font-semibold">No.</th>
+              <th className="py-2.5 px-3 font-semibold">Company Name</th>
+              <th className="py-2.5 px-2 font-semibold text-left">
+                <span className="block leading-tight">Date of</span>
+                <span className="block leading-tight">Creation</span>
+              </th>
+              <th className="py-2.5 px-2 font-semibold text-left">Salesperson</th>
+              <th className="py-2.5 px-3 font-semibold text-left">
+                <span className="block leading-tight">Services</span>
+                <span className="block leading-tight">Purchased</span>
+              </th>
+              <th className="py-2.5 px-2 text-right font-semibold">
+                <span className="block leading-tight">Contract</span>
+                <span className="block leading-tight">Value</span>
+              </th>
+              <th className="py-2.5 px-2 text-right font-semibold">
+                <span className="block leading-tight">Payment</span>
+                <span className="block leading-tight">Received</span>
+              </th>
+              <th className="py-2.5 px-2 text-right font-semibold">
+                <span className="block leading-tight">Balance</span>
+                <span className="block leading-tight">Receivable</span>
+              </th>
+              <th className="py-2.5 px-2 text-right font-semibold">
+                <span className="block leading-tight">Next Payment</span>
+                <span className="block leading-tight">Due</span>
+              </th>
+              <th className="py-2.5 px-2 text-center font-semibold">Actions</th>
             </tr>
           </thead>
 
@@ -76,12 +107,12 @@ export function ClientsTable({
                     }`}
                   >
                     {/* No. */}
-                    <td className="py-2.5 px-2 font-bold text-slate-800 text-center font-sans font-number">
+                    <td className="py-2.5 px-2.5 font-bold text-slate-800 text-center font-sans font-number">
                       {client.no}
                     </td>
 
                     {/* Company Name */}
-                    <td className="py-2.5 px-2 font-bold whitespace-nowrap">
+                    <td className="py-2.5 px-3 font-bold whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <Link
                           href={`/clients/${client.id}`}
@@ -90,7 +121,7 @@ export function ClientsTable({
                           {client.companyName}
                         </Link>
                         {isArchived && (
-                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
                             Archived
                           </span>
                         )}
@@ -98,17 +129,17 @@ export function ClientsTable({
                     </td>
 
                     {/* Date of Creation */}
-                    <td className="py-2.5 px-2 font-medium text-slate-600 font-sans font-number whitespace-nowrap">
+                    <td className="py-2.5 px-3 font-medium text-slate-600 font-sans font-number whitespace-nowrap">
                       {formatCreationDate(client.dateOfCreation || client.createdAt)}
                     </td>
 
                     {/* Salesperson */}
-                    <td className="py-2.5 px-2 font-medium text-slate-700 whitespace-nowrap">
+                    <td className="py-2.5 px-3 font-medium text-slate-700 whitespace-nowrap">
                       {client.salesperson}
                     </td>
 
                     {/* Services Purchased */}
-                    <td className="py-2.5 px-2 text-slate-600 font-normal leading-tight">
+                    <td className="py-2.5 px-3 text-slate-600 font-normal leading-tight">
                       {client.servicesPurchased ? (
                         client.servicesPurchased.includes(",") ? (
                           <div className="flex flex-col">
@@ -142,13 +173,13 @@ export function ClientsTable({
                     </td>
 
                     {/* Next Payment Due */}
-                    <td className="py-2.5 px-2 whitespace-nowrap">
+                    <td className="py-2.5 px-2 text-right whitespace-nowrap">
                       {client.paymentStatus === "Paid in full" || client.nextPaymentDueAmount === 0 ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                           Paid in full
                         </span>
                       ) : (
-                        <div className="leading-tight font-sans">
+                        <div className="leading-tight font-sans text-right">
                           <span className="font-bold text-slate-900 block text-xs sm:text-[13px] font-sans font-number">
                             {formatINR(client.nextPaymentDueAmount)}
                           </span>
@@ -160,7 +191,7 @@ export function ClientsTable({
                     </td>
 
                     {/* Action Buttons */}
-                    <td className="py-2.5 px-2 text-center whitespace-nowrap min-w-[124px] w-[124px]">
+                    <td className="py-2.5 px-2 text-center whitespace-nowrap">
                       <div className="inline-flex items-center justify-center gap-1.5 flex-nowrap">
                         {/* View Action */}
                         <Link

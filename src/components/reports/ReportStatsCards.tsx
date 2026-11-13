@@ -85,7 +85,7 @@ export function ReportStatsCards({ kpis }: ReportStatsCardsProps) {
               </svg>
             </div>
 
-            {/* Left side: Full content (Value on top, label below, sublabel) */}
+            {/* Left side: Full Content (Value, Label, Sublabel) */}
             <div className="z-10 min-w-0 flex-1">
               <div className="text-lg sm:text-xl font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number whitespace-nowrap">
                 {card.value}
@@ -100,11 +100,11 @@ export function ReportStatsCards({ kpis }: ReportStatsCardsProps) {
               )}
             </div>
 
-            {/* Right side: Icon on top right */}
+            {/* Right side: Circular Icon Badge on Top Right */}
             <div
               className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full shrink-0 flex items-center justify-center ${card.iconBg} ${card.iconColor} shadow-2xs z-10`}
             >
-              <Icon size={18} strokeWidth={2.2} />
+              <Icon size={19} strokeWidth={2.2} />
             </div>
           </div>
         );

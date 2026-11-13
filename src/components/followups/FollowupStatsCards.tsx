@@ -95,9 +95,9 @@ export function FollowupStatsCards({
               </svg>
             </div>
 
-            {/* Left side: Full content (Value on top, label below, sublabel) */}
+            {/* Left side: Full Content (Value, Label, Sublabel) */}
             <div className="z-10 min-w-0 flex-1">
-              <div className="text-2xl sm:text-[26px] font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number whitespace-nowrap">
+              <div className="text-xl sm:text-2xl font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number whitespace-nowrap">
                 {card.value}
               </div>
               <p className="text-xs font-semibold text-slate-500 mt-1 leading-snug">
@@ -110,11 +110,11 @@ export function FollowupStatsCards({
               )}
             </div>
 
-            {/* Right side: Icon on top right */}
+            {/* Right side: Circular Icon Badge on Top Right */}
             <div
               className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full shrink-0 flex items-center justify-center ${card.iconBg} ${card.iconColor} shadow-2xs z-10`}
             >
-              <Icon size={18} strokeWidth={2.2} />
+              <Icon size={19} strokeWidth={2.2} />
             </div>
           </div>
         );

@@ -19,62 +19,90 @@ export function RenewalStatsCards({ stats }: RenewalStatsCardsProps) {
     {
       label: "Total Renewals",
       value: stats.total,
+      sublabel: "All Subscriptions",
       icon: RefreshCw,
-      color: "bg-[#243E76]/10 text-[#243E76]",
-      desc: "All tracked subscriptions",
+      iconBg: "bg-[#E0F3F7]",
+      iconColor: "text-[#0481A2]",
     },
     {
       label: "Upcoming Renewals",
       value: stats.upcoming,
+      sublabel: "Due in > 30 days",
       icon: Calendar,
-      color: "bg-blue-50 text-blue-700",
-      desc: "Due in > 30 days",
+      iconBg: "bg-[#243E76]",
+      iconColor: "text-white",
     },
     {
       label: "Due Soon",
       value: stats.dueSoon,
+      sublabel: "Next 30 days window",
       icon: Clock,
-      color: "bg-amber-50 text-amber-700",
-      desc: "Next 30 days window",
+      iconBg: "bg-[#0481A2]",
+      iconColor: "text-white",
     },
     {
       label: "Overdue Renewals",
       value: stats.overdue,
+      sublabel: "Expired / past due",
       icon: AlertTriangle,
-      color: "bg-rose-50 text-rose-700",
-      desc: "Expired / past due date",
+      iconBg: stats.overdue > 0 ? "bg-rose-500" : "bg-[#243E76]",
+      iconColor: "text-white",
     },
     {
       label: "Renewed This Month",
       value: stats.renewedThisMonth,
+      sublabel: "Successfully renewed",
       icon: CheckCircle2,
-      color: "bg-emerald-50 text-emerald-700",
-      desc: "Successfully renewed",
+      iconBg: "bg-[#E0F3F7]",
+      iconColor: "text-[#0481A2]",
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
-      {cards.map((c) => {
-        const Icon = c.icon;
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 w-full">
+      {cards.map((stat, idx) => {
+        const Icon = stat.icon;
         return (
           <div
-            key={c.label}
-            className="bg-white rounded-2xl p-4 border border-slate-100/90 shadow-2xs hover:shadow-xs transition-shadow relative overflow-hidden"
+            key={idx}
+            className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-center gap-3.5 transition-all duration-200 hover:shadow-xs min-h-[96px] min-w-0"
           >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                {c.label}
-              </span>
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${c.color}`}>
-                <Icon size={16} />
+            {/* Soft decorative wave background on bottom right */}
+            <div className="pointer-events-none absolute right-0 bottom-0 w-24 h-16 opacity-35">
+              <svg viewBox="0 0 120 80" fill="none" className="w-full h-full">
+                <path
+                  d="M120 80C90 75 70 50 80 20C90 -5 110 5 120 0V80Z"
+                  fill="#0481A2"
+                  opacity="0.2"
+                />
+                <path
+                  d="M120 80C80 80 50 65 60 40C70 15 100 25 120 15V80Z"
+                  fill="#38BDF8"
+                  opacity="0.15"
+                />
+              </svg>
+            </div>
+
+            {/* Icon Circle */}
+            <div
+              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center ${stat.iconBg} ${stat.iconColor} shadow-2xs z-10`}
+            >
+              <Icon size={20} strokeWidth={2.2} />
+            </div>
+
+            {/* Value & Label */}
+            <div className="z-10 min-w-0 flex-1">
+              <div className="text-xl sm:text-2xl font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number whitespace-nowrap">
+                {stat.value}
               </div>
-            </div>
-            <div className="text-2xl font-bold font-number text-[#1B3260]">
-              {c.value}
-            </div>
-            <div className="text-[10px] text-slate-400 mt-1 truncate">
-              {c.desc}
+              <p className="text-xs font-semibold text-slate-500 mt-1 leading-snug">
+                {stat.label}
+              </p>
+              {stat.sublabel && (
+                <p className="text-[11px] font-medium text-slate-400 mt-0.5 truncate">
+                  {stat.sublabel}
+                </p>
+              )}
             </div>
           </div>
         );

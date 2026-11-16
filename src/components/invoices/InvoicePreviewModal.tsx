@@ -6,6 +6,7 @@ import { formatINR } from "@/lib/utils";
 import { useToast } from "@/components/common/ToastProvider";
 import { sendInvoiceEmailAction, fetchInvoiceByIdAction } from "@/app/actions/invoices";
 import { fetchCrmSettingsAction } from "@/app/actions/settings";
+import { BRAND_LOGO_BASE64 } from "@/lib/brandLogoBase64";
 
 interface InvoicePreviewModalProps {
   isOpen: boolean;
@@ -339,13 +340,13 @@ export function InvoicePreviewModal({
             <div className="flex items-start justify-between pb-6 border-b-2 border-[#243E76]">
               <div>
                 <div className="mb-2">
-                  {/* Real BRAND 360s logo from public folder with graceful fallback */}
+                  {/* Real BRAND 360s logo from public folder with reliable data fallback */}
                   <img
-                    src="/logo.webp"
+                    src={BRAND_LOGO_BASE64 || "/logo.webp"}
                     alt="BRAND 360s"
-                    className="h-12 sm:h-14 w-auto object-contain"
+                    className="h-14 sm:h-16 w-auto object-contain"
                     onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = "/brand360s-darkmodelogo.svg";
+                      (e.currentTarget as HTMLImageElement).src = "/logo.webp";
                     }}
                   />
                 </div>

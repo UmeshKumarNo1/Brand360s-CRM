@@ -26,6 +26,7 @@ import {
   PaymentReceiptDetails,
 } from "@/app/actions/receipts";
 import { fetchCrmSettingsAction } from "@/app/actions/settings";
+import { BRAND_LOGO_BASE64 } from "@/lib/brandLogoBase64";
 
 interface PaymentReceiptModalProps {
   isOpen: boolean;
@@ -295,11 +296,11 @@ export function PaymentReceiptModal({
                 <div>
                   <div className="mb-2">
                     <img
-                      src="/logo.webp"
+                      src={BRAND_LOGO_BASE64 || "/logo.webp"}
                       alt="BRAND 360s"
-                      className="h-11 sm:h-12 w-auto object-contain"
+                      className="h-13 sm:h-14 w-auto object-contain"
                       onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = "/brand360s-darkmodelogo.svg";
+                        (e.currentTarget as HTMLImageElement).src = "/logo.webp";
                       }}
                     />
                   </div>

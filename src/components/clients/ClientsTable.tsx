@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Eye, Edit3, Trash2, RotateCcw, UserCheck } from "lucide-react";
+import { Edit3, Trash2, RotateCcw, UserCheck, ArrowUpRight } from "lucide-react";
 import { ClientRecord } from "@/data/mockClients";
 import { formatINR } from "@/lib/utils";
 
@@ -109,10 +109,14 @@ export function ClientsTable({
                       <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                         <Link
                           href={`/clients/${client.id}`}
-                          className="text-[#0481A2] hover:text-[#036c88] transition-colors break-words leading-snug"
+                          className="text-[#0481A2] hover:text-[#036c88] hover:underline transition-all inline-flex items-center gap-1 group break-words leading-snug"
                           title={client.companyName}
                         >
-                          {client.companyName}
+                          <span>{client.companyName}</span>
+                          <ArrowUpRight
+                            size={12}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-[#0481A2] shrink-0"
+                          />
                         </Link>
                         {isArchived && (
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
@@ -181,16 +185,7 @@ export function ClientsTable({
 
                     {/* Action Buttons */}
                     <td className="py-2.5 px-1 text-center whitespace-nowrap min-w-[120px] align-middle">
-                      <div className="inline-flex items-center justify-center gap-1 flex-nowrap">
-                        {/* View Action */}
-                        <Link
-                          href={`/clients/${client.id}`}
-                          className="inline-flex items-center justify-center w-7 h-7 shrink-0 rounded-lg bg-[#F0F8FA] hover:bg-[#E0F2F7] text-[#0481A2] border border-[#D5EBF1] transition-all shadow-2xs"
-                          title="View client details"
-                        >
-                          <Eye size={13} strokeWidth={2} />
-                        </Link>
-
+                      <div className="inline-flex items-center justify-center gap-1.5 flex-nowrap">
                         {/* Edit Action */}
                         <Link
                           href={`/clients/${client.id}/edit`}

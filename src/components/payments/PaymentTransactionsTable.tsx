@@ -180,73 +180,65 @@ export function PaymentTransactionsTable({
                       </span>
                     </td>
 
-                    {/* Actions matching reference UI */}
+                    {/* Actions matching reference UI: Button on row 1, icons on row 2 (eye icon removed) */}
                     <td className="py-2.5 px-2 text-center whitespace-nowrap align-middle">
-                      <div className="flex items-center justify-center gap-1">
-                        <Link
-                          href={`/clients/${p.clientId}`}
-                          className="p-1 rounded-md text-slate-400 hover:text-[#0481A2] hover:bg-sky-50 transition-colors"
-                          title="View Client Details"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </Link>
-
-                        {/* Receipt Action */}
-                        {onViewReceipt && (
-                          <button
-                            onClick={() => onViewReceipt(p)}
-                            className="p-1 rounded-md text-slate-400 hover:text-[#077EA1] hover:bg-sky-50 transition-colors cursor-pointer"
-                            title="View / Download Payment Receipt"
-                          >
-                            <Receipt size={14} />
-                          </button>
-                        )}
-
-                        {/* Edit Action: Only for Unallocated and non-reversed payments */}
-                        {p.status !== "Reversed" && onEditPayment && (
-                          p.totalAllocated > 0 ? (
-                            <span
-                              className="p-1 rounded-md text-slate-300 cursor-not-allowed inline-flex items-center"
-                              title="Cannot edit: payment is already partially or fully allocated to invoices. To modify, reverse the payment."
-                            >
-                              <Edit3 size={14} />
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => onEditPayment(p)}
-                              className="p-1 rounded-md text-slate-400 hover:text-[#243E76] hover:bg-slate-100 transition-colors cursor-pointer"
-                              title="Edit Unallocated Payment"
-                            >
-                              <Edit3 size={14} />
-                            </button>
-                          )
-                        )}
-
-                        {/* Reverse Action: Available for eligible non-reversed payments (with controlled allocation rollback) */}
-                        {p.status !== "Reversed" && onReversePayment && (
-                          <button
-                            onClick={() => onReversePayment(p)}
-                            className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                            title={p.totalAllocated > 0 ? "Reverse Payment & Revert Linked Allocations" : "Reverse Payment"}
-                          >
-                            <RotateCcw size={14} />
-                          </button>
-                        )}
-
-                        {/* Allocate Action */}
+                      <div className="flex flex-col items-center justify-center gap-1.5">
+                        {/* Row 1: Allocate Button */}
                         {p.status !== "Reversed" && (
                           <button
                             onClick={() => onAllocatePayment(p)}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-lg bg-sky-50 text-[#0481A2] hover:bg-[#0481A2] hover:text-white border border-[#0481A2]/30 transition-all shadow-2xs cursor-pointer"
+                            className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-sky-50 text-[#0481A2] hover:bg-[#0481A2] hover:text-white border border-[#0481A2]/30 transition-all shadow-2xs cursor-pointer w-full max-w-[92px]"
                             title="Allocate payment to client invoices"
                           >
                             <Coins size={12} />
                             <span>Allocate</span>
                           </button>
                         )}
+
+                        {/* Row 2: Action Icons */}
+                        <div className="flex items-center justify-center gap-1.5">
+                          {/* Receipt Action */}
+                          {onViewReceipt && (
+                            <button
+                              onClick={() => onViewReceipt(p)}
+                              className="p-1 rounded-md text-slate-400 hover:text-[#077EA1] hover:bg-sky-50 transition-colors cursor-pointer"
+                              title="View / Download Payment Receipt"
+                            >
+                              <Receipt size={14} />
+                            </button>
+                          )}
+
+                          {/* Edit Action: Only for Unallocated and non-reversed payments */}
+                          {p.status !== "Reversed" && onEditPayment && (
+                            p.totalAllocated > 0 ? (
+                              <span
+                                className="p-1 rounded-md text-slate-300 cursor-not-allowed inline-flex items-center"
+                                title="Cannot edit: payment is already partially or fully allocated to invoices. To modify, reverse the payment."
+                              >
+                                <Edit3 size={14} />
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => onEditPayment(p)}
+                                className="p-1 rounded-md text-slate-400 hover:text-[#243E76] hover:bg-slate-100 transition-colors cursor-pointer"
+                                title="Edit Unallocated Payment"
+                              >
+                                <Edit3 size={14} />
+                              </button>
+                            )
+                          )}
+
+                          {/* Reverse Action: Available for eligible non-reversed payments */}
+                          {p.status !== "Reversed" && onReversePayment && (
+                            <button
+                              onClick={() => onReversePayment(p)}
+                              className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                              title={p.totalAllocated > 0 ? "Reverse Payment & Revert Linked Allocations" : "Reverse Payment"}
+                            >
+                              <RotateCcw size={14} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>

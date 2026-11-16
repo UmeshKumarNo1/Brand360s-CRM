@@ -1,7 +1,24 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+
+// Server-side helper to get authenticated service-role client for reliable financial document access
+function getServiceRoleClient() {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+
+  if (serviceKey && !serviceKey.includes("placeholder")) {
+    return createSupabaseClient(supabaseUrl, serviceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+  }
+  return null;
+}
 
 export interface PaymentReceiptDetails {
   id: string;
@@ -113,7 +130,10 @@ export async function generatePaymentReceiptAction(params: {
   }
 
   // 3. Check if receipt already exists
-  const { data: existingReceipt } = await supabase
+  const adminClient = getServiceRoleClient();
+  const dbClient = adminClient || supabase;
+
+  const { data: existingReceipt } = await dbClient
     .from("payment_receipts")
     .select("*")
     .eq("payment_id", params.paymentId)
@@ -154,7 +174,7 @@ export async function generatePaymentReceiptAction(params: {
 
   // 5. Fallback sequential receipt number generation
   const year = new Date().getFullYear();
-  const { count } = await supabase
+  const { count } = await dbClient
     .from("payment_receipts")
     .select("id", { count: "exact", head: true });
 
@@ -164,7 +184,7 @@ export async function generatePaymentReceiptAction(params: {
   // Find linked invoice if not provided
   let invoiceId = params.invoiceId;
   if (!invoiceId) {
-    const { data: alloc } = await supabase
+    const { data: alloc } = await dbClient
       .from("invoice_payment_allocations")
       .select("invoice_id")
       .eq("payment_id", params.paymentId)
@@ -176,7 +196,7 @@ export async function generatePaymentReceiptAction(params: {
   // Find linked installment if not provided
   let installmentId = params.installmentId;
   if (!installmentId) {
-    const { data: instAlloc } = await supabase
+    const { data: instAlloc } = await dbClient
       .from("installment_payment_allocations")
       .select("installment_id")
       .eq("payment_id", params.paymentId)
@@ -185,7 +205,7 @@ export async function generatePaymentReceiptAction(params: {
     if (instAlloc) installmentId = instAlloc.installment_id;
   }
 
-  const { data: newReceipt, error: insErr } = await supabase
+  const { data: newReceipt, error: insErr } = await dbClient
     .from("payment_receipts")
     .insert({
       receipt_number: receiptNumber,
@@ -229,78 +249,105 @@ export async function fetchPaymentReceiptDetailsAction(receiptIdOrPaymentId: str
   error?: string;
   receipt?: PaymentReceiptDetails;
 }> {
+  if (!receiptIdOrPaymentId) {
+    return { success: false, error: "Payment or receipt identifier is required." };
+  }
+
   const supabase = await createClient();
+  const adminClient = getServiceRoleClient();
+  const dbClient = adminClient || supabase;
 
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(receiptIdOrPaymentId);
 
-  let query = supabase
-    .from("payment_receipts")
-    .select(`
+  const receiptSelectQuery = `
+    id,
+    receipt_number,
+    amount_received,
+    payment_date,
+    payment_method,
+    transaction_reference,
+    pdf_storage_path,
+    notes,
+    generated_at,
+    payment:payments!payment_id (
       id,
-      receipt_number,
-      amount_received,
+      amount,
       payment_date,
       payment_method,
-      transaction_reference,
-      pdf_storage_path,
+      transaction_ref,
+      status,
       notes,
-      generated_at,
-      payment:payments!payment_id (
-        id,
-        amount,
-        payment_date,
-        payment_method,
-        transaction_ref,
-        status,
-        notes,
-        recorder:profiles!recorded_by (full_name)
-      ),
-      client:clients!client_id (
-        id,
-        company_name,
-        client_code,
-        contact_person,
-        email,
-        phone,
-        billing_address,
-        gstin,
-        assigned_salesperson,
-        created_by
-      ),
-      installment:payment_schedules!installment_id (
-        id,
-        title,
-        installment_number,
-        amount,
-        amount_paid,
-        due_date,
-        status
-      ),
-      invoice:invoices!invoice_id (
-        id,
-        invoice_number,
-        total_amount,
-        amount_paid,
-        balance_due,
-        status
-      )
-    `);
+      recorder:profiles!recorded_by (full_name)
+    ),
+    client:clients!client_id (
+      id,
+      company_name,
+      client_code,
+      contact_person,
+      email,
+      phone,
+      billing_address,
+      gst_number,
+      pan_number,
+      assigned_salesperson,
+      created_by
+    ),
+    installment:payment_schedules!installment_id (
+      id,
+      title,
+      installment_number,
+      amount,
+      amount_paid,
+      due_date,
+      status
+    ),
+    invoice:invoices!invoice_id (
+      id,
+      invoice_number,
+      total_amount,
+      amount_paid,
+      balance_due,
+      status
+    )
+  `;
 
   let result;
   if (isUuid) {
-    result = await query.or(`id.eq.${receiptIdOrPaymentId},payment_id.eq.${receiptIdOrPaymentId}`).maybeSingle();
+    result = await dbClient
+      .from("payment_receipts")
+      .select(receiptSelectQuery)
+      .or(`id.eq.${receiptIdOrPaymentId},payment_id.eq.${receiptIdOrPaymentId}`)
+      .maybeSingle();
   } else {
-    result = await query.eq("receipt_number", receiptIdOrPaymentId).maybeSingle();
+    result = await dbClient
+      .from("payment_receipts")
+      .select(receiptSelectQuery)
+      .eq("receipt_number", receiptIdOrPaymentId)
+      .maybeSingle();
   }
 
+  // If receipt record does not exist yet, attempt automatic generation if identifier is a UUID
   if (result.error || !result.data) {
     if (isUuid) {
       const genRes = await generatePaymentReceiptAction({ paymentId: receiptIdOrPaymentId });
       if (genRes.success && genRes.receipt?.id) {
-        return fetchPaymentReceiptDetailsAction(genRes.receipt.id);
+        // Query again using the newly generated receipt ID
+        const secondAttempt = await dbClient
+          .from("payment_receipts")
+          .select(receiptSelectQuery)
+          .eq("id", genRes.receipt.id)
+          .maybeSingle();
+
+        if (secondAttempt.data) {
+          result = secondAttempt;
+        }
       }
     }
-    return { success: false, error: "Payment receipt not found." };
+  }
+
+  if (result.error || !result.data) {
+    console.error("fetchPaymentReceiptDetailsAction lookup failed:", result.error || "No data");
+    return { success: false, error: result.error?.message || "Payment receipt not found." };
   }
 
   const r = result.data;
@@ -328,7 +375,7 @@ export async function fetchPaymentReceiptDetailsAction(receiptIdOrPaymentId: str
         email: client?.email,
         phone: client?.phone,
         address: client?.billing_address,
-        gstin: client?.gstin,
+        gstin: client?.gst_number || client?.gstin,
       },
       payment: {
         id: payment?.id,

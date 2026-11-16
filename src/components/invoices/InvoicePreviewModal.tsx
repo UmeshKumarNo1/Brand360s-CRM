@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Download, Printer, Mail, X, CheckCircle2, Building, AlertCircle, FileText, Loader2 } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { useToast } from "@/components/common/ToastProvider";
 import { sendInvoiceEmailAction, fetchInvoiceByIdAction } from "@/app/actions/invoices";
 import { fetchCrmSettingsAction } from "@/app/actions/settings";
+import { BRAND_LOGO_BASE64 } from "@/lib/brandLogoBase64";
 
 interface InvoicePreviewModalProps {
   isOpen: boolean;
@@ -33,9 +35,40 @@ export function InvoicePreviewModal({
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [customEmail, setCustomEmail] = useState("");
   const [showEmailInput, setShowEmailInput] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const { success, error: toastError } = useToast();
 
   const reqIdRef = useRef(0);
+
+  // Mount tracking for React Portal SSR safety
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Background scroll lock with exact scroll position preservation
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const scrollY = window.scrollY || document.documentElement.scrollTop;
+    const originalOverflow = document.body.style.overflow;
+    const originalPosition = document.body.style.position;
+    const originalTop = document.body.style.top;
+    const originalWidth = document.body.style.width;
+
+    // Lock body scroll and prevent jumping/shifting
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = "100%";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.position = originalPosition;
+      document.body.style.top = originalTop;
+      document.body.style.width = originalWidth;
+      window.scrollTo(0, scrollY);
+    };
+  }, [isOpen]);
 
   // Sync initialInvoice if passed or changed
   useEffect(() => {
@@ -124,9 +157,16 @@ export function InvoicePreviewModal({
 
   if (!isOpen) return null;
 
+  const renderContent = (content: React.ReactNode) => {
+    if (!isMounted || typeof document === "undefined") {
+      return content;
+    }
+    return createPortal(content, document.body);
+  };
+
   if (isLoading && !invoice) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+    return renderContent(
+      <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
         <div className="bg-white rounded-2xl shadow-xl border border-slate-200 p-8 max-w-sm w-full text-center space-y-3">
           <Loader2 size={24} className="animate-spin text-[#0481A2] mx-auto" />
           <h3 className="text-sm font-bold text-slate-800">Loading Invoice Preview...</h3>
@@ -143,8 +183,8 @@ export function InvoicePreviewModal({
   }
 
   if (fetchError && !invoice) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+    return renderContent(
+      <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
         <div className="bg-white rounded-2xl shadow-xl border border-rose-100 p-8 max-w-sm w-full text-center space-y-3">
           <AlertCircle size={28} className="text-rose-500 mx-auto" />
           <h3 className="text-sm font-bold text-slate-900">Failed to Load Invoice</h3>
@@ -259,9 +299,9 @@ export function InvoicePreviewModal({
   const amountPaid = Number(invoice?.amountPaid || invoice?.amount_paid) || 0;
   const balanceDue = Math.max(0, totalAmount - amountPaid);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden flex flex-col max-h-[95vh]">
+  return renderContent(
+    <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-4xl w-full overflow-hidden flex flex-col max-h-[95vh] my-auto">
         {/* Top Action Bar */}
         <div className="px-6 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50 print:hidden">
           <div className="flex items-center gap-2">
@@ -338,15 +378,18 @@ export function InvoicePreviewModal({
             {/* Invoice Header */}
             <div className="flex items-start justify-between pb-6 border-b-2 border-[#243E76]">
               <div>
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-lg bg-[#243E76] text-white flex items-center justify-center font-bold text-lg">
-                    360
-                  </div>
-                  <h1 className="text-2xl font-black text-[#243E76] tracking-tight">
-                    {settingsData.company_name}
-                  </h1>
+                <div className="mb-2">
+                  {/* Official BRAND 360s vector logo with reliable embedded vector fallback */}
+                  <img
+                    src={BRAND_LOGO_BASE64 || "/logo.webp"}
+                    alt="BRAND 360s"
+                    className="h-12 sm:h-14 w-auto object-contain"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = "/logo.webp";
+                    }}
+                  />
                 </div>
-                <p className="text-[11px] text-slate-500 max-w-xs mt-2 leading-relaxed">
+                <p className="text-[11px] text-slate-500 max-w-xs mt-1.5 leading-relaxed">
                   {settingsData.company_address}
                 </p>
                 <div className="text-[11px] text-slate-600 mt-1 space-y-0.5">

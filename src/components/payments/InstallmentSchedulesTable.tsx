@@ -56,20 +56,20 @@ export function InstallmentSchedulesTable({
 
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden">
-      <div className="overflow-x-auto xl:overflow-x-visible">
-        <table className="w-full min-w-[980px] xl:min-w-full text-left border-collapse text-xs sm:text-sm">
+      <div className="overflow-x-auto w-full">
+        <table className="w-full text-left border-collapse text-xs sm:text-[13px]">
           {/* Navy Blue Table Header matching ClientsTable */}
           <thead>
-            <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide">
-              <th className="py-3.5 px-3.5 font-semibold text-left">Client</th>
-              <th className="py-3.5 px-3 font-semibold text-left whitespace-nowrap">Linked Invoice</th>
-              <th className="py-3.5 px-3.5 font-semibold text-left">Milestone</th>
-              <th className="py-3.5 px-3 text-right font-semibold whitespace-nowrap">Expected Amount</th>
-              <th className="py-3.5 px-3 text-right font-semibold whitespace-nowrap">Received Amount</th>
-              <th className="py-3.5 px-3 text-right font-semibold whitespace-nowrap">Outstanding Balance</th>
-              <th className="py-3.5 px-3.5 font-semibold text-left whitespace-nowrap">Due Date</th>
-              <th className="py-3.5 px-3 font-semibold text-center whitespace-nowrap">Status</th>
-              <th className="py-3.5 px-3 text-center w-32 font-semibold whitespace-nowrap">Actions</th>
+            <tr className="bg-[#243E76] text-white font-semibold text-xs tracking-wide">
+              <th className="py-2.5 px-2 font-semibold text-left">Client</th>
+              <th className="py-2.5 px-1.5 font-semibold text-left whitespace-nowrap">Linked Invoice</th>
+              <th className="py-2.5 px-1.5 font-semibold text-left">Milestone</th>
+              <th className="py-2.5 px-1.5 text-right font-semibold whitespace-nowrap">Expected Amount</th>
+              <th className="py-2.5 px-1.5 text-right font-semibold whitespace-nowrap">Received Amount</th>
+              <th className="py-2.5 px-1.5 text-right font-semibold whitespace-nowrap">Outstanding Balance</th>
+              <th className="py-2.5 px-1.5 font-semibold text-left whitespace-nowrap">Due Date</th>
+              <th className="py-2.5 px-1.5 font-semibold text-center whitespace-nowrap">Status</th>
+              <th className="py-2.5 px-2 text-center min-w-[150px] font-semibold whitespace-nowrap">Actions</th>
             </tr>
           </thead>
 
@@ -91,7 +91,7 @@ export function InstallmentSchedulesTable({
                     className="hover:bg-slate-50/70 transition-colors duration-150"
                   >
                     {/* Client */}
-                    <td className="py-4 px-3.5 font-bold">
+                    <td className="py-2.5 px-2 font-bold">
                       <div className="flex flex-col">
                         <Link
                           href={`/clients/${inst.clientId}`}
@@ -110,11 +110,11 @@ export function InstallmentSchedulesTable({
                     </td>
 
                     {/* Linked Invoice */}
-                    <td className="py-4 px-3 whitespace-nowrap">
+                    <td className="py-2.5 px-1.5 whitespace-nowrap">
                       {inst.invoiceNumber ? (
                         <button
                           onClick={() => onPreviewInvoice(inst.invoiceId)}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#243E76]/10 text-[#243E76] hover:bg-[#243E76]/20 font-mono text-[11px] font-semibold border border-[#243E76]/20 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-[#243E76]/10 text-[#243E76] hover:bg-[#243E76]/20 font-mono text-[11px] font-semibold border border-[#243E76]/20 transition-colors cursor-pointer"
                           title="Click to preview invoice"
                         >
                           <span>{inst.invoiceNumber}</span>
@@ -125,32 +125,32 @@ export function InstallmentSchedulesTable({
                     </td>
 
                     {/* Milestone */}
-                    <td className="py-4 px-3.5">
+                    <td className="py-2.5 px-1.5">
                       <div className="font-semibold text-slate-800">{inst.title}</div>
                       {inst.notes && (
-                        <div className="text-[11px] text-slate-400 truncate max-w-xs">
+                        <div className="text-[11px] text-slate-400 truncate max-w-[200px]">
                           {inst.notes}
                         </div>
                       )}
                     </td>
 
                     {/* Expected Amount */}
-                    <td className="py-4 px-3 text-right font-bold text-slate-900 font-sans font-number whitespace-nowrap">
+                    <td className="py-2.5 px-1.5 text-right font-bold text-slate-900 font-sans font-number whitespace-nowrap">
                       {formatINR(inst.amount)}
                     </td>
 
                     {/* Received Amount */}
-                    <td className="py-4 px-3 text-right font-medium text-emerald-600 font-sans font-number whitespace-nowrap">
+                    <td className="py-2.5 px-1.5 text-right font-medium text-emerald-600 font-sans font-number whitespace-nowrap">
                       {formatINR(inst.amountPaid)}
                     </td>
 
                     {/* Outstanding Balance */}
-                    <td className="py-4 px-3 text-right font-bold text-rose-600 font-sans font-number whitespace-nowrap">
+                    <td className="py-2.5 px-1.5 text-right font-bold text-rose-600 font-sans font-number whitespace-nowrap">
                       {formatINR(inst.remaining)}
                     </td>
 
                     {/* Due Date */}
-                    <td className="py-4 px-3.5 whitespace-nowrap">
+                    <td className="py-2.5 px-1.5 whitespace-nowrap">
                       <span
                         className={`font-medium ${
                           inst.status === "Overdue"
@@ -163,9 +163,9 @@ export function InstallmentSchedulesTable({
                     </td>
 
                     {/* Status */}
-                    <td className="py-4 px-3 whitespace-nowrap">
+                    <td className="py-2.5 px-1.5 text-center whitespace-nowrap">
                       <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${getStatusBadge(
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${getStatusBadge(
                           inst.status
                         )}`}
                       >
@@ -179,8 +179,8 @@ export function InstallmentSchedulesTable({
                     </td>
 
                     {/* Actions */}
-                    <td className="py-4 px-3 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap min-w-[150px]">
+                      <div className="flex items-center justify-center gap-1.5 flex-nowrap pr-1">
                         {/* Details Button */}
                         <button
                           onClick={() => onViewInstallment(inst)}

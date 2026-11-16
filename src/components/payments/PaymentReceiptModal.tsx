@@ -26,6 +26,7 @@ import {
   PaymentReceiptDetails,
 } from "@/app/actions/receipts";
 import { fetchCrmSettingsAction } from "@/app/actions/settings";
+import { BRAND_LOGO_BASE64 } from "@/lib/brandLogoBase64";
 
 interface PaymentReceiptModalProps {
   isOpen: boolean;
@@ -54,22 +55,28 @@ export function PaymentReceiptModal({
   const [showEmailInput, setShowEmailInput] = useState(false);
   const { success, error: toastError } = useToast();
 
-  const targetLookup = receiptId || paymentId;
+  const [activeLookupId, setActiveLookupId] = useState<string | undefined>(receiptId || paymentId);
 
-  const loadReceiptData = async () => {
-    if (!targetLookup) return;
+  useEffect(() => {
+    setActiveLookupId(receiptId || paymentId);
+  }, [receiptId, paymentId]);
+
+  const loadReceiptData = async (overrideId?: string) => {
+    const lookup = overrideId || activeLookupId;
+    if (!lookup) return;
     setIsLoading(true);
     setFetchError(null);
 
     try {
       const [recRes, settRes] = await Promise.all([
-        fetchPaymentReceiptDetailsAction(targetLookup),
+        fetchPaymentReceiptDetailsAction(lookup),
         fetchCrmSettingsAction(),
       ]);
 
       if (recRes.success && recRes.receipt) {
         setReceipt(recRes.receipt);
         setCustomEmail(recRes.receipt.client?.email || "");
+        setFetchError(null);
       } else {
         setFetchError(recRes.error || "Failed to load payment receipt.");
       }
@@ -85,14 +92,14 @@ export function PaymentReceiptModal({
   };
 
   useEffect(() => {
-    if (isOpen && targetLookup) {
-      loadReceiptData();
+    if (isOpen && (receiptId || paymentId)) {
+      loadReceiptData(receiptId || paymentId);
     } else {
       setReceipt(null);
       setFetchError(null);
       setShowEmailInput(false);
     }
-  }, [isOpen, targetLookup]);
+  }, [isOpen, receiptId, paymentId]);
 
   if (!isOpen) return null;
 
@@ -131,12 +138,13 @@ export function PaymentReceiptModal({
     setIsRegenerating(true);
     try {
       const res = await generatePaymentReceiptAction({ paymentId: pId });
-      if (res.success) {
-        success("Receipt refreshed", "Payment receipt successfully synced.");
-        await loadReceiptData();
+      if (res.success && res.receipt?.id) {
+        success("Receipt generated", "Payment receipt successfully synced.");
+        setActiveLookupId(res.receipt.id);
+        await loadReceiptData(res.receipt.id);
         if (onSuccess) onSuccess();
       } else {
-        toastError("Regeneration failed", res.error);
+        toastError("Generation failed", res.error || "Failed to generate receipt.");
       }
     } catch (err: any) {
       toastError("Error", err.message || "Failed to regenerate receipt.");
@@ -293,18 +301,20 @@ export function PaymentReceiptModal({
               {/* Header: Company & Receipt Title */}
               <div className="flex justify-between items-start border-b border-slate-100 pb-5">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-[#243E76] text-white flex items-center justify-center font-extrabold text-sm tracking-wider">
-                      360
-                    </div>
-                    <span className="text-xl font-extrabold text-[#243E76] tracking-tight">
-                      BRAND 360<span className="text-[#077EA1]">s</span>
-                    </span>
+                  <div className="mb-2">
+                    <img
+                      src={BRAND_LOGO_BASE64 || "/logo.webp"}
+                      alt="BRAND 360s"
+                      className="h-11 sm:h-12 w-auto object-contain"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = "/logo.webp";
+                      }}
+                    />
                   </div>
-                  <p className="text-[11px] font-semibold text-slate-500 mt-1 max-w-xs leading-snug">
+                  <p className="text-[11px] font-semibold text-slate-700 mt-1 max-w-xs leading-snug">
                     {company.name}
                   </p>
-                  <p className="text-[10px] text-slate-400 max-w-xs mt-0.5 leading-tight">
+                  <p className="text-[10px] text-slate-500 max-w-xs mt-0.5 leading-tight">
                     {company.address}
                   </p>
                   {company.gstin && (
@@ -509,4 +519,3 @@ export function PaymentReceiptModal({
     </div>
   );
 }
-

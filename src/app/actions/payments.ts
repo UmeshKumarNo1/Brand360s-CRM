@@ -1168,17 +1168,17 @@ export async function editPaymentAction(params: EditPaymentParams): Promise<Paym
     return { success: false, error: "Unauthorized to modify this payment." };
   }
 
-  // 3. Check already allocated amount
+  // 3. Check already allocated amount: Direct editing is restricted to unallocated payments
   const allocations = existingPayment.allocations || [];
   const totalAllocated = allocations.reduce(
     (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
     0
   );
 
-  if (newAmount < totalAllocated - 0.001) {
+  if (totalAllocated > 0) {
     return {
       success: false,
-      error: `Payment amount cannot be reduced below the already allocated amount of ₹${totalAllocated.toLocaleString("en-IN")}.`,
+      error: `Direct editing is restricted for allocated payments (allocated: ₹${totalAllocated.toLocaleString("en-IN")}). Please use the controlled Reversal workflow to safely revert invoice allocations first.`,
     };
   }
 

@@ -20,6 +20,7 @@ import { EditInstallmentModal } from "@/components/payments/EditInstallmentModal
 import { AllocatePaymentModal } from "@/components/payments/AllocatePaymentModal";
 import { EditPaymentModal } from "@/components/payments/EditPaymentModal";
 import { ReversePaymentModal } from "@/components/payments/ReversePaymentModal";
+import { PaymentReceiptModal } from "@/components/payments/PaymentReceiptModal";
 import { InstallmentDetailsModal } from "@/components/payments/InstallmentDetailsModal";
 import { CancelInstallmentModal } from "@/components/payments/CancelInstallmentModal";
 import { InvoicePreviewModal } from "@/components/invoices/InvoicePreviewModal";
@@ -49,6 +50,7 @@ export default function PaymentsPage() {
   const [allocatingPayment, setAllocatingPayment] = useState<any | null>(null);
   const [editingPayment, setEditingPayment] = useState<any | null>(null);
   const [reversingPayment, setReversingPayment] = useState<any | null>(null);
+  const [viewingReceiptPayment, setViewingReceiptPayment] = useState<any | null>(null);
   const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
 
   // Installment Table Filters
@@ -416,6 +418,7 @@ export default function PaymentsPage() {
             onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
             onEditPayment={(p) => setEditingPayment(p)}
             onReversePayment={(p) => setReversingPayment(p)}
+            onViewReceipt={(p) => setViewingReceiptPayment(p)}
           />
 
           {!isPaymentsLoading && filteredPayments.length > 0 && (
@@ -575,6 +578,14 @@ export default function PaymentsPage() {
         isOpen={!!reversingPayment}
         payment={reversingPayment}
         onClose={() => setReversingPayment(null)}
+        onSuccess={() => loadData()}
+      />
+
+      <PaymentReceiptModal
+        isOpen={!!viewingReceiptPayment}
+        paymentId={viewingReceiptPayment?.id}
+        receiptId={viewingReceiptPayment?.receipt?.id}
+        onClose={() => setViewingReceiptPayment(null)}
         onSuccess={() => loadData()}
       />
 

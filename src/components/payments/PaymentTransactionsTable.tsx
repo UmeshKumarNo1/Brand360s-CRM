@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Clock, ArrowUpRight, Coins, Edit3, RotateCcw } from "lucide-react";
+import { CheckCircle2, Clock, ArrowUpRight, Coins, Edit3, RotateCcw, Receipt } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 
 interface PaymentTransactionsTableProps {
@@ -10,6 +10,7 @@ interface PaymentTransactionsTableProps {
   onPreviewInvoice: (invoiceId: string) => void;
   onEditPayment?: (payment: any) => void;
   onReversePayment?: (payment: any) => void;
+  onViewReceipt?: (payment: any) => void;
   isAdmin?: boolean;
 }
 
@@ -19,6 +20,7 @@ export function PaymentTransactionsTable({
   onPreviewInvoice,
   onEditPayment,
   onReversePayment,
+  onViewReceipt,
   isAdmin = false,
 }: PaymentTransactionsTableProps) {
   return (
@@ -38,7 +40,7 @@ export function PaymentTransactionsTable({
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Reference / UTR</th>
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Recorded By</th>
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Status</th>
-              <th className="py-3 px-2 text-center w-28 font-semibold whitespace-nowrap">Actions</th>
+              <th className="py-3 px-2 text-center w-32 font-semibold whitespace-nowrap">Actions</th>
             </tr>
           </thead>
 
@@ -192,23 +194,43 @@ export function PaymentTransactionsTable({
                           </svg>
                         </Link>
 
-                        {/* Edit Action */}
-                        {p.status !== "Reversed" && onEditPayment && (
+                        {/* Receipt Action */}
+                        {onViewReceipt && (
                           <button
-                            onClick={() => onEditPayment(p)}
-                            className="p-1 rounded-md text-slate-400 hover:text-[#243E76] hover:bg-slate-100 transition-colors cursor-pointer"
-                            title={p.totalAllocated > 0 ? "Correct Payment" : "Edit Payment"}
+                            onClick={() => onViewReceipt(p)}
+                            className="p-1 rounded-md text-slate-400 hover:text-[#077EA1] hover:bg-sky-50 transition-colors cursor-pointer"
+                            title="View / Download Payment Receipt"
                           >
-                            <Edit3 size={14} />
+                            <Receipt size={14} />
                           </button>
                         )}
 
-                        {/* Reverse Action */}
+                        {/* Edit Action: Only for Unallocated and non-reversed payments */}
+                        {p.status !== "Reversed" && onEditPayment && (
+                          p.totalAllocated > 0 ? (
+                            <span
+                              className="p-1 rounded-md text-slate-300 cursor-not-allowed inline-flex items-center"
+                              title="Cannot edit: payment is already partially or fully allocated to invoices. To modify, reverse the payment."
+                            >
+                              <Edit3 size={14} />
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => onEditPayment(p)}
+                              className="p-1 rounded-md text-slate-400 hover:text-[#243E76] hover:bg-slate-100 transition-colors cursor-pointer"
+                              title="Edit Unallocated Payment"
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                          )
+                        )}
+
+                        {/* Reverse Action: Available for eligible non-reversed payments (with controlled allocation rollback) */}
                         {p.status !== "Reversed" && onReversePayment && (
                           <button
                             onClick={() => onReversePayment(p)}
                             className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                            title="Reverse Payment"
+                            title={p.totalAllocated > 0 ? "Reverse Payment & Revert Linked Allocations" : "Reverse Payment"}
                           >
                             <RotateCcw size={14} />
                           </button>

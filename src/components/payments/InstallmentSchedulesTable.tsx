@@ -69,7 +69,7 @@ export function InstallmentSchedulesTable({
               <th className="py-2.5 px-1.5 text-right font-semibold whitespace-nowrap">Outstanding Balance</th>
               <th className="py-2.5 px-1.5 font-semibold text-left whitespace-nowrap">Due Date</th>
               <th className="py-2.5 px-1.5 font-semibold text-center whitespace-nowrap">Status</th>
-              <th className="py-2.5 px-2 text-center min-w-[150px] font-semibold whitespace-nowrap">Actions</th>
+              <th className="py-2.5 px-2.5 text-center min-w-[120px] font-semibold whitespace-nowrap">Actions</th>
             </tr>
           </thead>
 
@@ -179,8 +179,8 @@ export function InstallmentSchedulesTable({
                     </td>
 
                     {/* Actions */}
-                    <td className="py-2.5 px-3 text-center whitespace-nowrap min-w-[150px]">
-                      <div className="flex items-center justify-center gap-1.5 flex-nowrap pr-1">
+                    <td className="py-2.5 px-3 text-center whitespace-nowrap min-w-[120px]">
+                      <div className="flex items-center justify-center gap-1.5 flex-nowrap">
                         {/* Details Button */}
                         <button
                           onClick={() => onViewInstallment(inst)}

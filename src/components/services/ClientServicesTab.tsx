@@ -1,7 +1,20 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Plus, Layers, Trash2, UserCheck, RefreshCw, Store, Calendar, History, ChevronDown } from "lucide-react";
+import {
+  Plus,
+  Layers,
+  Trash2,
+  UserCheck,
+  RefreshCw,
+  Store,
+  Calendar,
+  History,
+  ChevronDown,
+  FileText,
+  Paperclip,
+  FileUp,
+} from "lucide-react";
 import { fetchClientServicesAction, removeClientServiceAction, updateClientServiceStatusAction } from "@/app/actions/services";
 import { formatINR, cn } from "@/lib/utils";
 import { AssignServiceModal } from "@/components/services/AssignServiceModal";
@@ -9,6 +22,8 @@ import { AssignVendorModal } from "@/components/vendors/AssignVendorModal";
 import { ManageServiceVendorsModal } from "@/components/vendors/ManageServiceVendorsModal";
 import { RenewServiceModal } from "@/components/renewals/RenewServiceModal";
 import { RenewalHistoryModal } from "@/components/renewals/RenewalHistoryModal";
+import { UploadServiceDeliverableModal } from "@/components/services/UploadServiceDeliverableModal";
+import { ServiceDocumentsModal } from "@/components/services/ServiceDocumentsModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 
@@ -31,6 +46,8 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
   const [manageVendorsService, setManageVendorsService] = useState<any | null>(null);
   const [renewModalService, setRenewModalService] = useState<any | null>(null);
   const [historyModalService, setHistoryModalService] = useState<any | null>(null);
+  const [deliverableModalService, setDeliverableModalService] = useState<any | null>(null);
+  const [documentsModalService, setDocumentsModalService] = useState<any | null>(null);
 
   const { success, error: toastError } = useToast();
   const requestIdRef = useRef(0);
@@ -148,6 +165,13 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
         toastError("Failed to update status", res.error);
       } else {
         success("Status Updated", `${serviceName} marked as ${newStatus}.`);
+        if (newStatus === "Completed" && currentService) {
+          // Open completion deliverable upload modal (e.g. GST Certificate)
+          setDeliverableModalService({
+            ...currentService,
+            service_status: "Completed",
+          });
+        }
       }
     } catch (err: any) {
       // Rollback
@@ -223,6 +247,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                   <th className="py-2.5 px-3 text-right">Service Fee</th>
                   <th className="py-2.5 px-3 text-right">Govt Fee</th>
                   <th className="py-2.5 px-3 text-center">Status</th>
+                  <th className="py-2.5 px-3 text-center">Documents</th>
                   <th className="py-2.5 px-3">Renewal Status</th>
                   <th className="py-2.5 px-3 min-w-[180px]">Vendor / Outsourcing</th>
                   <th className="py-2.5 px-3">Expected Date</th>
@@ -232,7 +257,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <td colSpan={10} className="py-8 text-center text-slate-400">
                       <div className="flex items-center justify-center gap-2">
                         <RefreshCw size={13} className="animate-spin text-[#0481A2]" />
                         <span>Loading client services...</span>
@@ -241,7 +266,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                   </tr>
                 ) : services.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <td colSpan={10} className="py-8 text-center text-slate-400">
                       No individual service deliverables assigned yet. Click &quot;Add Service&quot; to assign one.
                     </td>
                   </tr>
@@ -314,6 +339,61 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                               </div>
                             )}
                           </div>
+                        </td>
+
+                        {/* Documents Column */}
+                        <td className="py-2.5 px-3 text-center">
+                          {(() => {
+                            const docs = s.documents || [];
+                            const isCompleted = s.service_status === "Completed";
+                            const hasDocs = docs.length > 0;
+
+                            if (hasDocs) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setDocumentsModalService(s)}
+                                  className={cn(
+                                    "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border transition-all cursor-pointer shadow-2xs",
+                                    isCompleted
+                                      ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                      : "bg-sky-50 text-[#0481A2] border-sky-200 hover:bg-sky-100"
+                                  )}
+                                  title="View or upload attached documents"
+                                >
+                                  <Paperclip size={10} />
+                                  <span>
+                                    {docs.length} {docs.length === 1 ? "Doc" : "Docs"}
+                                  </span>
+                                </button>
+                              );
+                            }
+
+                            if (isCompleted) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setDeliverableModalService(s)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 transition-colors cursor-pointer shadow-2xs"
+                                  title="Service completed: Upload GST or deliverable certificate"
+                                >
+                                  <FileUp size={10} />
+                                  <span>+ Certificate</span>
+                                </button>
+                              );
+                            }
+
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => setDocumentsModalService(s)}
+                                className="text-[10px] text-slate-400 hover:text-[#0481A2] hover:underline cursor-pointer"
+                                title="Attach PAN, proofs or documents"
+                              >
+                                + Attach
+                              </button>
+                            );
+                          })()}
                         </td>
 
                         {/* Renewal Status */}
@@ -440,6 +520,14 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                               <span>{hasVendors ? "Vendors" : "+ Vendor"}</span>
                             </button>
 
+                            <button
+                              onClick={() => setDocumentsModalService(s)}
+                              className="p-1 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded text-[11px] transition-colors cursor-pointer border border-slate-200"
+                              title="View & Upload Documents / Deliverables"
+                            >
+                              <FileText size={12} />
+                            </button>
+
                             {isAdmin && (
                               <button
                                 onClick={() => handleRemove(s.id)}
@@ -523,6 +611,36 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
           serviceId={historyModalService.id}
           serviceName={historyModalService.service_name}
           clientName={historyModalService.client_name}
+        />
+      )}
+
+      {/* Upload Service Deliverable Modal (triggered on Completed status or + Certificate) */}
+      {deliverableModalService && (
+        <UploadServiceDeliverableModal
+          isOpen={!!deliverableModalService}
+          onClose={() => setDeliverableModalService(null)}
+          onSuccess={() => {
+            setDeliverableModalService(null);
+            loadData(true);
+          }}
+          clientId={clientId}
+          clientServiceId={deliverableModalService.id}
+          serviceName={deliverableModalService.service_name}
+          clientName={clientName}
+        />
+      )}
+
+      {/* Comprehensive Service Documents Modal (view, preview, download, delete, upload) */}
+      {documentsModalService && (
+        <ServiceDocumentsModal
+          isOpen={!!documentsModalService}
+          onClose={() => setDocumentsModalService(null)}
+          onRefreshParent={() => loadData(true)}
+          clientId={clientId}
+          clientServiceId={documentsModalService.id}
+          serviceName={documentsModalService.service_name}
+          clientName={clientName}
+          serviceStatus={documentsModalService.service_status}
         />
       )}
     </div>

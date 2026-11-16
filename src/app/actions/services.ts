@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { autoGenerateInvoiceForClientAction } from "@/app/actions/invoices";
+import { uploadClientServiceDocumentAction } from "@/app/actions/documents";
 
 export interface ServiceActionState {
   error?: string | null;
@@ -103,6 +104,15 @@ export async function fetchClientServicesAction(clientId: string) {
           category,
           status
         )
+      ),
+      documents:documents (
+        id,
+        document_type,
+        file_name,
+        file_url,
+        file_size,
+        uploaded_by,
+        created_at
       )
     `)
     .eq("client_id", clientId)
@@ -119,6 +129,7 @@ export async function fetchClientServicesAction(clientId: string) {
       ...va,
       vendor: Array.isArray(va.vendor) ? va.vendor[0] : va.vendor,
     })),
+    documents: s.documents || [],
   }));
 }
 
@@ -193,6 +204,47 @@ export async function assignClientServiceAction(
       });
     } catch (invErr) {
       console.warn("Auto-invoice generation on service assignment warning:", invErr);
+    }
+  }
+
+  // Feature: Process initial required documents (e.g. PAN card, Aadhaar, Company Onboarding Documents)
+  if (newClientService?.id) {
+    try {
+      const docFiles = (
+        [
+          ...formData.getAll("required_documents"),
+          ...formData.getAll("documents"),
+        ] as File[]
+      ).filter((f) => f && typeof f === "object" && "size" in f && f.size > 0);
+
+      for (let idx = 0; idx < docFiles.length; idx++) {
+        const file = docFiles[idx];
+        const explicitType = (formData.get(`document_type_${idx}`) as string) || (formData.get("document_type") as string);
+        let docType = explicitType;
+
+        if (!docType) {
+          const fn = file.name.toLowerCase();
+          if (fn.includes("pan") || fn.includes("gst")) {
+            docType = "PAN/GST";
+          } else if (fn.includes("aadhaar") || fn.includes("id") || fn.includes("passport")) {
+            docType = "Company Document";
+          } else if (fn.includes("coi") || fn.includes("registration") || fn.includes("incorporation")) {
+            docType = "Registration";
+          } else {
+            docType = "PAN/GST";
+          }
+        }
+
+        const uploadFormData = new FormData();
+        uploadFormData.append("client_id", clientId);
+        uploadFormData.append("client_service_id", newClientService.id);
+        uploadFormData.append("document_type", docType);
+        uploadFormData.append("file", file);
+
+        await uploadClientServiceDocumentAction(uploadFormData);
+      }
+    } catch (docErr) {
+      console.warn("Initial document upload on service assignment warning:", docErr);
     }
   }
 

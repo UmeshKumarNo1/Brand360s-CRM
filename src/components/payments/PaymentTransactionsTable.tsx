@@ -1,19 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Clock, ArrowUpRight, Coins } from "lucide-react";
+import { CheckCircle2, Clock, ArrowUpRight, Coins, Edit3, RotateCcw, Receipt } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 
 interface PaymentTransactionsTableProps {
   payments: any[];
   onAllocatePayment: (payment: any) => void;
   onPreviewInvoice: (invoiceId: string) => void;
+  onEditPayment?: (payment: any) => void;
+  onReversePayment?: (payment: any) => void;
+  onViewReceipt?: (payment: any) => void;
+  isAdmin?: boolean;
 }
 
 export function PaymentTransactionsTable({
   payments,
   onAllocatePayment,
   onPreviewInvoice,
+  onEditPayment,
+  onReversePayment,
+  onViewReceipt,
+  isAdmin = false,
 }: PaymentTransactionsTableProps) {
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden">
@@ -32,7 +40,7 @@ export function PaymentTransactionsTable({
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Reference / UTR</th>
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Recorded By</th>
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Status</th>
-              <th className="py-3 px-2 text-center w-24 font-semibold whitespace-nowrap">Actions</th>
+              <th className="py-3 px-2 text-center w-32 font-semibold whitespace-nowrap">Actions</th>
             </tr>
           </thead>
 
@@ -156,11 +164,15 @@ export function PaymentTransactionsTable({
                             ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                             : p.status === "Pending Verification"
                             ? "bg-amber-50 text-amber-700 border-amber-200"
-                            : "bg-rose-50 text-rose-700 border-rose-200"
+                            : p.status === "Reversed"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : "bg-slate-50 text-slate-700 border-slate-200"
                         }`}
                       >
                         {p.status === "Verified" ? (
                           <CheckCircle2 size={11} className="text-emerald-600" />
+                        ) : p.status === "Reversed" ? (
+                          <RotateCcw size={11} className="text-rose-600" />
                         ) : (
                           <Clock size={11} className="text-amber-600" />
                         )}
@@ -182,14 +194,59 @@ export function PaymentTransactionsTable({
                           </svg>
                         </Link>
 
-                        <button
-                          onClick={() => onAllocatePayment(p)}
-                          className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-lg bg-sky-50 text-[#0481A2] hover:bg-[#0481A2] hover:text-white border border-[#0481A2]/30 transition-all shadow-2xs cursor-pointer"
-                          title="Allocate payment to client invoices"
-                        >
-                          <Coins size={12} />
-                          <span>Allocate</span>
-                        </button>
+                        {/* Receipt Action */}
+                        {onViewReceipt && (
+                          <button
+                            onClick={() => onViewReceipt(p)}
+                            className="p-1 rounded-md text-slate-400 hover:text-[#077EA1] hover:bg-sky-50 transition-colors cursor-pointer"
+                            title="View / Download Payment Receipt"
+                          >
+                            <Receipt size={14} />
+                          </button>
+                        )}
+
+                        {/* Edit Action: Only for Unallocated and non-reversed payments */}
+                        {p.status !== "Reversed" && onEditPayment && (
+                          p.totalAllocated > 0 ? (
+                            <span
+                              className="p-1 rounded-md text-slate-300 cursor-not-allowed inline-flex items-center"
+                              title="Cannot edit: payment is already partially or fully allocated to invoices. To modify, reverse the payment."
+                            >
+                              <Edit3 size={14} />
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => onEditPayment(p)}
+                              className="p-1 rounded-md text-slate-400 hover:text-[#243E76] hover:bg-slate-100 transition-colors cursor-pointer"
+                              title="Edit Unallocated Payment"
+                            >
+                              <Edit3 size={14} />
+                            </button>
+                          )
+                        )}
+
+                        {/* Reverse Action: Available for eligible non-reversed payments (with controlled allocation rollback) */}
+                        {p.status !== "Reversed" && onReversePayment && (
+                          <button
+                            onClick={() => onReversePayment(p)}
+                            className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title={p.totalAllocated > 0 ? "Reverse Payment & Revert Linked Allocations" : "Reverse Payment"}
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                        )}
+
+                        {/* Allocate Action */}
+                        {p.status !== "Reversed" && (
+                          <button
+                            onClick={() => onAllocatePayment(p)}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-lg bg-sky-50 text-[#0481A2] hover:bg-[#0481A2] hover:text-white border border-[#0481A2]/30 transition-all shadow-2xs cursor-pointer"
+                            title="Allocate payment to client invoices"
+                          >
+                            <Coins size={12} />
+                            <span>Allocate</span>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

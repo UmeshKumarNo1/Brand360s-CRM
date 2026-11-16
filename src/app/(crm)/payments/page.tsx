@@ -18,6 +18,10 @@ import { RecordPaymentModal } from "@/components/payments/RecordPaymentModal";
 import { CreateInstallmentModal } from "@/components/payments/CreateInstallmentModal";
 import { EditInstallmentModal } from "@/components/payments/EditInstallmentModal";
 import { AllocatePaymentModal } from "@/components/payments/AllocatePaymentModal";
+import { EditPaymentModal } from "@/components/payments/EditPaymentModal";
+import { ReversePaymentModal } from "@/components/payments/ReversePaymentModal";
+import { PaymentReceiptModal } from "@/components/payments/PaymentReceiptModal";
+import { GenerateInstallmentInvoiceModal } from "@/components/payments/GenerateInstallmentInvoiceModal";
 import { InstallmentDetailsModal } from "@/components/payments/InstallmentDetailsModal";
 import { CancelInstallmentModal } from "@/components/payments/CancelInstallmentModal";
 import { InvoicePreviewModal } from "@/components/invoices/InvoicePreviewModal";
@@ -44,7 +48,11 @@ export default function PaymentsPage() {
   const [editingInstallment, setEditingInstallment] = useState<any | null>(null);
   const [viewingInstallment, setViewingInstallment] = useState<any | null>(null);
   const [cancellingInstallment, setCancellingInstallment] = useState<any | null>(null);
+  const [generatingInvoiceInstallment, setGeneratingInvoiceInstallment] = useState<any | null>(null);
   const [allocatingPayment, setAllocatingPayment] = useState<any | null>(null);
+  const [editingPayment, setEditingPayment] = useState<any | null>(null);
+  const [reversingPayment, setReversingPayment] = useState<any | null>(null);
+  const [viewingReceiptPayment, setViewingReceiptPayment] = useState<any | null>(null);
   const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
 
   // Installment Table Filters
@@ -410,6 +418,9 @@ export default function PaymentsPage() {
             payments={paginatedPayments}
             onAllocatePayment={(p) => setAllocatingPayment(p)}
             onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
+            onEditPayment={(p) => setEditingPayment(p)}
+            onReversePayment={(p) => setReversingPayment(p)}
+            onViewReceipt={(p) => setViewingReceiptPayment(p)}
           />
 
           {!isPaymentsLoading && filteredPayments.length > 0 && (
@@ -446,6 +457,7 @@ export default function PaymentsPage() {
             onCancelInstallment={(inst) => setCancellingInstallment(inst)}
             onDeleteInstallment={handleDeleteInstallment}
             onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
+            onGenerateInvoice={(inst) => setGeneratingInvoiceInstallment(inst)}
           />
 
           {!isInstallmentsLoading && filteredInstallments.length > 0 && (
@@ -526,6 +538,17 @@ export default function PaymentsPage() {
         installment={editingInstallment}
         onClose={() => setEditingInstallment(null)}
         onSuccess={() => loadData()}
+        onGenerateInvoice={(inst) => setGeneratingInvoiceInstallment(inst)}
+      />
+
+      <GenerateInstallmentInvoiceModal
+        isOpen={!!generatingInvoiceInstallment}
+        installment={generatingInvoiceInstallment}
+        onClose={() => setGeneratingInvoiceInstallment(null)}
+        onSuccess={(invId) => {
+          loadData();
+          if (invId) setPreviewInvoiceId(invId);
+        }}
       />
 
       <InstallmentDetailsModal
@@ -555,6 +578,28 @@ export default function PaymentsPage() {
         isOpen={!!allocatingPayment}
         payment={allocatingPayment}
         onClose={() => setAllocatingPayment(null)}
+        onSuccess={() => loadData()}
+      />
+
+      <EditPaymentModal
+        isOpen={!!editingPayment}
+        payment={editingPayment}
+        onClose={() => setEditingPayment(null)}
+        onSuccess={() => loadData()}
+      />
+
+      <ReversePaymentModal
+        isOpen={!!reversingPayment}
+        payment={reversingPayment}
+        onClose={() => setReversingPayment(null)}
+        onSuccess={() => loadData()}
+      />
+
+      <PaymentReceiptModal
+        isOpen={!!viewingReceiptPayment}
+        paymentId={viewingReceiptPayment?.id}
+        receiptId={viewingReceiptPayment?.receipt?.id}
+        onClose={() => setViewingReceiptPayment(null)}
         onSuccess={() => loadData()}
       />
 

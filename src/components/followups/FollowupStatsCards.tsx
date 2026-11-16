@@ -77,7 +77,7 @@ export function FollowupStatsCards({
         return (
           <div
             key={idx}
-            className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-center gap-3.5 transition-all duration-200 hover:shadow-xs min-h-[96px] min-w-0"
+            className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-start justify-between gap-3 transition-all duration-200 hover:shadow-xs min-h-[96px] min-w-0"
           >
             {/* Subtle organic decorative wave matching Clients and Payments cards */}
             <div className="pointer-events-none absolute right-0 bottom-0 w-24 h-16 opacity-35">
@@ -95,14 +95,7 @@ export function FollowupStatsCards({
               </svg>
             </div>
 
-            {/* Icon Circle on left */}
-            <div
-              className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full shrink-0 flex items-center justify-center ${card.iconBg} ${card.iconColor} shadow-2xs z-10`}
-            >
-              <Icon size={19} strokeWidth={2.2} />
-            </div>
-
-            {/* Value & Label on right */}
+            {/* Left side: Full Content (Value, Label, Sublabel) */}
             <div className="z-10 min-w-0 flex-1">
               <div className="text-xl sm:text-2xl font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number whitespace-nowrap">
                 {card.value}
@@ -115,6 +108,13 @@ export function FollowupStatsCards({
                   {card.sublabel}
                 </p>
               )}
+            </div>
+
+            {/* Right side: Circular Icon Badge on Top Right */}
+            <div
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full shrink-0 flex items-center justify-center ${card.iconBg} ${card.iconColor} shadow-2xs z-10`}
+            >
+              <Icon size={14} strokeWidth={2.2} />
             </div>
           </div>
         );

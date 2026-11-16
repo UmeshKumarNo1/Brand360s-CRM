@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { recordAuditLog } from "@/lib/audit/audit-logger";
+import { generatePaymentReceiptAction } from "./receipts";
 
 export interface PaymentActionState {
   error?: string | null;
@@ -406,6 +407,16 @@ export async function recordPaymentAction(
         })
         .eq("id", installmentId);
     }
+  }
+
+  // 3. Automatically generate / link payment receipt in the background (non-blocking)
+  try {
+    await generatePaymentReceiptAction({
+      paymentId: newPayment.id,
+      installmentId: installmentId || undefined,
+    });
+  } catch (receiptErr: any) {
+    console.warn("[recordPaymentAction] Non-fatal receipt generation background notice:", receiptErr);
   }
 
   revalidatePath("/payments");

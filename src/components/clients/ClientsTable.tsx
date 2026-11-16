@@ -40,51 +40,44 @@ export function ClientsTable({
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden w-full max-w-full">
       <div className="overflow-x-auto w-full custom-scrollbar">
-        <table className="w-full text-left border-collapse text-xs sm:text-[13px] table-fixed">
-          {/* Colgroup to define balanced proportional widths that sum to 100% */}
+        <table className="w-full text-left border-collapse text-xs sm:text-[13px] table-fixed min-w-[860px]">
+          {/* Proportional column width distribution matching data size with text wrap support */}
           <colgroup>
-            <col className="w-[4%]" />
-            <col className="w-[16%]" />
-            <col className="w-[10%]" />
-            <col className="w-[10%]" />
-            <col className="w-[15%]" />
-            <col className="w-[10%]" />
-            <col className="w-[10%]" />
-            <col className="w-[10%]" />
-            <col className="w-[11%]" />
-            <col className="w-[14%]" />
+            {/* 1. No. */}
+            <col style={{ width: "3.5%", minWidth: "32px" }} />
+            {/* 2. Company Name */}
+            <col style={{ width: "16%", minWidth: "105px" }} />
+            {/* 3. Date of Creation */}
+            <col style={{ width: "9.5%", minWidth: "85px" }} />
+            {/* 4. Salesperson */}
+            <col style={{ width: "9%", minWidth: "80px" }} />
+            {/* 5. Services Purchased */}
+            <col style={{ width: "13%", minWidth: "95px" }} />
+            {/* 6. Contract Value */}
+            <col style={{ width: "9.5%", minWidth: "80px" }} />
+            {/* 7. Payment Received */}
+            <col style={{ width: "9.5%", minWidth: "80px" }} />
+            {/* 8. Balance Receivable */}
+            <col style={{ width: "9.5%", minWidth: "80px" }} />
+            {/* 9. Next Payment Due - matching Balance Receivable */}
+            <col style={{ width: "9.5%", minWidth: "80px" }} />
+            {/* 10. Actions */}
+            <col style={{ width: "10%", minWidth: "120px" }} />
           </colgroup>
+
           {/* Navy Blue Table Header matching image */}
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide align-middle">
-              <th className="py-2.5 px-2 text-center font-semibold">No.</th>
-              <th className="py-2.5 px-3 font-semibold">Company Name</th>
-              <th className="py-2.5 px-2 font-semibold text-left">
-                <span className="block leading-tight">Date of</span>
-                <span className="block leading-tight">Creation</span>
-              </th>
-              <th className="py-2.5 px-2 font-semibold text-left">Salesperson</th>
-              <th className="py-2.5 px-3 font-semibold text-left">
-                <span className="block leading-tight">Services</span>
-                <span className="block leading-tight">Purchased</span>
-              </th>
-              <th className="py-2.5 px-2 text-right font-semibold">
-                <span className="block leading-tight">Contract</span>
-                <span className="block leading-tight">Value</span>
-              </th>
-              <th className="py-2.5 px-2 text-right font-semibold">
-                <span className="block leading-tight">Payment</span>
-                <span className="block leading-tight">Received</span>
-              </th>
-              <th className="py-2.5 px-2 text-right font-semibold">
-                <span className="block leading-tight">Balance</span>
-                <span className="block leading-tight">Receivable</span>
-              </th>
-              <th className="py-2.5 px-2 text-right font-semibold">
-                <span className="block leading-tight">Next Payment</span>
-                <span className="block leading-tight">Due</span>
-              </th>
-              <th className="py-2.5 px-2 text-center font-semibold">Actions</th>
+              <th className="py-2.5 px-1 sm:px-1.5 text-center font-semibold">No.</th>
+              <th className="py-2.5 px-1.5 sm:px-2 font-semibold leading-tight">Company Name</th>
+              <th className="py-2.5 px-1 sm:px-1.5 font-semibold leading-tight">Date of Creation</th>
+              <th className="py-2.5 px-1 sm:px-1.5 font-semibold leading-tight">Salesperson</th>
+              <th className="py-2.5 px-1.5 sm:px-2 font-semibold leading-tight">Services Purchased</th>
+              <th className="py-2.5 px-1 sm:px-1.5 text-right font-semibold leading-tight">Contract Value</th>
+              <th className="py-2.5 px-1 sm:px-1.5 text-right font-semibold leading-tight">Payment Received</th>
+              <th className="py-2.5 px-1 sm:px-1.5 text-right font-semibold leading-tight">Balance Receivable</th>
+              <th className="py-2.5 px-1 sm:px-1.5 text-right font-semibold leading-tight">Next Payment Due</th>
+              <th className="py-2.5 px-1 text-center font-semibold min-w-[120px]">Actions</th>
             </tr>
           </thead>
 
@@ -107,16 +100,17 @@ export function ClientsTable({
                     }`}
                   >
                     {/* No. */}
-                    <td className="py-2.5 px-2.5 font-bold text-slate-800 text-center font-sans font-number">
+                    <td className="py-2.5 px-1 sm:px-1.5 font-bold text-slate-800 text-center font-sans font-number align-middle">
                       {client.no}
                     </td>
 
                     {/* Company Name */}
-                    <td className="py-2.5 px-3 font-bold whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
+                    <td className="py-2.5 px-1.5 sm:px-2 font-bold align-middle">
+                      <div className="flex flex-wrap items-center gap-1.5 min-w-0">
                         <Link
                           href={`/clients/${client.id}`}
-                          className="text-[#0481A2] hover:text-[#036c88] transition-colors"
+                          className="text-[#0481A2] hover:text-[#036c88] transition-colors break-words leading-snug"
+                          title={client.companyName}
                         >
                           {client.companyName}
                         </Link>
@@ -129,28 +123,28 @@ export function ClientsTable({
                     </td>
 
                     {/* Date of Creation */}
-                    <td className="py-2.5 px-3 font-medium text-slate-600 font-sans font-number whitespace-nowrap">
+                    <td className="py-2.5 px-1 sm:px-1.5 font-medium text-slate-600 font-sans font-number whitespace-nowrap align-middle">
                       {formatCreationDate(client.dateOfCreation || client.createdAt)}
                     </td>
 
                     {/* Salesperson */}
-                    <td className="py-2.5 px-3 font-medium text-slate-700 whitespace-nowrap">
+                    <td className="py-2.5 px-1 sm:px-1.5 font-medium text-slate-700 break-words leading-snug align-middle" title={client.salesperson}>
                       {client.salesperson}
                     </td>
 
                     {/* Services Purchased */}
-                    <td className="py-2.5 px-3 text-slate-600 font-normal leading-tight">
+                    <td className="py-2.5 px-1.5 sm:px-2 text-slate-600 font-normal leading-tight align-middle">
                       {client.servicesPurchased ? (
                         client.servicesPurchased.includes(",") ? (
-                          <div className="flex flex-col">
+                          <div className="flex flex-col gap-0.5 min-w-0">
                             {client.servicesPurchased.split(",").map((s: string, idx: number, arr: string[]) => (
-                              <span key={idx} className="whitespace-nowrap">
+                              <span key={idx} className="break-words leading-tight" title={s.trim()}>
                                 {s.trim()}{idx < arr.length - 1 ? "," : ""}
                               </span>
                             ))}
                           </div>
                         ) : (
-                          <span className="whitespace-nowrap">{client.servicesPurchased}</span>
+                          <span className="break-words leading-tight" title={client.servicesPurchased}>{client.servicesPurchased}</span>
                         )
                       ) : (
                         "-"
@@ -158,41 +152,36 @@ export function ClientsTable({
                     </td>
 
                     {/* Contract Value */}
-                    <td className="py-2.5 px-2 text-right font-semibold text-slate-800 font-sans font-number whitespace-nowrap">
+                    <td className="py-2.5 px-1 sm:px-1.5 text-right font-semibold text-slate-800 font-sans font-number whitespace-nowrap align-middle">
                       {formatINR(client.contractValue)}
                     </td>
 
                     {/* Payments Received */}
-                    <td className="py-2.5 px-2 text-right font-semibold text-slate-800 font-sans font-number whitespace-nowrap">
+                    <td className="py-2.5 px-1 sm:px-1.5 text-right font-semibold text-slate-800 font-sans font-number whitespace-nowrap align-middle">
                       {formatINR(client.paymentsReceived)}
                     </td>
 
                     {/* Balance Receivable */}
-                    <td className="py-2.5 px-2 text-right font-semibold text-slate-800 font-sans font-number whitespace-nowrap">
+                    <td className="py-2.5 px-1 sm:px-1.5 text-right font-semibold text-slate-800 font-sans font-number whitespace-nowrap align-middle">
                       {formatINR(client.balanceReceivable)}
                     </td>
 
-                    {/* Next Payment Due */}
-                    <td className="py-2.5 px-2 text-right whitespace-nowrap">
-                      {client.paymentStatus === "Paid in full" || client.nextPaymentDueAmount === 0 ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    {/* Next Payment Due - matching UI of Balance Receivable */}
+                    <td className="py-2.5 px-1 sm:px-1.5 text-right font-semibold text-slate-800 font-sans font-number whitespace-nowrap align-middle">
+                      {client.paymentStatus === "Paid in full" ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
                           Paid in full
                         </span>
                       ) : (
-                        <div className="leading-tight font-sans text-right">
-                          <span className="font-bold text-slate-900 block text-xs sm:text-[13px] font-sans font-number">
-                            {formatINR(client.nextPaymentDueAmount)}
-                          </span>
-                          <span className="text-[10px] text-slate-400 block mt-0.5 font-medium font-sans">
-                            {client.nextPaymentDueDate}
-                          </span>
-                        </div>
+                        <span title={client.nextPaymentDueDate ? `Due date: ${client.nextPaymentDueDate}` : undefined}>
+                          {formatINR(client.nextPaymentDueAmount || 0)}
+                        </span>
                       )}
                     </td>
 
                     {/* Action Buttons */}
-                    <td className="py-2.5 px-2 text-center whitespace-nowrap">
-                      <div className="inline-flex items-center justify-center gap-1.5 flex-nowrap">
+                    <td className="py-2.5 px-1 text-center whitespace-nowrap min-w-[120px] align-middle">
+                      <div className="inline-flex items-center justify-center gap-1 flex-nowrap">
                         {/* View Action */}
                         <Link
                           href={`/clients/${client.id}`}

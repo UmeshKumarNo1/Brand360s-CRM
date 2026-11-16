@@ -45,14 +45,14 @@ export function ClientsTable({
           <colgroup>
             {/* 1. No. */}
             <col style={{ width: "3.5%", minWidth: "36px" }} />
-            {/* 2. Company Name */}
-            <col style={{ width: "18.5%", minWidth: "140px" }} />
+            {/* 2. Company Name - slightly reduced width */}
+            <col style={{ width: "15%", minWidth: "120px" }} />
             {/* 3. Date of Creation */}
             <col style={{ width: "9.5%", minWidth: "92px" }} />
             {/* 4. Salesperson */}
             <col style={{ width: "9.5%", minWidth: "92px" }} />
             {/* 5. Services Purchased */}
-            <col style={{ width: "18%", minWidth: "140px" }} />
+            <col style={{ width: "20%", minWidth: "145px" }} />
             {/* 6. Contract Value */}
             <col style={{ width: "8.5%", minWidth: "85px" }} />
             {/* 7. Payment Received */}
@@ -60,9 +60,9 @@ export function ClientsTable({
             {/* 8. Balance Receivable */}
             <col style={{ width: "8.5%", minWidth: "85px" }} />
             {/* 9. Next Payment Due */}
-            <col style={{ width: "9%", minWidth: "92px" }} />
+            <col style={{ width: "9.5%", minWidth: "92px" }} />
             {/* 10. Actions */}
-            <col style={{ width: "6.5%", minWidth: "124px" }} />
+            <col style={{ width: "7.5%", minWidth: "124px" }} />
           </colgroup>
 
           {/* Navy Blue Table Header matching image */}

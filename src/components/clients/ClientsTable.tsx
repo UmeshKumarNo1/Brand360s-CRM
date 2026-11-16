@@ -59,10 +59,10 @@ export function ClientsTable({
             <col style={{ width: "9.5%", minWidth: "80px" }} />
             {/* 8. Balance Receivable */}
             <col style={{ width: "9.5%", minWidth: "80px" }} />
-            {/* 9. Next Payment Due */}
-            <col style={{ width: "10%", minWidth: "85px" }} />
+            {/* 9. Next Payment Due - matching Balance Receivable */}
+            <col style={{ width: "9.5%", minWidth: "80px" }} />
             {/* 10. Actions */}
-            <col style={{ width: "10.5%", minWidth: "120px" }} />
+            <col style={{ width: "10%", minWidth: "120px" }} />
           </colgroup>
 
           {/* Navy Blue Table Header matching image */}
@@ -76,7 +76,7 @@ export function ClientsTable({
               <th className="py-2.5 px-1 sm:px-1.5 text-right font-semibold leading-tight">Contract Value</th>
               <th className="py-2.5 px-1 sm:px-1.5 text-right font-semibold leading-tight">Payment Received</th>
               <th className="py-2.5 px-1 sm:px-1.5 text-right font-semibold leading-tight">Balance Receivable</th>
-              <th className="py-2.5 px-1 sm:px-1.5 font-semibold leading-tight">Next Payment Due</th>
+              <th className="py-2.5 px-1 sm:px-1.5 text-right font-semibold leading-tight">Next Payment Due</th>
               <th className="py-2.5 px-1 text-center font-semibold min-w-[120px]">Actions</th>
             </tr>
           </thead>
@@ -166,21 +166,16 @@ export function ClientsTable({
                       {formatINR(client.balanceReceivable)}
                     </td>
 
-                    {/* Next Payment Due */}
-                    <td className="py-2.5 px-1 sm:px-1.5 align-middle">
-                      {client.paymentStatus === "Paid in full" || client.nextPaymentDueAmount === 0 ? (
+                    {/* Next Payment Due - matching UI of Balance Receivable */}
+                    <td className="py-2.5 px-1 sm:px-1.5 text-right font-semibold text-slate-800 font-sans font-number whitespace-nowrap align-middle">
+                      {client.paymentStatus === "Paid in full" ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 whitespace-nowrap">
                           Paid in full
                         </span>
                       ) : (
-                        <div className="leading-tight font-sans">
-                          <span className="font-bold text-slate-900 block text-xs sm:text-[13px] font-sans font-number whitespace-nowrap">
-                            {formatINR(client.nextPaymentDueAmount)}
-                          </span>
-                          <span className="text-[10px] text-slate-400 block mt-0.5 font-medium font-sans whitespace-nowrap">
-                            {client.nextPaymentDueDate}
-                          </span>
-                        </div>
+                        <span title={client.nextPaymentDueDate ? `Due date: ${client.nextPaymentDueDate}` : undefined}>
+                          {formatINR(client.nextPaymentDueAmount || 0)}
+                        </span>
                       )}
                     </td>
 

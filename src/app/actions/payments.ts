@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { recordAuditLog } from "@/lib/audit/audit-logger";
 
 export interface PaymentActionState {
   error?: string | null;
@@ -17,6 +18,20 @@ export interface PaymentAllocationResponse {
   success: boolean;
   error?: string | null;
   allocations?: any[];
+}
+
+export interface EditPaymentParams {
+  paymentId: string;
+  amount: number;
+  paymentDate: string;
+  paymentMethod: string;
+  transactionRef?: string;
+  notes?: string;
+}
+
+export interface ReversePaymentParams {
+  paymentId: string;
+  reason: string;
 }
 
 export async function fetchPaymentsAction() {
@@ -1058,4 +1073,361 @@ export async function allocatePaymentToInvoicesAction(
     success: true,
     allocations: results,
   };
+}
+
+/**
+ * Feature 014: Edit Payment (Unallocated or Partially Allocated)
+ * Enforces that payment amount cannot be reduced below already allocated total.
+ * Preserves payment ID, creation timestamp, and recorder info.
+ */
+export async function editPaymentAction(params: EditPaymentParams): Promise<PaymentActionState> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Authentication required." };
+  }
+
+  if (!params.paymentId) {
+    return { success: false, error: "Payment ID is required." };
+  }
+
+  const newAmount = Number(params.amount);
+  if (isNaN(newAmount) || newAmount <= 0) {
+    return { success: false, error: "Payment amount must be greater than zero." };
+  }
+
+  if (!params.paymentDate) {
+    return { success: false, error: "Payment date is required." };
+  }
+
+  const validMethods = [
+    "Bank Transfer / NEFT",
+    "UPI / QR",
+    "Credit Card",
+    "Debit Card",
+    "Cheque",
+    "Cash",
+    "Other",
+  ];
+  if (!params.paymentMethod || !validMethods.includes(params.paymentMethod)) {
+    return { success: false, error: "Invalid payment method selected." };
+  }
+
+  // 1. Fetch current payment details
+  const { data: existingPayment, error: fetchErr } = await supabase
+    .from("payments")
+    .select(`
+      id,
+      client_id,
+      amount,
+      payment_date,
+      payment_method,
+      transaction_ref,
+      notes,
+      status,
+      client:clients!client_id (
+        id,
+        company_name,
+        assigned_salesperson,
+        created_by
+      ),
+      allocations:invoice_payment_allocations (
+        id,
+        allocated_amount
+      )
+    `)
+    .eq("id", params.paymentId)
+    .single();
+
+  if (fetchErr || !existingPayment) {
+    return { success: false, error: "Payment transaction not found." };
+  }
+
+  if (existingPayment.status === "Reversed") {
+    return { success: false, error: "Cannot edit a reversed payment." };
+  }
+
+  // 2. Check RBAC permissions (Admin or Assigned Salesperson)
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const isAdmin = profile?.role === "admin";
+  const clientData: any = existingPayment.client;
+  const isAssigned =
+    clientData &&
+    (clientData.assigned_salesperson === user.id || clientData.created_by === user.id);
+
+  if (!isAdmin && !isAssigned) {
+    return { success: false, error: "Unauthorized to modify this payment." };
+  }
+
+  // 3. Check already allocated amount
+  const allocations = existingPayment.allocations || [];
+  const totalAllocated = allocations.reduce(
+    (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+    0
+  );
+
+  if (newAmount < totalAllocated - 0.001) {
+    return {
+      success: false,
+      error: `Payment amount cannot be reduced below the already allocated amount of ₹${totalAllocated.toLocaleString("en-IN")}.`,
+    };
+  }
+
+  // 4. Execute atomic RPC if available, fallback to direct update
+  const { data: rpcData, error: rpcErr } = await supabase.rpc("edit_payment_transaction", {
+    p_payment_id: params.paymentId,
+    p_amount: newAmount,
+    p_payment_date: params.paymentDate,
+    p_payment_method: params.paymentMethod,
+    p_transaction_ref: params.transactionRef?.trim() || null,
+    p_notes: params.notes?.trim() || null,
+  });
+
+  if (rpcErr || (rpcData && !rpcData.success)) {
+    // If RPC failed due to missing migration, execute guarded direct update
+    const { error: updateErr } = await supabase
+      .from("payments")
+      .update({
+        amount: newAmount,
+        payment_date: params.paymentDate,
+        payment_method: params.paymentMethod,
+        transaction_ref: params.transactionRef?.trim() || null,
+        notes: params.notes?.trim() || null,
+        updated_at: new Date().toISOString(),
+        updated_by: user.id,
+      })
+      .eq("id", params.paymentId);
+
+    if (updateErr) {
+      return { success: false, error: updateErr.message || "Failed to update payment." };
+    }
+  }
+
+  // 5. Record Audit Log
+  const previousValues = {
+    amount: existingPayment.amount,
+    payment_date: existingPayment.payment_date,
+    payment_method: existingPayment.payment_method,
+    transaction_ref: existingPayment.transaction_ref,
+    notes: existingPayment.notes,
+  };
+
+  const updatedValues = {
+    amount: newAmount,
+    payment_date: params.paymentDate,
+    payment_method: params.paymentMethod,
+    transaction_ref: params.transactionRef?.trim() || null,
+    notes: params.notes?.trim() || null,
+  };
+
+  const actionType =
+    Number(existingPayment.amount) !== newAmount
+      ? "UPDATE"
+      : "UPDATE";
+
+  await recordAuditLog({
+    actorId: user.id,
+    action: actionType,
+    entityType: "payment",
+    entityId: params.paymentId,
+    entityName: clientData?.company_name || "Payment",
+    details: {
+      client_id: existingPayment.client_id,
+      previous_values: previousValues,
+      updated_values: updatedValues,
+      allocated_amount: totalAllocated,
+      event: Number(existingPayment.amount) !== newAmount ? "PAYMENT_AMOUNT_CORRECTED" : "PAYMENT_UPDATED",
+    },
+  });
+
+  // 6. Revalidate affected paths
+  revalidatePath("/payments");
+  revalidatePath(`/clients/${existingPayment.client_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
+
+  return { success: true };
+}
+
+/**
+ * Feature 014: Reverse Payment Transaction
+ * Reverts all invoice allocations, recalculates balances, and marks payment status = 'Reversed'
+ * Never deletes the physical record; retains full financial audit history.
+ */
+export async function reversePaymentAction(params: ReversePaymentParams): Promise<PaymentActionState> {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: "Authentication required." };
+  }
+
+  if (!params.paymentId) {
+    return { success: false, error: "Payment ID is required." };
+  }
+
+  if (!params.reason || !params.reason.trim()) {
+    return { success: false, error: "A clear reversal reason is required." };
+  }
+
+  // 1. Fetch payment
+  const { data: payment, error: fetchErr } = await supabase
+    .from("payments")
+    .select(`
+      id,
+      client_id,
+      amount,
+      status,
+      client:clients!client_id (
+        id,
+        company_name,
+        assigned_salesperson,
+        created_by
+      ),
+      allocations:invoice_payment_allocations (
+        id,
+        invoice_id,
+        allocated_amount,
+        invoice:invoices!invoice_id (
+          id,
+          invoice_number,
+          total_amount,
+          amount_paid,
+          balance_due
+        )
+      )
+    `)
+    .eq("id", params.paymentId)
+    .single();
+
+  if (fetchErr || !payment) {
+    return { success: false, error: "Payment transaction not found." };
+  }
+
+  if (payment.status === "Reversed") {
+    return { success: false, error: "This payment has already been reversed." };
+  }
+
+  // 2. Check RBAC permissions
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const isAdmin = profile?.role === "admin";
+  const clientData: any = payment.client;
+  const isAssigned =
+    clientData &&
+    (clientData.assigned_salesperson === user.id || clientData.created_by === user.id);
+
+  if (!isAdmin && !isAssigned) {
+    return { success: false, error: "Unauthorized to reverse payments for this client." };
+  }
+
+  // 3. Execute atomic RPC
+  const { data: rpcData, error: rpcErr } = await supabase.rpc("reverse_payment_transaction", {
+    p_payment_id: params.paymentId,
+    p_reason: params.reason.trim(),
+  });
+
+  if (rpcErr || (rpcData && !rpcData.success)) {
+    // If RPC failed, execute safe fallback transaction sequence
+    const allocations = payment.allocations || [];
+
+    // Revert each invoice allocation
+    for (const alloc of allocations) {
+      if (alloc.invoice) {
+        const inv: any = Array.isArray(alloc.invoice) ? alloc.invoice[0] : alloc.invoice;
+        if (!inv) continue;
+        const newPaid = Math.max(0, (Number(inv.amount_paid) || 0) - Number(alloc.allocated_amount));
+        const newBalance = Math.min(
+          Number(inv.total_amount),
+          Math.max(0, Number(inv.total_amount) - newPaid)
+        );
+        const newStatus =
+          newBalance === 0 && Number(inv.total_amount) > 0
+            ? "Paid"
+            : newPaid > 0
+            ? "Partially Paid"
+            : "Unpaid";
+
+        await supabase
+          .from("invoices")
+          .update({
+            amount_paid: newPaid,
+            balance_due: newBalance,
+            status: newStatus,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", inv.id);
+      }
+    }
+
+    // Delete invoice payment allocations
+    await supabase.from("invoice_payment_allocations").delete().eq("payment_id", params.paymentId);
+
+    // Delete installment allocations if table exists
+    try {
+      await supabase.from("installment_payment_allocations").delete().eq("payment_id", params.paymentId);
+    } catch {
+      // Table may not be active
+    }
+
+    // Mark payment as Reversed
+    const { error: revErr } = await supabase
+      .from("payments")
+      .update({
+        status: "Reversed",
+        reversal_reason: params.reason.trim(),
+        reversed_at: new Date().toISOString(),
+        reversed_by: user.id,
+        updated_at: new Date().toISOString(),
+        updated_by: user.id,
+      })
+      .eq("id", params.paymentId);
+
+    if (revErr) {
+      return { success: false, error: revErr.message || "Failed to reverse payment." };
+    }
+  }
+
+  // 4. Record Audit Log
+  await recordAuditLog({
+    actorId: user.id,
+    action: "VOID",
+    entityType: "payment",
+    entityId: params.paymentId,
+    entityName: clientData?.company_name || "Payment",
+    details: {
+      client_id: payment.client_id,
+      payment_amount: payment.amount,
+      reversal_reason: params.reason.trim(),
+      previous_status: payment.status,
+      new_status: "Reversed",
+      reversed_allocations_count: payment.allocations?.length || 0,
+      event: "PAYMENT_REVERSED",
+    },
+  });
+
+  // 5. Revalidate affected paths
+  revalidatePath("/payments");
+  revalidatePath("/invoices");
+  revalidatePath(`/clients/${payment.client_id}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
+
+  return { success: true };
 }

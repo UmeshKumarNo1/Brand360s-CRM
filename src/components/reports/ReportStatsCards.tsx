@@ -102,9 +102,9 @@ export function ReportStatsCards({ kpis }: ReportStatsCardsProps) {
 
             {/* Right side: Circular Icon Badge on Top Right */}
             <div
-              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full shrink-0 flex items-center justify-center ${card.iconBg} ${card.iconColor} shadow-2xs z-10`}
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full shrink-0 flex items-center justify-center ${card.iconBg} ${card.iconColor} shadow-2xs z-10`}
             >
-              <Icon size={16} strokeWidth={2.2} />
+              <Icon size={14} strokeWidth={2.2} />
             </div>
           </div>
         );

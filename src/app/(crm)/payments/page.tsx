@@ -18,6 +18,8 @@ import { RecordPaymentModal } from "@/components/payments/RecordPaymentModal";
 import { CreateInstallmentModal } from "@/components/payments/CreateInstallmentModal";
 import { EditInstallmentModal } from "@/components/payments/EditInstallmentModal";
 import { AllocatePaymentModal } from "@/components/payments/AllocatePaymentModal";
+import { EditPaymentModal } from "@/components/payments/EditPaymentModal";
+import { ReversePaymentModal } from "@/components/payments/ReversePaymentModal";
 import { InstallmentDetailsModal } from "@/components/payments/InstallmentDetailsModal";
 import { CancelInstallmentModal } from "@/components/payments/CancelInstallmentModal";
 import { InvoicePreviewModal } from "@/components/invoices/InvoicePreviewModal";
@@ -45,6 +47,8 @@ export default function PaymentsPage() {
   const [viewingInstallment, setViewingInstallment] = useState<any | null>(null);
   const [cancellingInstallment, setCancellingInstallment] = useState<any | null>(null);
   const [allocatingPayment, setAllocatingPayment] = useState<any | null>(null);
+  const [editingPayment, setEditingPayment] = useState<any | null>(null);
+  const [reversingPayment, setReversingPayment] = useState<any | null>(null);
   const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
 
   // Installment Table Filters
@@ -410,6 +414,8 @@ export default function PaymentsPage() {
             payments={paginatedPayments}
             onAllocatePayment={(p) => setAllocatingPayment(p)}
             onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
+            onEditPayment={(p) => setEditingPayment(p)}
+            onReversePayment={(p) => setReversingPayment(p)}
           />
 
           {!isPaymentsLoading && filteredPayments.length > 0 && (
@@ -555,6 +561,20 @@ export default function PaymentsPage() {
         isOpen={!!allocatingPayment}
         payment={allocatingPayment}
         onClose={() => setAllocatingPayment(null)}
+        onSuccess={() => loadData()}
+      />
+
+      <EditPaymentModal
+        isOpen={!!editingPayment}
+        payment={editingPayment}
+        onClose={() => setEditingPayment(null)}
+        onSuccess={() => loadData()}
+      />
+
+      <ReversePaymentModal
+        isOpen={!!reversingPayment}
+        payment={reversingPayment}
+        onClose={() => setReversingPayment(null)}
         onSuccess={() => loadData()}
       />
 

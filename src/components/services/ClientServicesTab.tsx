@@ -1,14 +1,29 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Plus, Layers, Trash2, UserCheck, RefreshCw, Store, Calendar, History } from "lucide-react";
-import { fetchClientServicesAction, removeClientServiceAction } from "@/app/actions/services";
-import { formatINR } from "@/lib/utils";
+import {
+  Plus,
+  Layers,
+  Trash2,
+  UserCheck,
+  RefreshCw,
+  Store,
+  Calendar,
+  History,
+  ChevronDown,
+  FileText,
+  Paperclip,
+  FileUp,
+} from "lucide-react";
+import { fetchClientServicesAction, removeClientServiceAction, updateClientServiceStatusAction } from "@/app/actions/services";
+import { formatINR, cn } from "@/lib/utils";
 import { AssignServiceModal } from "@/components/services/AssignServiceModal";
 import { AssignVendorModal } from "@/components/vendors/AssignVendorModal";
 import { ManageServiceVendorsModal } from "@/components/vendors/ManageServiceVendorsModal";
 import { RenewServiceModal } from "@/components/renewals/RenewServiceModal";
 import { RenewalHistoryModal } from "@/components/renewals/RenewalHistoryModal";
+import { UploadServiceDeliverableModal } from "@/components/services/UploadServiceDeliverableModal";
+import { ServiceDocumentsModal } from "@/components/services/ServiceDocumentsModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 
@@ -23,6 +38,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
   const [services, setServices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [updatingServiceId, setUpdatingServiceId] = useState<string | null>(null);
 
   // Modals
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(Boolean(initialAddService));
@@ -30,6 +46,8 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
   const [manageVendorsService, setManageVendorsService] = useState<any | null>(null);
   const [renewModalService, setRenewModalService] = useState<any | null>(null);
   const [historyModalService, setHistoryModalService] = useState<any | null>(null);
+  const [deliverableModalService, setDeliverableModalService] = useState<any | null>(null);
+  const [documentsModalService, setDocumentsModalService] = useState<any | null>(null);
 
   const { success, error: toastError } = useToast();
   const requestIdRef = useRef(0);
@@ -126,6 +144,66 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
     return { label: `Upcoming (${diffDays}d)`, className: "bg-sky-50 text-sky-700 border-sky-200" };
   };
 
+  const handleStatusChange = async (serviceId: string, newStatus: string, serviceName: string) => {
+    const currentService = services.find((s) => s.id === serviceId);
+    const oldStatus = currentService?.service_status;
+    if (oldStatus === newStatus) return;
+
+    // Optimistically update UI
+    setServices((prev) =>
+      prev.map((s) => (s.id === serviceId ? { ...s, service_status: newStatus } : s))
+    );
+    setUpdatingServiceId(serviceId);
+
+    try {
+      const res = await updateClientServiceStatusAction(serviceId, newStatus, clientId);
+      if (res?.error) {
+        // Rollback
+        setServices((prev) =>
+          prev.map((s) => (s.id === serviceId ? { ...s, service_status: oldStatus } : s))
+        );
+        toastError("Failed to update status", res.error);
+      } else {
+        success("Status Updated", `${serviceName} marked as ${newStatus}.`);
+        if (newStatus === "Completed" && currentService) {
+          // Open completion deliverable upload modal (e.g. GST Certificate)
+          setDeliverableModalService({
+            ...currentService,
+            service_status: "Completed",
+          });
+        }
+      }
+    } catch (err: any) {
+      // Rollback
+      setServices((prev) =>
+        prev.map((s) => (s.id === serviceId ? { ...s, service_status: oldStatus } : s))
+      );
+      toastError("Update Error", err?.message || "Failed to update service status.");
+    } finally {
+      setUpdatingServiceId(null);
+    }
+  };
+
+  const getServiceStatusBadgeStyle = (status: string) => {
+    switch (status) {
+      case "Completed":
+        return "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100";
+      case "Processing":
+      case "In Progress":
+        return "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100";
+      case "Waiting for Approval":
+      case "Under Review":
+        return "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100";
+      case "On Hold":
+        return "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100";
+      case "Cancelled":
+        return "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100";
+      case "Pending":
+      default:
+        return "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100";
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -169,6 +247,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                   <th className="py-2.5 px-3 text-right">Service Fee</th>
                   <th className="py-2.5 px-3 text-right">Govt Fee</th>
                   <th className="py-2.5 px-3 text-center">Status</th>
+                  <th className="py-2.5 px-3 text-center">Documents</th>
                   <th className="py-2.5 px-3">Renewal Status</th>
                   <th className="py-2.5 px-3 min-w-[180px]">Vendor / Outsourcing</th>
                   <th className="py-2.5 px-3">Expected Date</th>
@@ -178,7 +257,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <td colSpan={10} className="py-8 text-center text-slate-400">
                       <div className="flex items-center justify-center gap-2">
                         <RefreshCw size={13} className="animate-spin text-[#0481A2]" />
                         <span>Loading client services...</span>
@@ -187,7 +266,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                   </tr>
                 ) : services.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="py-8 text-center text-slate-400">
+                    <td colSpan={10} className="py-8 text-center text-slate-400">
                       No individual service deliverables assigned yet. Click &quot;Add Service&quot; to assign one.
                     </td>
                   </tr>
@@ -226,11 +305,90 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                           {formatINR(Number(s.govt_fee) || 0)}
                         </td>
 
-                        {/* Service Status */}
+                        {/* Service Status - Editable Dropdown */}
                         <td className="py-2.5 px-3 text-center">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-sky-700">
-                            {s.service_status}
-                          </span>
+                          <div className="relative inline-flex items-center justify-center">
+                            {updatingServiceId === s.id ? (
+                              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                                <RefreshCw size={10} className="animate-spin text-[#0481A2]" />
+                                <span>Saving...</span>
+                              </div>
+                            ) : (
+                              <div className="relative inline-block">
+                                <select
+                                  value={s.service_status || "Pending"}
+                                  onChange={(e) => handleStatusChange(s.id, e.target.value, s.service_name)}
+                                  className={cn(
+                                    "appearance-none cursor-pointer pl-2.5 pr-5 py-0.5 rounded text-[10px] font-semibold border transition-all shadow-2xs focus:outline-none focus:ring-1 focus:ring-[#0481A2]/40",
+                                    getServiceStatusBadgeStyle(s.service_status)
+                                  )}
+                                  title="Change service status"
+                                >
+                                  <option value="Pending" className="bg-white text-slate-800">Pending</option>
+                                  <option value="Processing" className="bg-white text-slate-800">Processing</option>
+                                  <option value="In Progress" className="bg-white text-slate-800">In Progress</option>
+                                  <option value="Waiting for Approval" className="bg-white text-slate-800">Waiting for Approval</option>
+                                  <option value="Completed" className="bg-white text-slate-800 font-bold text-emerald-700">Completed</option>
+                                  <option value="On Hold" className="bg-white text-slate-800">On Hold</option>
+                                  <option value="Cancelled" className="bg-white text-slate-800">Cancelled</option>
+                                </select>
+                                <ChevronDown
+                                  size={10}
+                                  className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 opacity-70"
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Documents Column */}
+                        <td className="py-2.5 px-3 text-center">
+                          {(() => {
+                            const docs = s.documents || [];
+                            const isCompleted = s.service_status === "Completed";
+                            const hasDocs = docs.length > 0;
+
+                            if (hasDocs) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setDocumentsModalService(s)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-[#0481A2] border border-sky-200 hover:bg-sky-100 transition-colors cursor-pointer"
+                                  title="View or upload attached documents"
+                                >
+                                  <Paperclip size={10} />
+                                  <span>
+                                    {docs.length} {docs.length === 1 ? "Doc" : "Docs"}
+                                  </span>
+                                </button>
+                              );
+                            }
+
+                            if (isCompleted) {
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setDeliverableModalService(s)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-[#0481A2] border border-sky-200 hover:bg-sky-100 transition-colors cursor-pointer"
+                                  title="Service completed: Upload certificate"
+                                >
+                                  <FileUp size={10} />
+                                  <span>+ Upload</span>
+                                </button>
+                              );
+                            }
+
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => setDocumentsModalService(s)}
+                                className="text-[10px] text-slate-400 hover:text-[#0481A2] cursor-pointer"
+                                title="Attach documents"
+                              >
+                                + Attach
+                              </button>
+                            );
+                          })()}
                         </td>
 
                         {/* Renewal Status */}
@@ -357,6 +515,14 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                               <span>{hasVendors ? "Vendors" : "+ Vendor"}</span>
                             </button>
 
+                            <button
+                              onClick={() => setDocumentsModalService(s)}
+                              className="p-1 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded text-[11px] transition-colors cursor-pointer border border-slate-200"
+                              title="View & Upload Documents / Deliverables"
+                            >
+                              <FileText size={12} />
+                            </button>
+
                             {isAdmin && (
                               <button
                                 onClick={() => handleRemove(s.id)}
@@ -440,6 +606,36 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
           serviceId={historyModalService.id}
           serviceName={historyModalService.service_name}
           clientName={historyModalService.client_name}
+        />
+      )}
+
+      {/* Upload Service Deliverable Modal (triggered on Completed status or + Certificate) */}
+      {deliverableModalService && (
+        <UploadServiceDeliverableModal
+          isOpen={!!deliverableModalService}
+          onClose={() => setDeliverableModalService(null)}
+          onSuccess={() => {
+            setDeliverableModalService(null);
+            loadData(true);
+          }}
+          clientId={clientId}
+          clientServiceId={deliverableModalService.id}
+          serviceName={deliverableModalService.service_name}
+          clientName={clientName}
+        />
+      )}
+
+      {/* Comprehensive Service Documents Modal (view, preview, download, delete, upload) */}
+      {documentsModalService && (
+        <ServiceDocumentsModal
+          isOpen={!!documentsModalService}
+          onClose={() => setDocumentsModalService(null)}
+          onRefreshParent={() => loadData(true)}
+          clientId={clientId}
+          clientServiceId={documentsModalService.id}
+          serviceName={documentsModalService.service_name}
+          clientName={clientName}
+          serviceStatus={documentsModalService.service_status}
         />
       )}
     </div>

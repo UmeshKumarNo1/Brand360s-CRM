@@ -11,6 +11,7 @@ import {
   Pencil,
   XCircle,
   Trash2,
+  FilePlus,
 } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 
@@ -22,6 +23,7 @@ interface InstallmentSchedulesTableProps {
   onCancelInstallment: (inst: any) => void;
   onDeleteInstallment: (inst: any) => void;
   onPreviewInvoice: (invoiceId: string) => void;
+  onGenerateInvoice?: (inst: any) => void;
 }
 
 export function InstallmentSchedulesTable({
@@ -32,6 +34,7 @@ export function InstallmentSchedulesTable({
   onCancelInstallment,
   onDeleteInstallment,
   onPreviewInvoice,
+  onGenerateInvoice,
 }: InstallmentSchedulesTableProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -186,6 +189,17 @@ export function InstallmentSchedulesTable({
                         >
                           <Eye size={13} strokeWidth={2} />
                         </button>
+
+                        {/* Generate Invoice Action if no invoice linked */}
+                        {!inst.invoiceId && !isCancelled && onGenerateInvoice && (
+                          <button
+                            onClick={() => onGenerateInvoice(inst)}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-sky-50 hover:bg-sky-100 text-[#077EA1] border border-sky-200 transition-all shadow-2xs cursor-pointer"
+                            title="Generate Tax Invoice for this installment"
+                          >
+                            <FilePlus size={13} />
+                          </button>
+                        )}
 
                         {/* Pay Button */}
                         {!isPaid && !isCancelled && (

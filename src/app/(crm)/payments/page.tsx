@@ -21,6 +21,7 @@ import { AllocatePaymentModal } from "@/components/payments/AllocatePaymentModal
 import { EditPaymentModal } from "@/components/payments/EditPaymentModal";
 import { ReversePaymentModal } from "@/components/payments/ReversePaymentModal";
 import { PaymentReceiptModal } from "@/components/payments/PaymentReceiptModal";
+import { GenerateInstallmentInvoiceModal } from "@/components/payments/GenerateInstallmentInvoiceModal";
 import { InstallmentDetailsModal } from "@/components/payments/InstallmentDetailsModal";
 import { CancelInstallmentModal } from "@/components/payments/CancelInstallmentModal";
 import { InvoicePreviewModal } from "@/components/invoices/InvoicePreviewModal";
@@ -47,6 +48,7 @@ export default function PaymentsPage() {
   const [editingInstallment, setEditingInstallment] = useState<any | null>(null);
   const [viewingInstallment, setViewingInstallment] = useState<any | null>(null);
   const [cancellingInstallment, setCancellingInstallment] = useState<any | null>(null);
+  const [generatingInvoiceInstallment, setGeneratingInvoiceInstallment] = useState<any | null>(null);
   const [allocatingPayment, setAllocatingPayment] = useState<any | null>(null);
   const [editingPayment, setEditingPayment] = useState<any | null>(null);
   const [reversingPayment, setReversingPayment] = useState<any | null>(null);
@@ -455,6 +457,7 @@ export default function PaymentsPage() {
             onCancelInstallment={(inst) => setCancellingInstallment(inst)}
             onDeleteInstallment={handleDeleteInstallment}
             onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
+            onGenerateInvoice={(inst) => setGeneratingInvoiceInstallment(inst)}
           />
 
           {!isInstallmentsLoading && filteredInstallments.length > 0 && (
@@ -535,6 +538,17 @@ export default function PaymentsPage() {
         installment={editingInstallment}
         onClose={() => setEditingInstallment(null)}
         onSuccess={() => loadData()}
+        onGenerateInvoice={(inst) => setGeneratingInvoiceInstallment(inst)}
+      />
+
+      <GenerateInstallmentInvoiceModal
+        isOpen={!!generatingInvoiceInstallment}
+        installment={generatingInvoiceInstallment}
+        onClose={() => setGeneratingInvoiceInstallment(null)}
+        onSuccess={(invId) => {
+          loadData();
+          if (invId) setPreviewInvoiceId(invId);
+        }}
       />
 
       <InstallmentDetailsModal

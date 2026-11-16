@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState, useEffect, useState, useRef } from "react";
-import { Edit2, X, Loader2, IndianRupee, Calendar } from "lucide-react";
+import { Edit2, X, Loader2, IndianRupee, Calendar, FileText, Plus } from "lucide-react";
 import { updateInstallmentAction, fetchClientInvoicesForAllocationAction } from "@/app/actions/payments";
 
 interface EditInstallmentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onGenerateInvoice?: (installment: any) => void;
   installment: {
     id: string;
     clientId?: string;
@@ -27,6 +28,7 @@ export function EditInstallmentModal({
   isOpen,
   onClose,
   onSuccess,
+  onGenerateInvoice,
   installment,
 }: EditInstallmentModalProps) {
   const [state, formAction, isPending] = useActionState(updateInstallmentAction, null);
@@ -100,9 +102,25 @@ export function EditInstallmentModal({
           </div>
 
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">
-              Link to Tax Invoice <span className="text-slate-400 font-normal">(Optional)</span>
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="font-semibold text-slate-700">
+                Tax Invoice Linking
+              </label>
+              {onGenerateInvoice && !defaultInvoiceId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onGenerateInvoice(installment);
+                  }}
+                  className="text-[11px] font-bold text-[#077EA1] hover:text-[#05607C] flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus size={12} />
+                  <span>Generate New Invoice</span>
+                </button>
+              )}
+            </div>
+
             <select
               name="invoice_id"
               defaultValue={defaultInvoiceId}

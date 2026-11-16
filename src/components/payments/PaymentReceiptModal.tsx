@@ -305,16 +305,16 @@ export function PaymentReceiptModal({
                     <img
                       src={BRAND_LOGO_BASE64 || "/logo.webp"}
                       alt="BRAND 360s"
-                      className="h-13 sm:h-14 w-auto object-contain"
+                      className="h-11 sm:h-12 w-auto object-contain"
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src = "/logo.webp";
                       }}
                     />
                   </div>
-                  <p className="text-[11px] font-semibold text-slate-500 mt-1 max-w-xs leading-snug">
-                    {company.address}
+                  <p className="text-[11px] font-semibold text-slate-700 mt-1 max-w-xs leading-snug">
+                    {company.name}
                   </p>
-                  <p className="text-[10px] text-slate-400 max-w-xs mt-0.5 leading-tight">
+                  <p className="text-[10px] text-slate-500 max-w-xs mt-0.5 leading-tight">
                     {company.address}
                   </p>
                   {company.gstin && (

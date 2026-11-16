@@ -340,11 +340,11 @@ export function InvoicePreviewModal({
             <div className="flex items-start justify-between pb-6 border-b-2 border-[#243E76]">
               <div>
                 <div className="mb-2">
-                  {/* Real BRAND 360s logo from public folder with reliable data fallback */}
+                  {/* Official BRAND 360s vector logo with reliable embedded vector fallback */}
                   <img
                     src={BRAND_LOGO_BASE64 || "/logo.webp"}
                     alt="BRAND 360s"
-                    className="h-14 sm:h-16 w-auto object-contain"
+                    className="h-12 sm:h-14 w-auto object-contain"
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src = "/logo.webp";
                     }}

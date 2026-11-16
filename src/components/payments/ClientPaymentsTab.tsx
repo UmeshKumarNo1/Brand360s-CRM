@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Plus, CreditCard, Calendar, CheckCircle2, Clock, AlertCircle, Edit2, Trash2, RefreshCw, FileText, Eye, Mail } from "lucide-react";
+import { Plus, CreditCard, Calendar, CheckCircle2, Clock, AlertCircle, Edit2, Trash2, RefreshCw, FileText, Eye, Mail, Receipt } from "lucide-react";
 import { fetchClientFinancialsAction, deleteInstallmentAction } from "@/app/actions/payments";
 import { fetchInvoicesAction, sendInvoiceEmailAction } from "@/app/actions/invoices";
 import { formatINR } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { RecordPaymentModal } from "./RecordPaymentModal";
 import { CreateInstallmentModal } from "./CreateInstallmentModal";
 import { EditInstallmentModal } from "./EditInstallmentModal";
 import { AllocatePaymentModal } from "./AllocatePaymentModal";
+import { PaymentReceiptModal } from "./PaymentReceiptModal";
 import { CreateInvoiceModal } from "@/components/invoices/CreateInvoiceModal";
 import { InvoicePreviewModal } from "@/components/invoices/InvoicePreviewModal";
 import { useToast } from "@/components/common/ToastProvider";
@@ -42,6 +43,7 @@ export function ClientPaymentsTab({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [sendingInvoiceId, setSendingInvoiceId] = useState<string | null>(null);
   const [allocatingPayment, setAllocatingPayment] = useState<any | null>(null);
+  const [viewingReceiptPaymentId, setViewingReceiptPaymentId] = useState<string | null>(null);
 
   const [selectedForPayment, setSelectedForPayment] = useState<{
     id: string;
@@ -329,6 +331,13 @@ export function ClientPaymentsTab({
                     </div>
 
                     <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setViewingReceiptPaymentId(p.id)}
+                        className="p-1 rounded-md text-slate-400 hover:text-[#077EA1] hover:bg-sky-50 transition-colors cursor-pointer"
+                        title="View / Download Payment Receipt"
+                      >
+                        <Receipt size={14} />
+                      </button>
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700">
                         <CheckCircle2 size={11} /> {p.status}
                       </span>
@@ -476,6 +485,13 @@ export function ClientPaymentsTab({
         isOpen={!!editingInstallment}
         installment={editingInstallment}
         onClose={() => setEditingInstallment(null)}
+        onSuccess={() => loadData(true)}
+      />
+
+      <PaymentReceiptModal
+        isOpen={!!viewingReceiptPaymentId}
+        paymentId={viewingReceiptPaymentId || undefined}
+        onClose={() => setViewingReceiptPaymentId(null)}
         onSuccess={() => loadData(true)}
       />
 

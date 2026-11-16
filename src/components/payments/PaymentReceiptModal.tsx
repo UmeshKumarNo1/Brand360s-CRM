@@ -55,22 +55,28 @@ export function PaymentReceiptModal({
   const [showEmailInput, setShowEmailInput] = useState(false);
   const { success, error: toastError } = useToast();
 
-  const targetLookup = receiptId || paymentId;
+  const [activeLookupId, setActiveLookupId] = useState<string | undefined>(receiptId || paymentId);
 
-  const loadReceiptData = async () => {
-    if (!targetLookup) return;
+  useEffect(() => {
+    setActiveLookupId(receiptId || paymentId);
+  }, [receiptId, paymentId]);
+
+  const loadReceiptData = async (overrideId?: string) => {
+    const lookup = overrideId || activeLookupId;
+    if (!lookup) return;
     setIsLoading(true);
     setFetchError(null);
 
     try {
       const [recRes, settRes] = await Promise.all([
-        fetchPaymentReceiptDetailsAction(targetLookup),
+        fetchPaymentReceiptDetailsAction(lookup),
         fetchCrmSettingsAction(),
       ]);
 
       if (recRes.success && recRes.receipt) {
         setReceipt(recRes.receipt);
         setCustomEmail(recRes.receipt.client?.email || "");
+        setFetchError(null);
       } else {
         setFetchError(recRes.error || "Failed to load payment receipt.");
       }
@@ -86,14 +92,14 @@ export function PaymentReceiptModal({
   };
 
   useEffect(() => {
-    if (isOpen && targetLookup) {
-      loadReceiptData();
+    if (isOpen && (receiptId || paymentId)) {
+      loadReceiptData(receiptId || paymentId);
     } else {
       setReceipt(null);
       setFetchError(null);
       setShowEmailInput(false);
     }
-  }, [isOpen, targetLookup]);
+  }, [isOpen, receiptId, paymentId]);
 
   if (!isOpen) return null;
 
@@ -132,12 +138,13 @@ export function PaymentReceiptModal({
     setIsRegenerating(true);
     try {
       const res = await generatePaymentReceiptAction({ paymentId: pId });
-      if (res.success) {
-        success("Receipt refreshed", "Payment receipt successfully synced.");
-        await loadReceiptData();
+      if (res.success && res.receipt?.id) {
+        success("Receipt generated", "Payment receipt successfully synced.");
+        setActiveLookupId(res.receipt.id);
+        await loadReceiptData(res.receipt.id);
         if (onSuccess) onSuccess();
       } else {
-        toastError("Regeneration failed", res.error);
+        toastError("Generation failed", res.error || "Failed to generate receipt.");
       }
     } catch (err: any) {
       toastError("Error", err.message || "Failed to regenerate receipt.");
@@ -512,4 +519,3 @@ export function PaymentReceiptModal({
     </div>
   );
 }
-

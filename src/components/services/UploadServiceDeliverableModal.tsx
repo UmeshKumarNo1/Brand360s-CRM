@@ -4,13 +4,10 @@ import { useState, useRef, useEffect, DragEvent, ChangeEvent } from "react";
 import {
   X,
   UploadCloud,
-  FileCheck2,
   FileText,
   Trash2,
   Loader2,
-  CheckCircle2,
-  Image as ImageIcon,
-  Sparkles,
+  FileUp,
 } from "lucide-react";
 import { uploadClientServiceDocumentAction } from "@/app/actions/documents";
 import { useToast } from "@/components/common/ToastProvider";
@@ -66,7 +63,7 @@ export function UploadServiceDeliverableModal({
     setSelectedFiles([]);
   }, [isOpen, serviceName]);
 
-  // Clean up object URLs on unmount or file change
+  // Clean up object URLs
   useEffect(() => {
     return () => {
       selectedFiles.forEach((item) => {
@@ -133,13 +130,12 @@ export function UploadServiceDeliverableModal({
 
   const handleUploadSubmit = async () => {
     if (selectedFiles.length === 0) {
-      toastError("No file selected", "Please choose an image or document to upload.");
+      toastError("No file selected", "Please choose a certificate image or PDF to upload.");
       return;
     }
 
     setIsUploading(true);
     let successCount = 0;
-    let failedCount = 0;
 
     for (const item of selectedFiles) {
       try {
@@ -152,12 +148,8 @@ export function UploadServiceDeliverableModal({
         const res = await uploadClientServiceDocumentAction(formData);
         if (res.success) {
           successCount++;
-        } else {
-          failedCount++;
-          console.error("Upload failed for file:", item.file.name, res.error);
         }
       } catch (err) {
-        failedCount++;
         console.error("Upload error for file:", item.file.name, err);
       }
     }
@@ -167,7 +159,7 @@ export function UploadServiceDeliverableModal({
     if (successCount > 0) {
       success(
         "Deliverable Uploaded",
-        `${successCount} completion document${successCount > 1 ? "s" : ""} saved successfully.`
+        `${successCount} certificate document${successCount > 1 ? "s" : ""} saved.`
       );
       if (onSuccess) onSuccess();
       onClose();
@@ -179,7 +171,7 @@ export function UploadServiceDeliverableModal({
   const handleSkip = () => {
     info(
       "Deliverable Pending",
-      "You can upload completion certificates anytime by clicking the document button on the service row."
+      "You can upload the certificate anytime by clicking the document button on the service row."
     );
     onClose();
   };
@@ -191,53 +183,46 @@ export function UploadServiceDeliverableModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Top Celebration Banner */}
-        <div className="bg-gradient-to-r from-emerald-600 via-[#0481A2] to-[#243E76] px-6 py-4 text-white relative">
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
-            title="Close"
-          >
-            <X size={18} />
-          </button>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white shadow-inner">
-              <CheckCircle2 size={22} className="text-emerald-300" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full overflow-hidden flex flex-col max-h-[90vh]">
+        {/* Simple & Clean Header */}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#0481A2] flex items-center justify-center font-bold">
+              <FileUp size={16} />
             </div>
             <div>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-200 uppercase tracking-wider">
-                <Sparkles size={12} />
-                <span>Service Completed!</span>
-              </div>
-              <h3 className="text-base font-bold text-white leading-tight">
-                Upload Completion Deliverable
-              </h3>
+              <h3 className="text-sm font-bold text-slate-900">Upload Completion Deliverable</h3>
+              <p className="text-[11px] text-slate-500">
+                Service: <strong className="text-slate-700">{serviceName}</strong>
+                {clientName ? ` • ${clientName}` : ""}
+              </p>
             </div>
           </div>
-          <p className="text-xs text-white/80 mt-2 truncate">
-            {serviceName} {clientName ? `• ${clientName}` : ""}
-          </p>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-700 p-1 rounded-lg transition-colors cursor-pointer"
+            title="Close"
+          >
+            <X size={16} />
+          </button>
         </div>
 
         {/* Modal Body */}
         <div className="p-6 space-y-4 overflow-y-auto flex-1 text-xs">
-          <p className="text-slate-600 text-[11px] leading-relaxed">
-            Attach the final deliverable certificate or filing proof (e.g. GST Certificate,
-            Incorporation Certificate, Trademark Certificate) so the client and team have permanent
-            access.
+          <p className="text-slate-500 text-[11px]">
+            Upload the completion deliverable (e.g. GST Certificate, Incorporation Certificate, Trademark Certificate) for client records.
           </p>
 
           {/* Deliverable Type */}
           <div>
-            <label className="block font-bold text-slate-800 mb-1">
+            <label className="block font-semibold text-slate-700 mb-1">
               Certificate / Document Type *
             </label>
             <select
               value={deliverableType}
               onChange={(e) => setDeliverableType(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-800 font-medium focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2]/30 shadow-2xs"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-800 focus:outline-none focus:border-[#0481A2]"
             >
               <option value="GST Certificate">GST Registration Certificate</option>
               <option value="Certificate of Incorporation">Certificate of Incorporation (COI)</option>
@@ -250,9 +235,9 @@ export function UploadServiceDeliverableModal({
             </select>
           </div>
 
-          {/* Drag & Drop Upload Zone */}
+          {/* Simple Dropzone */}
           <div>
-            <label className="block font-bold text-slate-800 mb-1">
+            <label className="block font-semibold text-slate-700 mb-1">
               Select Certificate Image or PDF *
             </label>
             <div
@@ -260,10 +245,10 @@ export function UploadServiceDeliverableModal({
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 ${
+              className={`border-2 border-dashed rounded-xl p-5 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-1.5 ${
                 isDragging
-                  ? "border-[#0481A2] bg-sky-50/70 scale-[0.99]"
-                  : "border-slate-300 hover:border-[#0481A2] hover:bg-slate-50/80 bg-slate-50/40"
+                  ? "border-[#0481A2] bg-sky-50"
+                  : "border-slate-300 hover:border-[#0481A2] bg-slate-50/40"
               }`}
             >
               <input
@@ -274,8 +259,8 @@ export function UploadServiceDeliverableModal({
                 onChange={handleInputChange}
                 className="hidden"
               />
-              <div className="w-10 h-10 rounded-full bg-sky-100 text-[#0481A2] flex items-center justify-center">
-                <UploadCloud size={20} />
+              <div className="w-9 h-9 rounded-lg bg-sky-50 text-[#0481A2] flex items-center justify-center">
+                <UploadCloud size={18} />
               </div>
               <div>
                 <p className="font-semibold text-slate-800 text-xs">
@@ -292,18 +277,18 @@ export function UploadServiceDeliverableModal({
           {/* Selected Files List with Previews */}
           {selectedFiles.length > 0 && (
             <div className="space-y-2">
-              <label className="block font-bold text-slate-700 text-[11px]">
-                Ready to Upload ({selectedFiles.length})
+              <label className="block font-semibold text-slate-700 text-[11px]">
+                Selected Files ({selectedFiles.length})
               </label>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-44 overflow-y-auto pr-1">
                 {selectedFiles.map((item) => (
                   <div
                     key={item.id}
                     className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-800"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       {item.previewUrl ? (
-                        <div className="w-10 h-10 rounded-md border border-slate-200 overflow-hidden bg-white shrink-0 relative">
+                        <div className="w-9 h-9 rounded border border-slate-200 overflow-hidden bg-white shrink-0">
                           <img
                             src={item.previewUrl}
                             alt={item.file.name}
@@ -311,12 +296,12 @@ export function UploadServiceDeliverableModal({
                           />
                         </div>
                       ) : (
-                        <div className="w-10 h-10 rounded-md bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center shrink-0">
-                          <FileText size={18} />
+                        <div className="w-9 h-9 rounded bg-sky-50 border border-sky-100 text-[#0481A2] flex items-center justify-center shrink-0">
+                          <FileText size={16} />
                         </div>
                       )}
                       <div className="min-w-0">
-                        <p className="font-semibold text-slate-900 truncate max-w-[240px]">
+                        <p className="font-semibold text-slate-900 truncate max-w-[220px]">
                           {item.file.name}
                         </p>
                         <p className="text-[10px] text-slate-500">
@@ -327,7 +312,7 @@ export function UploadServiceDeliverableModal({
                     <button
                       type="button"
                       onClick={() => handleRemoveFile(item.id)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
+                      className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer"
                       title="Remove file"
                     >
                       <Trash2 size={13} />
@@ -340,12 +325,12 @@ export function UploadServiceDeliverableModal({
         </div>
 
         {/* Footer Actions */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
+        <div className="px-6 py-3.5 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
           <button
             type="button"
             onClick={handleSkip}
             disabled={isUploading}
-            className="text-slate-500 hover:text-slate-700 text-xs font-semibold py-1.5 px-3 rounded-lg hover:bg-slate-200/50 transition-colors cursor-pointer"
+            className="text-slate-500 hover:text-slate-700 text-xs font-semibold py-1.5 px-2.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
           >
             Skip for now
           </button>
@@ -355,7 +340,7 @@ export function UploadServiceDeliverableModal({
               type="button"
               onClick={onClose}
               disabled={isUploading}
-              className="px-3.5 py-1.5 font-semibold text-slate-600 hover:bg-slate-200/60 rounded-lg text-xs transition-colors cursor-pointer"
+              className="px-3.5 py-1.5 font-semibold text-slate-600 hover:bg-slate-100 rounded-lg text-xs transition-colors cursor-pointer"
             >
               Cancel
             </button>
@@ -363,18 +348,15 @@ export function UploadServiceDeliverableModal({
               type="button"
               onClick={handleUploadSubmit}
               disabled={isUploading || selectedFiles.length === 0}
-              className="px-4 py-1.5 font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-xs"
+              className="px-4 py-1.5 font-semibold text-white bg-[#0481A2] hover:bg-[#036c88] rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-xs"
             >
               {isUploading ? (
                 <>
                   <Loader2 size={13} className="animate-spin" />
-                  <span>Uploading Certificate...</span>
+                  <span>Uploading...</span>
                 </>
               ) : (
-                <>
-                  <FileCheck2 size={14} />
-                  <span>Upload & Save Certificate</span>
-                </>
+                <span>Upload Deliverable</span>
               )}
             </button>
           </div>
@@ -383,4 +365,3 @@ export function UploadServiceDeliverableModal({
     </div>
   );
 }
-

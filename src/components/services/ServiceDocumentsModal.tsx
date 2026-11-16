@@ -238,16 +238,16 @@ export function ServiceDocumentsModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
         <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-2xl w-full overflow-hidden flex flex-col max-h-[90vh]">
           {/* Header */}
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-sky-50 text-[#0481A2] flex items-center justify-center font-bold border border-sky-100">
-                <FileText size={18} />
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#0481A2] flex items-center justify-center font-bold">
+                <FileText size={16} />
               </div>
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-slate-900">{serviceName}</h3>
                   <span
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    className={`text-[10px] font-semibold px-2 py-0.2 rounded-full border ${
                       serviceStatus === "Completed"
                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                         : "bg-sky-50 text-sky-700 border-sky-200"
@@ -257,7 +257,7 @@ export function ServiceDocumentsModal({
                   </span>
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Attached Documents & Deliverables {clientName ? `• ${clientName}` : ""}
+                  Documents & Deliverables {clientName ? `• ${clientName}` : ""}
                 </p>
               </div>
             </div>
@@ -268,8 +268,8 @@ export function ServiceDocumentsModal({
                 onClick={() => setActiveTab(activeTab === "list" ? "upload" : "list")}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
                   activeTab === "upload"
-                    ? "bg-slate-200 text-slate-800"
-                    : "bg-[#0481A2] text-white hover:bg-[#036c88] shadow-2xs"
+                    ? "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    : "bg-[#0481A2] text-white hover:bg-[#036c88] shadow-xs"
                 }`}
               >
                 {activeTab === "upload" ? (
@@ -300,14 +300,9 @@ export function ServiceDocumentsModal({
             {activeTab === "upload" ? (
               /* Inline Upload Form */
               <form onSubmit={handleUpload} className="space-y-4">
-                <div className="bg-sky-50/50 border border-sky-100 rounded-xl p-3 flex items-start gap-2.5">
-                  <Sparkles size={16} className="text-[#0481A2] shrink-0 mt-0.5" />
-                  <p className="text-slate-600 text-[11px]">
-                    Upload client compliance proofs, PAN/Aadhaar cards, or completion deliverables
-                    (such as GST Certificates and COI). Documents are encrypted and accessible to
-                    authorized team members.
-                  </p>
-                </div>
+                <p className="text-slate-500 text-[11px]">
+                  Upload client compliance documents (such as PAN cards or ID proofs) or completion deliverables (e.g. GST Certificate).
+                </p>
 
                 <div>
                   <label className="block font-bold text-slate-800 mb-1">Document Category *</label>
@@ -578,15 +573,14 @@ export function ServiceDocumentsModal({
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+          <div className="px-6 py-3 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span>
-              {documents.length} document{documents.length === 1 ? "" : "s"} attached to this
-              service
+              {documents.length} document{documents.length === 1 ? "" : "s"} attached
             </span>
             <button
               type="button"
               onClick={onClose}
-              className="px-3.5 py-1.5 font-semibold text-slate-600 hover:bg-slate-200/60 rounded-lg transition-colors cursor-pointer"
+              className="px-3.5 py-1.5 font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
             >
               Close
             </button>
@@ -604,9 +598,9 @@ export function ServiceDocumentsModal({
             className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden flex flex-col max-h-[95vh]"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-900 text-white">
+            <div className="px-5 py-3 border-b border-slate-200 flex items-center justify-between bg-[#243E76] text-white">
               <div className="flex items-center gap-2 truncate">
-                <ImageIcon size={16} className="text-[#0481A2]" />
+                <ImageIcon size={16} className="text-sky-300" />
                 <span className="font-semibold text-xs truncate">{previewDoc.file_name}</span>
               </div>
               <div className="flex items-center gap-2">

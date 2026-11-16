@@ -353,12 +353,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                                 <button
                                   type="button"
                                   onClick={() => setDocumentsModalService(s)}
-                                  className={cn(
-                                    "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold border transition-all cursor-pointer shadow-2xs",
-                                    isCompleted
-                                      ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-                                      : "bg-sky-50 text-[#0481A2] border-sky-200 hover:bg-sky-100"
-                                  )}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-[#0481A2] border border-sky-200 hover:bg-sky-100 transition-colors cursor-pointer"
                                   title="View or upload attached documents"
                                 >
                                   <Paperclip size={10} />
@@ -374,11 +369,11 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                                 <button
                                   type="button"
                                   onClick={() => setDeliverableModalService(s)}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 transition-colors cursor-pointer shadow-2xs"
-                                  title="Service completed: Upload GST or deliverable certificate"
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-[#0481A2] border border-sky-200 hover:bg-sky-100 transition-colors cursor-pointer"
+                                  title="Service completed: Upload certificate"
                                 >
                                   <FileUp size={10} />
-                                  <span>+ Certificate</span>
+                                  <span>+ Upload</span>
                                 </button>
                               );
                             }
@@ -387,8 +382,8 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                               <button
                                 type="button"
                                 onClick={() => setDocumentsModalService(s)}
-                                className="text-[10px] text-slate-400 hover:text-[#0481A2] hover:underline cursor-pointer"
-                                title="Attach PAN, proofs or documents"
+                                className="text-[10px] text-slate-400 hover:text-[#0481A2] cursor-pointer"
+                                title="Attach documents"
                               >
                                 + Attach
                               </button>

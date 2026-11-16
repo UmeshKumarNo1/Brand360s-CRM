@@ -338,10 +338,17 @@ export function InvoicePreviewModal({
             {/* Invoice Header */}
             <div className="flex items-start justify-between pb-6 border-b-2 border-[#243E76]">
               <div>
-                <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-lg bg-[#243E76] text-white flex items-center justify-center font-bold text-lg">
-                    360
-                  </div>
+                <div className="flex items-center gap-3">
+                  {/* Real BRAND 360s logo from public folder with graceful fallback */}
+                  <img
+                    src="/logo.webp"
+                    alt="BRAND 360s Logo"
+                    className="h-10 w-auto object-contain"
+                    onError={(e) => {
+                      // Fallback to svg or stylized mark if webp fails
+                      (e.currentTarget as HTMLImageElement).src = "/brand360s-mark.svg";
+                    }}
+                  />
                   <h1 className="text-2xl font-black text-[#243E76] tracking-tight">
                     {settingsData.company_name}
                   </h1>

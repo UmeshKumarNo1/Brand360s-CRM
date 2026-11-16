@@ -293,16 +293,21 @@ export function PaymentReceiptModal({
               {/* Header: Company & Receipt Title */}
               <div className="flex justify-between items-start border-b border-slate-100 pb-5">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-[#243E76] text-white flex items-center justify-center font-extrabold text-sm tracking-wider">
-                      360
-                    </div>
-                    <span className="text-xl font-extrabold text-[#243E76] tracking-tight">
-                      BRAND 360<span className="text-[#077EA1]">s</span>
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <img
+                      src="/logo.webp"
+                      alt="BRAND 360s Logo"
+                      className="h-10 w-auto object-contain"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = "/brand360s-mark.svg";
+                      }}
+                    />
+                    <h1 className="text-xl font-black text-[#243E76] tracking-tight">
+                      {company.name}
+                    </h1>
                   </div>
-                  <p className="text-[11px] font-semibold text-slate-500 mt-1 max-w-xs leading-snug">
-                    {company.name}
+                  <p className="text-[11px] font-semibold text-slate-500 mt-2 max-w-xs leading-snug">
+                    {company.address}
                   </p>
                   <p className="text-[10px] text-slate-400 max-w-xs mt-0.5 leading-tight">
                     {company.address}

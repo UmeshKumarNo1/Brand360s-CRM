@@ -146,15 +146,15 @@ export function ClientDetailView({
               <h1 className="text-2xl sm:text-3xl font-bold font-sans text-slate-900 tracking-tight">
                 {client.companyName}
               </h1>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#DCFCE7] text-[#16A34A] border border-[#BBF7D0]">
-                {client.clientStatus || "Active"}
-              </span>
-              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-[#E0F2FE] text-[#0284C7] border border-[#BAE6FD]">
-                {client.paymentStatus || "Upcoming"}
-              </span>
-              <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-[#F1F5F9] text-[#64748B] border border-[#E2E8F0] font-mono">
-                {client.clientCode}
-              </span>
+              {client.clientStatus === "Completed" ? (
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Completed
+                </span>
+              ) : (
+                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200">
+                  Pending
+                </span>
+              )}
               {isArchived && (
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
                   Archived
@@ -162,6 +162,7 @@ export function ClientDetailView({
               )}
             </div>
             <p className="text-xs text-slate-500 mt-1">
+              {client.clientCode ? `${client.clientCode} • ` : ""}
               {client.companyType} • Brought in by:{" "}
               <strong className="text-slate-800 font-semibold">{client.salesperson}</strong>
               {client.clientSince && (
@@ -633,10 +634,17 @@ export function ClientDetailView({
                       <Zap size={15} className="text-slate-500" />
                       <span>Client Status</span>
                     </div>
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#DCFCE7] text-[#16A34A]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
-                      {client.clientStatus || "Active"}
-                    </span>
+                    {client.clientStatus === "Completed" ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-[#DCFCE7] text-[#16A34A]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
+                        Completed
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-sky-50 text-sky-700 border border-sky-200">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#0481A2]" />
+                        Pending
+                      </span>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-between">

@@ -84,27 +84,27 @@ export function AppSidebar({
           title={isCollapsed ? "Brand 360s Dashboard" : undefined}
         >
           {isCollapsed ? (
-            /* Fully visible 360 Emblem when Sidebar shrinks */
-            <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center shrink-0 shadow-xs transition-transform hover:scale-105 p-1">
+            /* Fully visible Avatar Image when Sidebar shrinks */
+            <div className="w-8 h-8 flex items-center justify-center shrink-0 transition-transform hover:scale-105">
               <Image
-                src="/brand360s-emblem.png"
+                src="/avatar.webp"
                 alt="Brand 360s"
-                width={36}
-                height={36}
+                width={32}
+                height={32}
                 priority
                 className="w-full h-full object-contain"
               />
             </div>
           ) : (
-            /* Full Company Logo when expanded */
-            <div className="relative shrink-0 flex items-center bg-white px-3 py-1.5 rounded-xl shadow-xs transition-transform hover:scale-[1.02]">
+            /* Full Logo when expanded */
+            <div className="relative shrink-0 flex items-center h-10 w-auto">
               <Image
-                src="/brand360s-logo.png"
+                src="/brand360s-darkmodelogo.svg"
                 alt="BRAND 360s"
                 width={150}
-                height={36}
+                height={38}
                 priority
-                className="h-[28px] w-auto object-contain"
+                className="h-[36px] w-auto object-left object-contain"
               />
             </div>
           )}

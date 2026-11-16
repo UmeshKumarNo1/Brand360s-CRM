@@ -219,3 +219,57 @@ export async function removeClientServiceAction(serviceId: string, clientId: str
   revalidatePath(`/clients/${clientId}`);
   return { success: true };
 }
+
+export async function updateClientServiceStatusAction(
+  serviceId: string,
+  newStatus: string,
+  clientId?: string
+): Promise<ServiceActionState> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Authentication required." };
+
+  const validStatuses = [
+    "Pending",
+    "Processing",
+    "In Progress",
+    "New",
+    "Documents Pending",
+    "Waiting for Approval",
+    "Completed",
+    "On Hold",
+    "Cancelled",
+  ];
+
+  if (!validStatuses.includes(newStatus)) {
+    return { error: `Invalid status: ${newStatus}` };
+  }
+
+  const updatePayload: any = {
+    service_status: newStatus,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (newStatus === "Completed") {
+    updatePayload.actual_completion_date = new Date().toISOString().split("T")[0];
+  }
+
+  const { error } = await supabase
+    .from("client_services")
+    .update(updatePayload)
+    .eq("id", serviceId);
+
+  if (error) {
+    console.error("Error updating client service status:", error);
+    return { error: error.message };
+  }
+
+  if (clientId) {
+    revalidatePath(`/clients/${clientId}`);
+  }
+  revalidatePath("/clients");
+  revalidatePath("/services");
+  revalidatePath("/reports");
+  return { success: true };
+}

@@ -90,9 +90,9 @@ export function PaymentTransactionsTable({
                       {formatINR(p.amount)}
                     </td>
 
-                    {/* Allocation Column: Vertically stacked status badge + action button directly underneath */}
+                    {/* Allocation Column: Display status badge for Fully Allocated, or action button directly for Unallocated / Partially Allocated */}
                     <td className="py-2.5 px-2 text-center whitespace-nowrap align-middle">
-                      <div className="flex flex-col items-center justify-center gap-1.5 min-w-[136px]">
+                      <div className="flex items-center justify-center min-w-[140px]">
                         {(() => {
                           const paymentAmount = Math.round((Number(p.amount) || 0) * 100) / 100;
                           const totalAllocated = Math.round((Number(p.totalAllocated) || 0) * 100) / 100;
@@ -101,53 +101,49 @@ export function PaymentTransactionsTable({
                           // State C: Fully Allocated (Green badge only)
                           if (paymentAmount > 0 && availableAmount <= 0.009) {
                             return (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                                 <CheckCircle size={12} className="text-emerald-600 shrink-0" />
                                 <span>Fully Allocated</span>
                               </span>
                             );
                           }
 
-                          // State B: Partially Allocated (Amber badge + Allocate Remaining button)
+                          // State B: Partially Allocated (Orange Allocate Remaining button only)
                           if (totalAllocated > 0.009 && availableAmount > 0.009) {
                             return (
-                              <>
-                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                                  <Clock size={11} className="text-amber-600 shrink-0" />
-                                  <span>Partially Allocated</span>
+                              p.status !== "Reversed" ? (
+                                <button
+                                  onClick={() => onAllocatePayment(p)}
+                                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-amber-50 hover:bg-amber-100 text-[#D97706] border border-amber-300 transition-all shadow-2xs cursor-pointer"
+                                  title={`Partially allocated (₹${totalAllocated.toLocaleString("en-IN")}). Click to allocate remaining ₹${availableAmount.toLocaleString("en-IN")}`}
+                                >
+                                  <ArrowRightLeft size={12} className="shrink-0" />
+                                  <span>Allocate Remaining</span>
+                                </button>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                  <span>Reversed</span>
                                 </span>
-                                {p.status !== "Reversed" && (
-                                  <button
-                                    onClick={() => onAllocatePayment(p)}
-                                    className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-amber-50 hover:bg-amber-100 text-[#D97706] border border-amber-300 transition-all shadow-2xs cursor-pointer w-full max-w-[136px]"
-                                    title={`Partially allocated (₹${totalAllocated.toLocaleString("en-IN")}). Click to allocate remaining ₹${availableAmount.toLocaleString("en-IN")}`}
-                                  >
-                                    <ArrowRightLeft size={12} className="shrink-0" />
-                                    <span>Allocate Remaining</span>
-                                  </button>
-                                )}
-                              </>
+                              )
                             );
                           }
 
-                          // State A: Unallocated (Gray badge + Allocate Payment button)
+                          // State A: Unallocated (Teal Allocate Payment button only)
                           return (
-                            <>
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
-                                <Clock size={11} className="text-slate-500 shrink-0" />
-                                <span>Unallocated</span>
+                            p.status !== "Reversed" ? (
+                              <button
+                                onClick={() => onAllocatePayment(p)}
+                                className="inline-flex items-center justify-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full bg-[#F0F9FB] hover:bg-[#E0F3F7] text-[#0786A5] border border-[#0786A5]/40 transition-all shadow-2xs cursor-pointer"
+                                title="Allocate unallocated payment to client invoices"
+                              >
+                                <Plus size={12} className="shrink-0" />
+                                <span>Allocate Payment</span>
+                              </button>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+                                <span>Reversed</span>
                               </span>
-                              {p.status !== "Reversed" && (
-                                <button
-                                  onClick={() => onAllocatePayment(p)}
-                                  className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-[#F0F9FB] hover:bg-[#E0F3F7] text-[#0786A5] border border-[#0786A5]/30 transition-all shadow-2xs cursor-pointer w-full max-w-[136px]"
-                                  title="Allocate unallocated payment to client invoices"
-                                >
-                                  <Plus size={12} className="shrink-0" />
-                                  <span>Allocate Payment</span>
-                                </button>
-                              )}
-                            </>
+                            )
                           );
                         })()}
                       </div>

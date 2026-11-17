@@ -12,6 +12,8 @@ interface PaymentFiltersProps {
   setMethodFilter: (val: string) => void;
   verificationFilter: string;
   setVerificationFilter: (val: string) => void;
+  sortBy?: string;
+  setSortBy?: (val: string) => void;
   installmentClientFilter: string;
   setInstallmentClientFilter: (val: string) => void;
   installmentDueDateFilter: string;
@@ -30,6 +32,8 @@ export function PaymentFilters({
   setMethodFilter,
   verificationFilter,
   setVerificationFilter,
+  sortBy = "newest",
+  setSortBy,
   installmentClientFilter,
   setInstallmentClientFilter,
   installmentDueDateFilter,
@@ -118,6 +122,28 @@ export function PaymentFilters({
               className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
             />
           </div>
+
+          {/* Sort By Filter */}
+          {setSortBy && (
+            <div className="relative min-w-[170px]">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="w-full appearance-none pl-4 pr-9 py-2.5 text-sm bg-white border border-[#E2E8F0] rounded-2xl focus:outline-none focus:border-[#0481A2] text-slate-700 shadow-2xs cursor-pointer font-medium hover:border-slate-300 transition-colors"
+              >
+                <option value="newest">Sort: Newest First</option>
+                <option value="oldest">Sort: Oldest First</option>
+                <option value="name_asc">Client Name: A to Z</option>
+                <option value="name_desc">Client Name: Z to A</option>
+                <option value="amount_desc">Amount: Highest to Lowest</option>
+                <option value="amount_asc">Amount: Lowest to Highest</option>
+              </select>
+              <ChevronDown
+                size={14}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+              />
+            </div>
+          )}
         </>
       )}
 

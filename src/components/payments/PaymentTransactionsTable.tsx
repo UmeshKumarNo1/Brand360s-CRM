@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Clock, ArrowUpRight, Coins, Edit3, RotateCcw, Receipt } from "lucide-react";
+import { CheckCircle2, Clock, ArrowUpRight, Link2, ArrowRightLeft, CheckCircle, Edit3, RotateCcw, Receipt } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 
 interface PaymentTransactionsTableProps {
@@ -40,7 +40,7 @@ export function PaymentTransactionsTable({
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Reference / UTR</th>
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Recorded By</th>
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Status</th>
-              <th className="py-3 px-2 text-center w-32 font-semibold whitespace-nowrap">Actions</th>
+              <th className="py-3 px-2 text-center min-w-[140px] font-semibold whitespace-nowrap">Actions</th>
             </tr>
           </thead>
 
@@ -183,17 +183,51 @@ export function PaymentTransactionsTable({
                     {/* Actions matching reference UI: Button on row 1, icons on row 2 (eye icon removed) */}
                     <td className="py-2.5 px-2 text-center whitespace-nowrap align-middle">
                       <div className="flex flex-col items-center justify-center gap-1.5">
-                        {/* Row 1: Allocate Button */}
-                        {p.status !== "Reversed" && (
-                          <button
-                            onClick={() => onAllocatePayment(p)}
-                            className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-sky-50 text-[#0481A2] hover:bg-[#0481A2] hover:text-white border border-[#0481A2]/30 transition-all shadow-2xs cursor-pointer w-full max-w-[92px]"
-                            title="Allocate payment to client invoices"
-                          >
-                            <Coins size={12} />
-                            <span>Allocate</span>
-                          </button>
-                        )}
+                        {/* Row 1: Dynamic Allocation Status Button based on exact payment allocation state */}
+                        {p.status !== "Reversed" && (() => {
+                          const paymentAmount = Math.round((Number(p.amount) || 0) * 100) / 100;
+                          const totalAllocated = Math.round((Number(p.totalAllocated) || 0) * 100) / 100;
+                          const availableAmount = Math.max(0, Math.round((paymentAmount - totalAllocated) * 100) / 100);
+
+                          // State C: Fully Allocated
+                          if (paymentAmount > 0 && availableAmount <= 0.009) {
+                            return (
+                              <span
+                                className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-[#059669] border border-emerald-200 shadow-2xs select-none cursor-default w-full max-w-[136px]"
+                                title="Payment is fully allocated to client invoices"
+                              >
+                                <CheckCircle size={12} className="shrink-0 text-[#059669]" />
+                                <span>Allocated</span>
+                              </span>
+                            );
+                          }
+
+                          // State B: Partially Allocated
+                          if (totalAllocated > 0.009 && availableAmount > 0.009) {
+                            return (
+                              <button
+                                onClick={() => onAllocatePayment(p)}
+                                className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-[#D97706] hover:bg-[#B45309] text-white border border-[#D97706] transition-all shadow-2xs cursor-pointer w-full max-w-[136px]"
+                                title={`Partially allocated (₹${totalAllocated.toLocaleString("en-IN")}). Click to allocate remaining ₹${availableAmount.toLocaleString("en-IN")}`}
+                              >
+                                <ArrowRightLeft size={12} className="shrink-0" />
+                                <span>Allocate Remaining</span>
+                              </button>
+                            );
+                          }
+
+                          // State A: Unallocated
+                          return (
+                            <button
+                              onClick={() => onAllocatePayment(p)}
+                              className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-[#0786A5] hover:bg-[#066e88] text-white border border-[#0786A5] transition-all shadow-2xs cursor-pointer w-full max-w-[136px]"
+                              title="Allocate unallocated payment to client invoices"
+                            >
+                              <Link2 size={12} className="shrink-0" />
+                              <span>Allocate</span>
+                            </button>
+                          );
+                        })()}
 
                         {/* Row 2: Action Icons */}
                         <div className="flex items-center justify-center gap-1.5">

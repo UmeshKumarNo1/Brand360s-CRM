@@ -86,18 +86,20 @@ export async function fetchPaymentsAction() {
   }
 
   return (payments || []).map((p: any) => {
-    const totalAmount = Number(p.amount) || 0;
+    const totalAmount = Math.round((Number(p.amount) || 0) * 100) / 100;
     const allocations = p.allocations || [];
-    const totalAllocated = allocations.reduce(
-      (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
-      0
-    );
-    const availableAmount = Math.max(0, totalAmount - totalAllocated);
+    const totalAllocated = Math.round(
+      allocations.reduce(
+        (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+        0
+      ) * 100
+    ) / 100;
+    const availableAmount = Math.max(0, Math.round((totalAmount - totalAllocated) * 100) / 100);
 
     let allocationStatus: "Unallocated" | "Partially Allocated" | "Fully Allocated" = "Unallocated";
-    if (totalAllocated >= totalAmount && totalAmount > 0) {
+    if (totalAmount > 0 && availableAmount <= 0.009) {
       allocationStatus = "Fully Allocated";
-    } else if (totalAllocated > 0) {
+    } else if (totalAllocated > 0.009 && availableAmount > 0.009) {
       allocationStatus = "Partially Allocated";
     }
 
@@ -665,18 +667,20 @@ export async function fetchClientFinancialsAction(clientId: string) {
     .order("payment_date", { ascending: false });
 
   const enrichedPayments = (payments || []).map((p: any) => {
-    const totalAmount = Number(p.amount) || 0;
+    const totalAmount = Math.round((Number(p.amount) || 0) * 100) / 100;
     const allocations = p.allocations || [];
-    const totalAllocated = allocations.reduce(
-      (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
-      0
-    );
-    const availableAmount = Math.max(0, totalAmount - totalAllocated);
+    const totalAllocated = Math.round(
+      allocations.reduce(
+        (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+        0
+      ) * 100
+    ) / 100;
+    const availableAmount = Math.max(0, Math.round((totalAmount - totalAllocated) * 100) / 100);
 
     let allocationStatus: "Unallocated" | "Partially Allocated" | "Fully Allocated" = "Unallocated";
-    if (totalAllocated >= totalAmount && totalAmount > 0) {
+    if (totalAmount > 0 && availableAmount <= 0.009) {
       allocationStatus = "Fully Allocated";
-    } else if (totalAllocated > 0) {
+    } else if (totalAllocated > 0.009 && availableAmount > 0.009) {
       allocationStatus = "Partially Allocated";
     }
 
@@ -880,21 +884,32 @@ export async function allocatePaymentToInvoicesAction(
     };
   }
 
-  // 3. Compute available unallocated amount
-  const paymentTotal = Number(payment.amount) || 0;
-  const currentAllocated = (payment.existing_allocations || []).reduce(
-    (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
-    0
-  );
-  const paymentAvailable = Math.max(0, paymentTotal - currentAllocated);
+  // 3. Compute available unallocated amount with decimal precision protection
+  const paymentTotal = Math.round((Number(payment.amount) || 0) * 100) / 100;
+  const currentAllocated = Math.round(
+    (payment.existing_allocations || []).reduce(
+      (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+      0
+    ) * 100
+  ) / 100;
+  const paymentAvailable = Math.max(0, Math.round((paymentTotal - currentAllocated) * 100) / 100);
 
-  const totalNewAllocation = allocations.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+  if (paymentAvailable <= 0.009) {
+    return {
+      success: false,
+      error: "This payment is already fully allocated. No remaining unallocated balance is available.",
+    };
+  }
+
+  const totalNewAllocation = Math.round(
+    allocations.reduce((sum, a) => sum + (Number(a.amount) || 0), 0) * 100
+  ) / 100;
 
   if (totalNewAllocation <= 0) {
     return { success: false, error: "Total allocation amount must be greater than zero." };
   }
 
-  if (totalNewAllocation > paymentAvailable + 0.001) {
+  if (totalNewAllocation > paymentAvailable + 0.009) {
     return {
       success: false,
       error: `Total allocations (₹${totalNewAllocation.toLocaleString("en-IN")}) exceed available payment balance (₹${paymentAvailable.toLocaleString("en-IN")}).`,

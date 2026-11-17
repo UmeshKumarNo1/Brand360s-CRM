@@ -38,8 +38,7 @@ export function PaymentTransactionsTable({
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Date</th>
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Method</th>
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Reference / UTR</th>
-              <th className="py-3 px-2 font-semibold whitespace-nowrap">Recorded By</th>
-              <th className="py-3 px-2 font-semibold whitespace-nowrap">Status</th>
+              <th className="py-3 px-2.5 font-semibold whitespace-nowrap">Recorded By / Verification</th>
               <th className="py-3 px-2 text-center min-w-[150px] font-semibold whitespace-nowrap">Actions</th>
             </tr>
           </thead>
@@ -47,7 +46,7 @@ export function PaymentTransactionsTable({
           <tbody className="divide-y divide-slate-100 text-slate-700">
             {payments.length === 0 ? (
               <tr>
-                <td colSpan={11} className="py-10 text-center text-slate-400 text-xs sm:text-sm">
+                <td colSpan={10} className="py-10 text-center text-slate-400 text-xs sm:text-sm">
                   No payment transactions found matching your filters.
                 </td>
               </tr>
@@ -151,33 +150,34 @@ export function PaymentTransactionsTable({
                       {p.transactionRef || "-"}
                     </td>
 
-                    {/* Recorded By */}
-                    <td className="py-2.5 px-2 text-slate-600 whitespace-nowrap align-middle">
-                      {p.recordedBy || "Staff"}
-                    </td>
-
-                    {/* Status */}
-                    <td className="py-2.5 px-2 whitespace-nowrap align-middle">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                          p.status === "Verified"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : p.status === "Pending Verification"
-                            ? "bg-amber-50 text-amber-700 border-amber-200"
-                            : p.status === "Reversed"
-                            ? "bg-rose-50 text-rose-700 border-rose-200"
-                            : "bg-slate-50 text-slate-700 border-slate-200"
-                        }`}
-                      >
-                        {p.status === "Verified" ? (
-                          <CheckCircle2 size={11} className="text-emerald-600" />
-                        ) : p.status === "Reversed" ? (
-                          <RotateCcw size={11} className="text-rose-600" />
-                        ) : (
-                          <Clock size={11} className="text-amber-600" />
-                        )}
-                        <span>{p.status}</span>
-                      </span>
+                    {/* Recorded By / Verification (Combined horizontally: User Name on left, Verification status badge on right) */}
+                    <td className="py-2.5 px-2.5 whitespace-nowrap align-middle">
+                      <div className="flex items-center gap-2">
+                        <span className="text-slate-700 font-medium text-xs sm:text-[13px]">
+                          {p.recordedBy || "Staff"}
+                        </span>
+                        <span className="text-slate-300">|</span>
+                        <span
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                            p.status === "Verified"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : p.status === "Pending Verification"
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : p.status === "Reversed"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                              : "bg-slate-50 text-slate-700 border-slate-200"
+                          }`}
+                        >
+                          {p.status === "Verified" ? (
+                            <CheckCircle2 size={11} className="text-emerald-600" />
+                          ) : p.status === "Reversed" ? (
+                            <RotateCcw size={11} className="text-rose-600" />
+                          ) : (
+                            <Clock size={11} className="text-amber-600" />
+                          )}
+                          <span>{p.status}</span>
+                        </span>
+                      </div>
                     </td>
 
                     {/* Actions matching reference UI: Button on row 1, icons on row 2 (eye icon removed) */}

@@ -310,17 +310,17 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                 <col className="w-[12%]" />
               </colgroup>
               <thead>
-                <tr className="bg-[#F8FAFC] text-slate-700 border-b border-slate-200 font-semibold text-[11px] tracking-tight">
-                  <th className="py-2.5 px-2">Service</th>
-                  <th className="py-2.5 px-2">Category</th>
-                  <th className="py-2.5 px-2 text-right">Service Fee</th>
-                  <th className="py-2.5 px-2 text-right">Govt Fee</th>
+                <tr className="bg-[#243E76] text-white font-semibold text-xs tracking-wide align-middle">
+                  <th className="py-2.5 px-2 text-center">Service</th>
+                  <th className="py-2.5 px-2 text-center">Category</th>
+                  <th className="py-2.5 px-2 text-center">Service Fee</th>
+                  <th className="py-2.5 px-2 text-center">Govt Fee</th>
                   <th className="py-2.5 px-2 text-center">Status</th>
                   <th className="py-2.5 px-2 text-center">Documents</th>
                   <th className="py-2.5 px-2 text-center">Renewal Status</th>
-                  <th className="py-2.5 px-2">Vendor / Outsourcing</th>
-                  <th className="py-2.5 px-2">Expected Date</th>
-                  <th className="py-2.5 px-2 text-right">Actions</th>
+                  <th className="py-2.5 px-2 text-center">Vendor / Outsourcing</th>
+                  <th className="py-2.5 px-2 text-center">Expected Date</th>
+                  <th className="py-2.5 px-2 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">

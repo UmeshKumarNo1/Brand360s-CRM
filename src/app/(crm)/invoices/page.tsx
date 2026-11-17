@@ -210,24 +210,24 @@ export default function InvoicesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm border-collapse">
               <thead>
-                <tr className="bg-[#F1F5F9] text-[#1E293B] border-b border-[#E2E8F0] font-semibold text-[13px]">
-                  <th className="py-3 px-4">Invoice #</th>
-                  <th className="py-3 px-4">Client</th>
-                  <th className="py-3 px-4">Invoice Date</th>
-                  <th className="py-3 px-4">Due Date</th>
-                  <th className="py-3 px-4 text-right">Taxable</th>
-                  <th className="py-3 px-4 text-right">GST</th>
-                  <th className="py-3 px-4 text-right">Total</th>
-                  <th className="py-3 px-4 text-right">Paid</th>
-                  <th className="py-3 px-4 text-right">Balance</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide align-middle">
+                  <th className="py-3 px-3 text-center">Invoice #</th>
+                  <th className="py-3 px-3 text-center">Client</th>
+                  <th className="py-3 px-3 text-center">Invoice Date</th>
+                  <th className="py-3 px-3 text-center">Due Date</th>
+                  <th className="py-3 px-3 text-center">Taxable</th>
+                  <th className="py-3 px-3 text-center">GST</th>
+                  <th className="py-3 px-3 text-center">Total</th>
+                  <th className="py-3 px-3 text-center">Paid</th>
+                  <th className="py-3 px-3 text-center">Balance</th>
+                  <th className="py-3 px-3 text-center">Status</th>
+                  <th className="py-3 px-3 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F1F5F9] text-slate-700">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center text-slate-400 text-xs">
+                    <td colSpan={11} className="py-12 text-center text-slate-400 text-xs">
                       <div className="flex items-center justify-center gap-2">
                         <RefreshCw size={14} className="animate-spin text-[#0481A2]" />
                         <span>Loading invoices...</span>
@@ -236,7 +236,7 @@ export default function InvoicesPage() {
                   </tr>
                 ) : filteredInvoices.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="py-10 text-center text-slate-400 text-xs">
+                    <td colSpan={11} className="py-10 text-center text-slate-400 text-xs">
                       No invoices found. Click &quot;Generate Invoice&quot; to issue a bill.
                     </td>
                   </tr>

@@ -61,13 +61,13 @@ export function InstallmentSchedulesTable({
           {/* Navy Blue Table Header matching ClientsTable */}
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold text-xs tracking-wide">
-              <th className="py-2.5 px-2 font-semibold text-left">Client</th>
-              <th className="py-2.5 px-1.5 font-semibold text-left whitespace-nowrap">Linked Invoice</th>
-              <th className="py-2.5 px-1.5 font-semibold text-left">Milestone</th>
-              <th className="py-2.5 px-1.5 text-right font-semibold whitespace-nowrap">Expected Amount</th>
-              <th className="py-2.5 px-1.5 text-right font-semibold whitespace-nowrap">Received Amount</th>
-              <th className="py-2.5 px-1.5 text-right font-semibold whitespace-nowrap">Outstanding Balance</th>
-              <th className="py-2.5 px-1.5 font-semibold text-left whitespace-nowrap">Due Date</th>
+              <th className="py-2.5 px-2 font-semibold text-center">Client</th>
+              <th className="py-2.5 px-1.5 font-semibold text-center whitespace-nowrap">Linked Invoice</th>
+              <th className="py-2.5 px-1.5 font-semibold text-center">Milestone</th>
+              <th className="py-2.5 px-1.5 text-center font-semibold whitespace-nowrap">Expected Amount</th>
+              <th className="py-2.5 px-1.5 text-center font-semibold whitespace-nowrap">Received Amount</th>
+              <th className="py-2.5 px-1.5 text-center font-semibold whitespace-nowrap">Outstanding Balance</th>
+              <th className="py-2.5 px-1.5 font-semibold text-center whitespace-nowrap">Due Date</th>
               <th className="py-2.5 px-1.5 font-semibold text-center whitespace-nowrap">Status</th>
               <th className="py-2.5 px-2.5 text-center min-w-[120px] font-semibold whitespace-nowrap">Actions</th>
             </tr>

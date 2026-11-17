@@ -97,14 +97,14 @@ export function ReportsContentTabs({
               <span className="text-xs text-slate-400">Past 6 Months Overview</span>
             </div>
             <div className="overflow-x-auto xl:overflow-x-visible min-w-[700px] xl:min-w-full">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-[#243E76] text-white font-semibold">
-                    <th className="py-3 px-4">Billing Month</th>
-                    <th className="py-3 px-4">Total Invoiced</th>
-                    <th className="py-3 px-4">Payments Collected</th>
-                    <th className="py-3 px-4">Outstanding Variance</th>
-                    <th className="py-3 px-4 text-right">Collection Rate</th>
+                    <th className="py-3 px-4 text-center">Billing Month</th>
+                    <th className="py-3 px-4 text-center">Total Invoiced</th>
+                    <th className="py-3 px-4 text-center">Payments Collected</th>
+                    <th className="py-3 px-4 text-center">Outstanding Variance</th>
+                    <th className="py-3 px-4 text-center">Collection Rate</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -142,14 +142,14 @@ export function ReportsContentTabs({
               <span className="text-xs text-slate-400">Total Client Trajectory</span>
             </div>
             <div className="overflow-x-auto xl:overflow-x-visible min-w-[700px] xl:min-w-full">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-[#243E76] text-white font-semibold">
-                    <th className="py-3 px-4">Period</th>
-                    <th className="py-3 px-4">Active Accounts</th>
-                    <th className="py-3 px-4">Archived Accounts</th>
-                    <th className="py-3 px-4">Total Accounts Registered</th>
-                    <th className="py-3 px-4 text-right">Active Ratio</th>
+                    <th className="py-3 px-4 text-center">Period</th>
+                    <th className="py-3 px-4 text-center">Active Accounts</th>
+                    <th className="py-3 px-4 text-center">Archived Accounts</th>
+                    <th className="py-3 px-4 text-center">Total Accounts Registered</th>
+                    <th className="py-3 px-4 text-center">Active Ratio</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -185,15 +185,15 @@ export function ReportsContentTabs({
               <span className="text-xs text-slate-400">Individual Performance Metrics</span>
             </div>
             <div className="overflow-x-auto xl:overflow-x-visible min-w-[700px] xl:min-w-full">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-[#243E76] text-white font-semibold">
-                    <th className="py-3 px-4">Employee</th>
-                    <th className="py-3 px-4">Clients Managed</th>
-                    <th className="py-3 px-4">Total Contract Value</th>
-                    <th className="py-3 px-4">Revenue Collected</th>
-                    <th className="py-3 px-4">Follow-ups Logged</th>
-                    <th className="py-3 px-4 text-right">Collection Efficiency</th>
+                    <th className="py-3 px-4 text-center">Employee</th>
+                    <th className="py-3 px-4 text-center">Clients Managed</th>
+                    <th className="py-3 px-4 text-center">Total Contract Value</th>
+                    <th className="py-3 px-4 text-center">Revenue Collected</th>
+                    <th className="py-3 px-4 text-center">Follow-ups Logged</th>
+                    <th className="py-3 px-4 text-center">Collection Efficiency</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -232,15 +232,15 @@ export function ReportsContentTabs({
               <span className="text-xs text-slate-400">All Client Services Breakdown</span>
             </div>
             <div className="overflow-x-auto xl:overflow-x-visible min-w-[700px] xl:min-w-full">
-              <table className="w-full text-left text-xs border-collapse">
+              <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-[#243E76] text-white font-semibold">
-                    <th className="py-3 px-4">Service Name</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4">Active Jobs</th>
-                    <th className="py-3 px-4">Completed</th>
-                    <th className="py-3 px-4">Renewals Due</th>
-                    <th className="py-3 px-4 text-right">Cumulative Value</th>
+                    <th className="py-3 px-4 text-center">Service Name</th>
+                    <th className="py-3 px-4 text-center">Category</th>
+                    <th className="py-3 px-4 text-center">Active Jobs</th>
+                    <th className="py-3 px-4 text-center">Completed</th>
+                    <th className="py-3 px-4 text-center">Renewals Due</th>
+                    <th className="py-3 px-4 text-center">Cumulative Value</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

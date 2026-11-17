@@ -120,12 +120,12 @@ export function RenewalsTable({
         <table className="w-full text-left text-xs border-collapse">
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold">
-              <th className="py-2.5 px-3 font-semibold text-xs tracking-wider text-left">Client</th>
-              <th className="py-2.5 px-3 font-semibold text-xs tracking-wider text-left">Service</th>
-              <th className="py-2.5 px-2 font-semibold text-xs tracking-wider text-left whitespace-nowrap">Previous Expiry</th>
-              <th className="py-2.5 px-2 font-semibold text-xs tracking-wider text-left whitespace-nowrap">Renewal Start</th>
-              <th className="py-2.5 px-2 font-semibold text-xs tracking-wider text-left whitespace-nowrap">Renewal End</th>
-              <th className="py-2.5 px-2 text-right font-semibold text-xs tracking-wider whitespace-nowrap">Amount</th>
+              <th className="py-2.5 px-3 font-semibold text-xs tracking-wider text-center">Client</th>
+              <th className="py-2.5 px-3 font-semibold text-xs tracking-wider text-center">Service</th>
+              <th className="py-2.5 px-2 font-semibold text-xs tracking-wider text-center whitespace-nowrap">Previous Expiry</th>
+              <th className="py-2.5 px-2 font-semibold text-xs tracking-wider text-center whitespace-nowrap">Renewal Start</th>
+              <th className="py-2.5 px-2 font-semibold text-xs tracking-wider text-center whitespace-nowrap">Renewal End</th>
+              <th className="py-2.5 px-2 text-center font-semibold text-xs tracking-wider whitespace-nowrap">Amount</th>
               <th className="py-2.5 px-2 text-center font-semibold text-xs tracking-wider whitespace-nowrap">Payment</th>
               <th className="py-2.5 px-2 text-center font-semibold text-xs tracking-wider whitespace-nowrap">Status</th>
               <th className="py-2.5 px-3 font-semibold text-xs tracking-wider text-center whitespace-nowrap">Actions</th>

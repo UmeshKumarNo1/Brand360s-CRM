@@ -1346,7 +1346,7 @@ export async function reversePaymentAction(params: ReversePaymentParams): Promis
     return { success: false, error: "This payment has already been reversed." };
   }
 
-  // 2. Check RBAC permissions
+  // 2. Check RBAC permissions: Restrict payment reversal strictly to authorized administrators
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
@@ -1355,12 +1355,12 @@ export async function reversePaymentAction(params: ReversePaymentParams): Promis
 
   const isAdmin = profile?.role === "admin";
   const clientData: any = payment.client;
-  const isAssigned =
-    clientData &&
-    (clientData.assigned_salesperson === user.id || clientData.created_by === user.id);
 
-  if (!isAdmin && !isAssigned) {
-    return { success: false, error: "Unauthorized to reverse payments for this client." };
+  if (!isAdmin) {
+    return {
+      success: false,
+      error: "Permission denied: Only authorized administrators can reverse payment transactions.",
+    };
   }
 
   // 3. Execute atomic RPC

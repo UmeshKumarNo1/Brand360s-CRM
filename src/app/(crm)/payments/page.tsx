@@ -7,6 +7,7 @@ import {
   fetchAllInstallmentsAction,
   deleteInstallmentAction,
 } from "@/app/actions/payments";
+import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { PaymentsHeader } from "@/components/payments/PaymentsHeader";
 import { PaymentStatsCards } from "@/components/payments/PaymentStatsCards";
 import { PaymentFilters } from "@/components/payments/PaymentFilters";
@@ -35,6 +36,7 @@ export default function PaymentsPage() {
   const [isPaymentsLoading, setIsPaymentsLoading] = useState(true);
   const [isInstallmentsLoading, setIsInstallmentsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -123,6 +125,11 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     loadData();
+    getCurrentUserProfileAction().then((p) => {
+      if (p?.role === "admin") {
+        setIsAdmin(true);
+      }
+    });
   }, [loadData]);
 
   // Financial Metrics
@@ -421,6 +428,7 @@ export default function PaymentsPage() {
             onEditPayment={(p) => setEditingPayment(p)}
             onReversePayment={(p) => setReversingPayment(p)}
             onViewReceipt={(p) => setViewingReceiptPayment(p)}
+            isAdmin={isAdmin}
           />
 
           {!isPaymentsLoading && filteredPayments.length > 0 && (

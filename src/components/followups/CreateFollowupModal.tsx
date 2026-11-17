@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useRef } from "react";
 import { CheckSquare, X, Loader2, Calendar, Clock, AlertTriangle, User, Phone, Bell } from "lucide-react";
 import { createFollowupAction, updateFollowupAction } from "@/app/actions/followups";
 import { fetchClientsAction, fetchSalespeopleAction } from "@/app/actions/clients";
@@ -48,6 +48,7 @@ export function CreateFollowupModal({
   const isEdit = mode === "edit" && !!initialData?.id;
   const actionToUse = isEdit ? updateFollowupAction : createFollowupAction;
   const [state, formAction, isPending] = useActionState(actionToUse, null);
+  const handledStateRef = useRef<any>(null);
 
   const [clients, setClients] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
@@ -86,17 +87,28 @@ export function CreateFollowupModal({
 
   // Handle successful submission
   useEffect(() => {
-    if (state?.success) {
+    if (!state || handledStateRef.current === state) return;
+
+    if (state.success) {
+      handledStateRef.current = state;
       success(
         isEdit ? "Follow-up Updated" : "Follow-up Created",
         isEdit ? "Changes saved successfully." : "New reminder task added."
       );
       onSuccess();
       onClose();
-    } else if (state?.error) {
+    } else if (state.error) {
+      handledStateRef.current = state;
       toastError("Failed to save follow-up", state.error);
     }
   }, [state, isEdit, success, toastError, onSuccess, onClose]);
+
+  // Reset handled state when modal opens or closes
+  useEffect(() => {
+    if (!isOpen) {
+      handledStateRef.current = null;
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

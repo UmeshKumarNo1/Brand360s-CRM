@@ -21,8 +21,11 @@ export function ClientFollowupsTab({ clientId, clientName }: ClientFollowupsTabP
 
   const { success, error: toastError } = useToast();
   const requestIdRef = useRef(0);
+  const inFlightRef = useRef(false);
 
   const loadData = useCallback(async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     const currentReqId = ++requestIdRef.current;
     setIsLoading(true);
     setErrorMessage(null);
@@ -37,11 +40,29 @@ export function ClientFollowupsTab({ clientId, clientName }: ClientFollowupsTabP
         setErrorMessage(err.message || "Failed to load client follow-ups.");
       }
     } finally {
+      inFlightRef.current = false;
       if (currentReqId === requestIdRef.current) {
         setIsLoading(false);
       }
     }
   }, [clientId]);
+
+  const handleModalClose = useCallback(() => {
+    setIsModalOpen(false);
+  }, []);
+
+  const handleModalSuccess = useCallback(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleEditModalClose = useCallback(() => {
+    setEditingFollowup(null);
+  }, []);
+
+  const handleEditModalSuccess = useCallback(() => {
+    setEditingFollowup(null);
+    loadData();
+  }, [loadData]);
 
   useEffect(() => {
     loadData();
@@ -219,8 +240,8 @@ export function ClientFollowupsTab({ clientId, clientName }: ClientFollowupsTabP
 
       <CreateFollowupModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={() => loadData()}
+        onClose={handleModalClose}
+        onSuccess={handleModalSuccess}
         defaultClientId={clientId}
         defaultClientName={clientName}
       />
@@ -230,11 +251,8 @@ export function ClientFollowupsTab({ clientId, clientName }: ClientFollowupsTabP
           isOpen={!!editingFollowup}
           mode="edit"
           initialData={editingFollowup}
-          onClose={() => setEditingFollowup(null)}
-          onSuccess={() => {
-            setEditingFollowup(null);
-            loadData();
-          }}
+          onClose={handleEditModalClose}
+          onSuccess={handleEditModalSuccess}
           defaultClientId={clientId}
           defaultClientName={clientName}
         />

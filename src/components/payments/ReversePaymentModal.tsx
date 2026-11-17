@@ -35,8 +35,9 @@ export function ReversePaymentModal({
 }: ReversePaymentModalProps) {
   const { success, error: toastError } = useToast();
 
-  const [reason, setReason] = useState("");
-  const [confirmed, setConfirmed] = useState(false);
+  const [reasonCategory, setReasonCategory] = useState("Duplicate payment entry");
+  const [customExplanation, setCustomExplanation] = useState("");
+  const [confirmText, setConfirmText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -44,18 +45,27 @@ export function ReversePaymentModal({
 
   const allocations = payment.allocations || [];
   const totalAllocated = payment.totalAllocated || 0;
+  const unallocatedAmount = Math.max(0, (payment.amount || 0) - totalAllocated);
+  const isConfirmMatch = confirmText.trim() === "REVERSE";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
 
-    if (!reason.trim()) {
-      setErrorMessage("A detailed reversal reason is mandatory.");
+    const finalReason =
+      reasonCategory === "Other"
+        ? customExplanation.trim()
+        : customExplanation.trim()
+        ? `${reasonCategory}: ${customExplanation.trim()}`
+        : reasonCategory;
+
+    if (!finalReason.trim() || (reasonCategory === "Other" && !customExplanation.trim())) {
+      setErrorMessage("Please specify a clear explanation for the reversal.");
       return;
     }
 
-    if (!confirmed) {
-      setErrorMessage("Please confirm that you understand the financial impact of this reversal.");
+    if (!isConfirmMatch) {
+      setErrorMessage('Please type "REVERSE" exactly to confirm payment reversal.');
       return;
     }
 
@@ -63,7 +73,7 @@ export function ReversePaymentModal({
     try {
       const res = await reversePaymentAction({
         paymentId: payment.id,
-        reason: reason.trim(),
+        reason: finalReason.trim(),
       });
 
       if (res.success) {
@@ -146,6 +156,20 @@ export function ReversePaymentModal({
               <span>Method / UTR:</span>
               <span className="font-mono text-slate-700">{payment.paymentMethod} • {payment.transactionRef || "-"}</span>
             </div>
+            <div className="flex justify-between items-center text-slate-600">
+              <span>Current Status:</span>
+              <span className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 text-[11px]">
+                {payment.status}
+              </span>
+            </div>
+            <div className="flex justify-between items-center text-slate-600 pt-1 border-t border-slate-200/80">
+              <span>Allocated Amount:</span>
+              <span className="font-bold text-slate-800 font-number">{formatINR(totalAllocated)}</span>
+            </div>
+            <div className="flex justify-between items-center text-slate-600">
+              <span>Unallocated Balance:</span>
+              <span className="font-bold text-slate-800 font-number">{formatINR(unallocatedAmount)}</span>
+            </div>
           </div>
 
           {/* Associated Invoices Preview */}
@@ -174,34 +198,49 @@ export function ReversePaymentModal({
             </div>
           )}
 
-          {/* Reversal Reason */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Reversal Reason <span className="text-rose-500">*</span>
+          {/* Reversal Reason Category & Explanation */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-slate-700">
+              Mandatory Reversal Reason <span className="text-rose-500">*</span>
             </label>
-            <textarea
-              required
-              rows={2}
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="State why this payment is being reversed (e.g. cheque bounce, duplicate entry, client request)..."
+            <select
+              value={reasonCategory}
+              onChange={(e) => setReasonCategory(e.target.value)}
               className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-800 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
-            />
+            >
+              <option value="Duplicate payment entry">Duplicate payment entry</option>
+              <option value="Incorrect payment amount">Incorrect payment amount</option>
+              <option value="Wrong client">Wrong client</option>
+              <option value="Incorrect payment method">Incorrect payment method</option>
+              <option value="Payment entered by mistake">Payment entered by mistake</option>
+              <option value="Other">Other (require explanation)</option>
+            </select>
+
+            {reasonCategory === "Other" && (
+              <textarea
+                required
+                rows={2}
+                value={customExplanation}
+                onChange={(e) => setCustomExplanation(e.target.value)}
+                placeholder="Please describe why this payment is being reversed..."
+                className="w-full px-3.5 py-2 bg-white border border-slate-200 rounded-xl text-slate-800 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+              />
+            )}
           </div>
 
-          {/* Confirmation Checkbox */}
-          <div className="pt-1">
-            <label className="flex items-start gap-2.5 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={confirmed}
-                onChange={(e) => setConfirmed(e.target.checked)}
-                className="mt-0.5 rounded border-slate-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
-              />
-              <span className="text-xs text-slate-600 leading-snug">
-                I confirm that I want to reverse this transaction of <strong>{formatINR(payment.amount)}</strong>.
-              </span>
+          {/* Type-to-Confirm Protection */}
+          <div className="space-y-1.5 pt-1">
+            <label className="block text-xs font-semibold text-slate-700">
+              To confirm reversal, type <span className="font-bold select-all text-rose-700 font-mono">REVERSE</span> below: <span className="text-rose-500">*</span>
             </label>
+            <input
+              type="text"
+              required
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="REVERSE"
+              className="w-full px-3.5 py-2 border border-slate-300 rounded-xl text-xs sm:text-sm font-mono tracking-wider uppercase text-slate-900 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+            />
           </div>
 
           {/* Actions */}
@@ -216,10 +255,14 @@ export function ReversePaymentModal({
             </button>
             <button
               type="submit"
-              disabled={isSubmitting || !confirmed || !reason.trim()}
-              className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+              disabled={
+                isSubmitting ||
+                !isConfirmMatch ||
+                (reasonCategory === "Other" && !customExplanation.trim())
+              }
+              className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isSubmitting ? "Reversing..." : "Confirm Reversal"}
+              {isSubmitting ? "Reversing Payment..." : "Reverse Payment"}
             </button>
           </div>
         </form>

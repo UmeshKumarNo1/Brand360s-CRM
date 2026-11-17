@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Clock, ArrowUpRight, Coins, Edit3, RotateCcw, Receipt } from "lucide-react";
+import { CheckCircle2, Clock, ArrowUpRight, Link2, ArrowRightLeft, CheckCircle, Edit3, RotateCcw, Receipt, FileText } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 
 interface PaymentTransactionsTableProps {
@@ -40,7 +40,7 @@ export function PaymentTransactionsTable({
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Reference / UTR</th>
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Recorded By</th>
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Status</th>
-              <th className="py-3 px-2 text-center w-32 font-semibold whitespace-nowrap">Actions</th>
+              <th className="py-3 px-2 text-center min-w-[150px] font-semibold whitespace-nowrap">Actions</th>
             </tr>
           </thead>
 
@@ -183,60 +183,140 @@ export function PaymentTransactionsTable({
                     {/* Actions matching reference UI: Button on row 1, icons on row 2 (eye icon removed) */}
                     <td className="py-2.5 px-2 text-center whitespace-nowrap align-middle">
                       <div className="flex flex-col items-center justify-center gap-1.5">
-                        {/* Row 1: Allocate Button */}
-                        {p.status !== "Reversed" && (
-                          <button
-                            onClick={() => onAllocatePayment(p)}
-                            className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-sky-50 text-[#0481A2] hover:bg-[#0481A2] hover:text-white border border-[#0481A2]/30 transition-all shadow-2xs cursor-pointer w-full max-w-[92px]"
-                            title="Allocate payment to client invoices"
-                          >
-                            <Coins size={12} />
-                            <span>Allocate</span>
-                          </button>
-                        )}
+                        {/* Row 1: Dynamic Allocation Status Button based on exact payment allocation state */}
+                        {p.status !== "Reversed" && (() => {
+                          const paymentAmount = Math.round((Number(p.amount) || 0) * 100) / 100;
+                          const totalAllocated = Math.round((Number(p.totalAllocated) || 0) * 100) / 100;
+                          const availableAmount = Math.max(0, Math.round((paymentAmount - totalAllocated) * 100) / 100);
 
-                        {/* Row 2: Action Icons */}
+                          // State C: Fully Allocated
+                          if (paymentAmount > 0 && availableAmount <= 0.009) {
+                            return (
+                              <span
+                                className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-[#059669] border border-emerald-200 shadow-2xs select-none cursor-default w-full max-w-[136px]"
+                                title="Payment is fully allocated to client invoices"
+                              >
+                                <CheckCircle size={12} className="shrink-0 text-[#059669]" />
+                                <span>Allocated</span>
+                              </span>
+                            );
+                          }
+
+                          // State B: Partially Allocated
+                          if (totalAllocated > 0.009 && availableAmount > 0.009) {
+                            return (
+                              <button
+                                onClick={() => onAllocatePayment(p)}
+                                className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-[#D97706] hover:bg-[#B45309] text-white border border-[#D97706] transition-all shadow-2xs cursor-pointer w-full max-w-[136px]"
+                                title={`Partially allocated (₹${totalAllocated.toLocaleString("en-IN")}). Click to allocate remaining ₹${availableAmount.toLocaleString("en-IN")}`}
+                              >
+                                <ArrowRightLeft size={12} className="shrink-0" />
+                                <span>Allocate Remaining</span>
+                              </button>
+                            );
+                          }
+
+                          // State A: Unallocated
+                          return (
+                            <button
+                              onClick={() => onAllocatePayment(p)}
+                              className="inline-flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-[#0786A5] hover:bg-[#066e88] text-white border border-[#0786A5] transition-all shadow-2xs cursor-pointer w-full max-w-[136px]"
+                              title="Allocate unallocated payment to client invoices"
+                            >
+                              <Link2 size={12} className="shrink-0" />
+                              <span>Allocate</span>
+                            </button>
+                          );
+                        })()}
+
+                        {/* Row 2: Action Icons with consistent colors and tooltips */}
                         <div className="flex items-center justify-center gap-1.5">
-                          {/* Receipt Action */}
+                          {/* 1. View Payment Receipt — Blue icon (#077EA1 / #0481A2) */}
                           {onViewReceipt && (
                             <button
                               onClick={() => onViewReceipt(p)}
-                              className="p-1 rounded-md text-slate-400 hover:text-[#077EA1] hover:bg-sky-50 transition-colors cursor-pointer"
+                              className="p-1 rounded-md text-[#077EA1] hover:text-[#046582] hover:bg-sky-50 transition-colors cursor-pointer"
                               title="View / Download Payment Receipt"
+                              aria-label="View Payment Receipt"
                             >
                               <Receipt size={14} />
                             </button>
                           )}
 
-                          {/* Edit Action: Only for Unallocated and non-reversed payments */}
+                          {/* 2. View Linked Invoice — Green icon (#059669) */}
+                          {linkedAllocations.length > 0 ? (
+                            <button
+                              onClick={() => {
+                                const firstInv = linkedAllocations[0];
+                                const invId = firstInv.invoice?.id || firstInv.invoice_id;
+                                if (invId) onPreviewInvoice(invId);
+                              }}
+                              className="p-1 rounded-md text-[#059669] hover:text-[#047857] hover:bg-emerald-50 transition-colors cursor-pointer"
+                              title={
+                                linkedAllocations.length === 1
+                                  ? `View Linked Invoice (${linkedAllocations[0].invoice?.invoice_number || linkedAllocations[0].invoice_number || "Invoice"})`
+                                  : `View Linked Invoice (1 of ${linkedAllocations.length} linked invoices)`
+                              }
+                              aria-label="View Linked Invoice"
+                            >
+                              <FileText size={14} />
+                            </button>
+                          ) : (
+                            <span
+                              className="p-1 rounded-md text-slate-300 cursor-not-allowed inline-flex items-center"
+                              title="No linked invoice for this payment"
+                              aria-label="No linked invoice"
+                            >
+                              <FileText size={14} />
+                            </span>
+                          )}
+
+                          {/* 3. Edit Payment — Amber icon (#D97706) */}
                           {p.status !== "Reversed" && onEditPayment && (
                             p.totalAllocated > 0 ? (
                               <span
                                 className="p-1 rounded-md text-slate-300 cursor-not-allowed inline-flex items-center"
-                                title="Cannot edit: payment is already partially or fully allocated to invoices. To modify, reverse the payment."
+                                title="Cannot edit financial fields: payment is already allocated to invoices. To modify, reverse the payment."
+                                aria-label="Edit restricted: allocated payment"
                               >
                                 <Edit3 size={14} />
                               </span>
                             ) : (
                               <button
                                 onClick={() => onEditPayment(p)}
-                                className="p-1 rounded-md text-slate-400 hover:text-[#243E76] hover:bg-slate-100 transition-colors cursor-pointer"
+                                className="p-1 rounded-md text-[#D97706] hover:text-[#B45309] hover:bg-amber-50 transition-colors cursor-pointer"
                                 title="Edit Unallocated Payment"
+                                aria-label="Edit Unallocated Payment"
                               >
                                 <Edit3 size={14} />
                               </button>
                             )
                           )}
 
-                          {/* Reverse Action: Available for eligible non-reversed payments */}
+                          {/* 4. Reverse Payment — Red icon (#E11D48 / #DC2626) - Restricted to Admins */}
                           {p.status !== "Reversed" && onReversePayment && (
-                            <button
-                              onClick={() => onReversePayment(p)}
-                              className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-                              title={p.totalAllocated > 0 ? "Reverse Payment & Revert Linked Allocations" : "Reverse Payment"}
-                            >
-                              <RotateCcw size={14} />
-                            </button>
+                            isAdmin ? (
+                              <button
+                                onClick={() => onReversePayment(p)}
+                                className="p-1 rounded-md text-[#E11D48] hover:text-[#BE123C] hover:bg-rose-50 transition-colors cursor-pointer"
+                                title={
+                                  p.totalAllocated > 0
+                                    ? "Reverse Payment & Rollback Linked Invoice Allocations (Admin Only)"
+                                    : "Reverse Payment (Admin Only)"
+                                }
+                                aria-label="Reverse Payment"
+                              >
+                                <RotateCcw size={14} />
+                              </button>
+                            ) : (
+                              <span
+                                className="p-1 rounded-md text-slate-300 cursor-not-allowed inline-flex items-center"
+                                title="Payment reversal is strictly restricted to authorized administrators"
+                                aria-label="Reversal restricted to Administrators"
+                              >
+                                <RotateCcw size={14} />
+                              </span>
+                            )
                           )}
                         </div>
                       </div>

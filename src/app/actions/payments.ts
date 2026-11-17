@@ -86,18 +86,20 @@ export async function fetchPaymentsAction() {
   }
 
   return (payments || []).map((p: any) => {
-    const totalAmount = Number(p.amount) || 0;
+    const totalAmount = Math.round((Number(p.amount) || 0) * 100) / 100;
     const allocations = p.allocations || [];
-    const totalAllocated = allocations.reduce(
-      (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
-      0
-    );
-    const availableAmount = Math.max(0, totalAmount - totalAllocated);
+    const totalAllocated = Math.round(
+      allocations.reduce(
+        (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+        0
+      ) * 100
+    ) / 100;
+    const availableAmount = Math.max(0, Math.round((totalAmount - totalAllocated) * 100) / 100);
 
     let allocationStatus: "Unallocated" | "Partially Allocated" | "Fully Allocated" = "Unallocated";
-    if (totalAllocated >= totalAmount && totalAmount > 0) {
+    if (totalAmount > 0 && availableAmount <= 0.009) {
       allocationStatus = "Fully Allocated";
-    } else if (totalAllocated > 0) {
+    } else if (totalAllocated > 0.009 && availableAmount > 0.009) {
       allocationStatus = "Partially Allocated";
     }
 
@@ -665,18 +667,20 @@ export async function fetchClientFinancialsAction(clientId: string) {
     .order("payment_date", { ascending: false });
 
   const enrichedPayments = (payments || []).map((p: any) => {
-    const totalAmount = Number(p.amount) || 0;
+    const totalAmount = Math.round((Number(p.amount) || 0) * 100) / 100;
     const allocations = p.allocations || [];
-    const totalAllocated = allocations.reduce(
-      (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
-      0
-    );
-    const availableAmount = Math.max(0, totalAmount - totalAllocated);
+    const totalAllocated = Math.round(
+      allocations.reduce(
+        (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+        0
+      ) * 100
+    ) / 100;
+    const availableAmount = Math.max(0, Math.round((totalAmount - totalAllocated) * 100) / 100);
 
     let allocationStatus: "Unallocated" | "Partially Allocated" | "Fully Allocated" = "Unallocated";
-    if (totalAllocated >= totalAmount && totalAmount > 0) {
+    if (totalAmount > 0 && availableAmount <= 0.009) {
       allocationStatus = "Fully Allocated";
-    } else if (totalAllocated > 0) {
+    } else if (totalAllocated > 0.009 && availableAmount > 0.009) {
       allocationStatus = "Partially Allocated";
     }
 
@@ -880,21 +884,32 @@ export async function allocatePaymentToInvoicesAction(
     };
   }
 
-  // 3. Compute available unallocated amount
-  const paymentTotal = Number(payment.amount) || 0;
-  const currentAllocated = (payment.existing_allocations || []).reduce(
-    (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
-    0
-  );
-  const paymentAvailable = Math.max(0, paymentTotal - currentAllocated);
+  // 3. Compute available unallocated amount with decimal precision protection
+  const paymentTotal = Math.round((Number(payment.amount) || 0) * 100) / 100;
+  const currentAllocated = Math.round(
+    (payment.existing_allocations || []).reduce(
+      (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+      0
+    ) * 100
+  ) / 100;
+  const paymentAvailable = Math.max(0, Math.round((paymentTotal - currentAllocated) * 100) / 100);
 
-  const totalNewAllocation = allocations.reduce((sum, a) => sum + (Number(a.amount) || 0), 0);
+  if (paymentAvailable <= 0.009) {
+    return {
+      success: false,
+      error: "This payment is already fully allocated. No remaining unallocated balance is available.",
+    };
+  }
+
+  const totalNewAllocation = Math.round(
+    allocations.reduce((sum, a) => sum + (Number(a.amount) || 0), 0) * 100
+  ) / 100;
 
   if (totalNewAllocation <= 0) {
     return { success: false, error: "Total allocation amount must be greater than zero." };
   }
 
-  if (totalNewAllocation > paymentAvailable + 0.001) {
+  if (totalNewAllocation > paymentAvailable + 0.009) {
     return {
       success: false,
       error: `Total allocations (₹${totalNewAllocation.toLocaleString("en-IN")}) exceed available payment balance (₹${paymentAvailable.toLocaleString("en-IN")}).`,
@@ -1331,7 +1346,7 @@ export async function reversePaymentAction(params: ReversePaymentParams): Promis
     return { success: false, error: "This payment has already been reversed." };
   }
 
-  // 2. Check RBAC permissions
+  // 2. Check RBAC permissions: Restrict payment reversal strictly to authorized administrators
   const { data: profile } = await supabase
     .from("profiles")
     .select("role")
@@ -1340,12 +1355,12 @@ export async function reversePaymentAction(params: ReversePaymentParams): Promis
 
   const isAdmin = profile?.role === "admin";
   const clientData: any = payment.client;
-  const isAssigned =
-    clientData &&
-    (clientData.assigned_salesperson === user.id || clientData.created_by === user.id);
 
-  if (!isAdmin && !isAssigned) {
-    return { success: false, error: "Unauthorized to reverse payments for this client." };
+  if (!isAdmin) {
+    return {
+      success: false,
+      error: "Permission denied: Only authorized administrators can reverse payment transactions.",
+    };
   }
 
   // 3. Execute atomic RPC
@@ -1415,7 +1430,13 @@ export async function reversePaymentAction(params: ReversePaymentParams): Promis
     }
   }
 
-  // 4. Record Audit Log
+  // 4. Record Audit Log with complete financial values, linked invoices, and audit metadata
+  const linkedInvoiceIds = (payment.allocations || []).map((a: any) => a.invoice_id).filter(Boolean);
+  const totalAllocatedAmount = (payment.allocations || []).reduce(
+    (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+    0
+  );
+
   await recordAuditLog({
     actorId: user.id,
     action: "VOID",
@@ -1423,9 +1444,16 @@ export async function reversePaymentAction(params: ReversePaymentParams): Promis
     entityId: params.paymentId,
     entityName: clientData?.company_name || "Payment",
     details: {
+      original_payment_id: params.paymentId,
       client_id: payment.client_id,
-      payment_amount: payment.amount,
+      client_name: clientData?.company_name,
+      original_payment_amount: payment.amount,
+      allocated_amount: totalAllocatedAmount,
+      unallocated_amount: Math.max(0, (Number(payment.amount) || 0) - totalAllocatedAmount),
       reversal_reason: params.reason.trim(),
+      reversed_by: user.id,
+      reversal_timestamp: new Date().toISOString(),
+      linked_invoice_ids: linkedInvoiceIds,
       previous_status: payment.status,
       new_status: "Reversed",
       reversed_allocations_count: payment.allocations?.length || 0,

@@ -36,13 +36,13 @@ export function InvoiceAllocationsTable({
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide">
               <th className="py-3.5 px-3.5 w-12 text-center font-semibold">No.</th>
-              <th className="py-3.5 px-3.5 font-semibold">Client</th>
-              <th className="py-3.5 px-3 font-semibold">Invoice Number</th>
-              <th className="py-3.5 px-3 text-right font-semibold whitespace-nowrap">Allocated Amount</th>
-              <th className="py-3.5 px-3 font-semibold whitespace-nowrap">Payment Reference</th>
-              <th className="py-3.5 px-3 font-semibold whitespace-nowrap">Payment Date</th>
-              <th className="py-3.5 px-3 font-semibold whitespace-nowrap">Allocation Date</th>
-              <th className="py-3.5 px-3 font-semibold whitespace-nowrap">Allocated By</th>
+              <th className="py-3.5 px-3.5 text-center font-semibold">Client</th>
+              <th className="py-3.5 px-3 text-center font-semibold">Invoice Number</th>
+              <th className="py-3.5 px-3 text-center font-semibold whitespace-nowrap">Allocated Amount</th>
+              <th className="py-3.5 px-3 text-center font-semibold whitespace-nowrap">Payment Reference</th>
+              <th className="py-3.5 px-3 text-center font-semibold whitespace-nowrap">Payment Date</th>
+              <th className="py-3.5 px-3 text-center font-semibold whitespace-nowrap">Allocation Date</th>
+              <th className="py-3.5 px-3 text-center font-semibold whitespace-nowrap">Allocated By</th>
               <th className="py-3.5 px-3 text-center w-20 font-semibold whitespace-nowrap">Actions</th>
             </tr>
           </thead>

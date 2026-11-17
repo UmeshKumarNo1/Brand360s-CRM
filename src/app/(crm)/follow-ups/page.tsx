@@ -344,12 +344,12 @@ export default function FollowupsPage() {
               <thead>
                 <tr className="bg-[#243E76] text-white font-semibold text-xs tracking-wide">
                   <th className="py-3 px-3 w-10 text-center">No.</th>
-                  <th className="py-3 px-3.5">Follow-up Title</th>
-                  <th className="py-3 px-3">Client</th>
-                  <th className="py-3 px-3">Assigned To</th>
-                  <th className="py-3 px-3">Type</th>
+                  <th className="py-3 px-3.5 text-center">Follow-up Title</th>
+                  <th className="py-3 px-3 text-center">Client</th>
+                  <th className="py-3 px-3 text-center">Assigned To</th>
+                  <th className="py-3 px-3 text-center">Type</th>
                   <th className="py-3 px-3 text-center">Priority</th>
-                  <th className="py-3 px-3 whitespace-nowrap">Due Date</th>
+                  <th className="py-3 px-3 text-center whitespace-nowrap">Due Date</th>
                   <th className="py-3 px-3 text-center">Status</th>
                   <th className="py-3 px-3 text-center w-28 whitespace-nowrap">Actions</th>
                 </tr>

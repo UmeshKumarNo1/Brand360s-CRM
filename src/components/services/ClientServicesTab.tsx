@@ -298,11 +298,11 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
           <div className="hidden md:block w-full">
             <table className="w-full text-left text-xs border-collapse table-fixed">
               <colgroup>
-                <col className="w-[13%]" />
-                <col className="w-[12%]" />
-                <col className="w-[8%]" />
-                <col className="w-[7%]" />
+                <col className="w-[14%]" />
                 <col className="w-[10%]" />
+                <col className="w-[8%]" />
+                <col className="w-[6%]" />
+                <col className="w-[12%]" />
                 <col className="w-[7%]" />
                 <col className="w-[10%]" />
                 <col className="w-[12%]" />
@@ -310,17 +310,17 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                 <col className="w-[12%]" />
               </colgroup>
               <thead>
-                <tr className="bg-[#F8FAFC] text-slate-700 border-b border-slate-200 font-semibold text-[11px] tracking-tight">
-                  <th className="py-2.5 px-2">Service</th>
-                  <th className="py-2.5 px-2">Category</th>
-                  <th className="py-2.5 px-2 text-right">Service Fee</th>
-                  <th className="py-2.5 px-2 text-right">Govt Fee</th>
+                <tr className="bg-[#243E76] text-white font-semibold text-xs tracking-wide align-middle">
+                  <th className="py-2.5 px-2 text-center">Service</th>
+                  <th className="py-2.5 px-2 text-center">Category</th>
+                  <th className="py-2.5 px-2 text-center">Service Fee</th>
+                  <th className="py-2.5 px-2 text-center">Govt Fee</th>
                   <th className="py-2.5 px-2 text-center">Status</th>
                   <th className="py-2.5 px-2 text-center">Documents</th>
                   <th className="py-2.5 px-2 text-center">Renewal Status</th>
-                  <th className="py-2.5 px-2">Vendor / Outsourcing</th>
-                  <th className="py-2.5 px-2">Expected Date</th>
-                  <th className="py-2.5 px-2 text-right">Actions</th>
+                  <th className="py-2.5 px-2 text-center">Vendor / Outsourcing</th>
+                  <th className="py-2.5 px-2 text-center">Expected Date</th>
+                  <th className="py-2.5 px-2 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -373,9 +373,9 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                           </div>
                         </td>
 
-                        {/* Category (12%) - Wraps cleanly onto two lines */}
-                        <td className="py-2 px-2 align-middle text-slate-500 font-normal leading-snug text-[11px]">
-                          <span className="line-clamp-2" title={s.service_category || "General"}>
+                        {/* Category (10%) - Wraps cleanly into 2 lines (e.g. Company Incorporation) */}
+                        <td className="py-2 px-2 align-middle text-slate-500 font-normal leading-tight text-[11px]">
+                          <span className="block max-w-[90px] whitespace-normal break-words" title={s.service_category || "General"}>
                             {s.service_category || "General"}
                           </span>
                         </td>
@@ -385,43 +385,61 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                           {formatINR(Number(s.service_fee) || 0)}
                         </td>
 
-                        {/* Govt Fee (7%) */}
+                        {/* Govt Fee (6%) */}
                         <td className="py-2 px-2 align-middle text-right text-slate-500 text-xs">
                           {formatINR(Number(s.govt_fee) || 0)}
                         </td>
 
-                        {/* Service Status (10%) - Compact Dropdown with Colored Dot */}
-                        <td className="py-2 px-2 align-middle text-center">
-                          <div className="relative inline-flex items-center justify-center max-w-full">
+                        {/* Service Status (12%) - Custom Styled Dropdown - Perfect Centered Flex Alignment Without Dot Overlap */}
+                        <td className="py-2 px-1.5 align-middle text-center">
+                          <div className="relative inline-flex items-center justify-center">
                             {updatingServiceId === s.id ? (
-                              <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10.5px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                                 <RefreshCw size={10} className="animate-spin text-[#077EA1]" />
                                 <span>...</span>
                               </div>
                             ) : (
-                              <div className="relative inline-flex items-center w-full">
-                                <span className={cn("absolute left-2 w-1.5 h-1.5 rounded-full pointer-events-none z-10", getServiceStatusDotColor(s.service_status))} />
+                              <div className="relative inline-flex items-center">
+                                {/* Visual container matching custom pill styling */}
+                                <div
+                                  className={cn(
+                                    "flex items-center gap-2 pl-3 pr-7 py-1 rounded-full text-[10.5px] font-medium border transition-all shadow-2xs pointer-events-none select-none",
+                                    getServiceStatusBadgeStyle(s.service_status)
+                                  )}
+                                >
+                                  {/* Fixed Dimension Dot */}
+                                  <span
+                                    className={cn(
+                                      "w-2 h-2 rounded-full shrink-0",
+                                      getServiceStatusDotColor(s.service_status)
+                                    )}
+                                  />
+                                  {/* Status Text with guaranteed spacing from the dot */}
+                                  <span className="whitespace-nowrap leading-none">
+                                    {s.service_status || "Pending"}
+                                  </span>
+                                  {/* Right Chevron */}
+                                  <ChevronDown
+                                    size={11}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                                  />
+                                </div>
+
+                                {/* Transparent HTML select layered directly on top for full native accessibility & dropdown functionality */}
                                 <select
                                   value={s.service_status || "Pending"}
                                   onChange={(e) => handleStatusChange(s.id, e.target.value, s.service_name)}
-                                  className={cn(
-                                    "appearance-none cursor-pointer pl-4.5 pr-4 py-1 rounded-full text-[10px] font-medium border transition-all shadow-2xs focus:outline-none focus:ring-1 focus:ring-[#077EA1]/40 w-full truncate",
-                                    getServiceStatusBadgeStyle(s.service_status)
-                                  )}
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-xs"
                                   title="Change service status"
                                 >
-                                  <option value="Pending" className="bg-white text-slate-800">Pending</option>
-                                  <option value="Processing" className="bg-white text-slate-800">Processing</option>
-                                  <option value="In Progress" className="bg-white text-slate-800">In Progress</option>
-                                  <option value="Waiting for Approval" className="bg-white text-slate-800">Waiting</option>
-                                  <option value="Completed" className="bg-white text-slate-800 font-bold text-emerald-700">Completed</option>
-                                  <option value="On Hold" className="bg-white text-slate-800">On Hold</option>
-                                  <option value="Cancelled" className="bg-white text-slate-800">Cancelled</option>
+                                  <option value="Pending" className="text-slate-800">Pending</option>
+                                  <option value="Processing" className="text-slate-800">Processing</option>
+                                  <option value="In Progress" className="text-slate-800">In Progress</option>
+                                  <option value="Waiting for Approval" className="text-slate-800">Waiting for Approval</option>
+                                  <option value="Completed" className="text-slate-800 font-bold text-emerald-700">Completed</option>
+                                  <option value="On Hold" className="text-slate-800">On Hold</option>
+                                  <option value="Cancelled" className="text-slate-800">Cancelled</option>
                                 </select>
-                                <ChevronDown
-                                  size={10}
-                                  className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-slate-600"
-                                />
                               </div>
                             )}
                           </div>
@@ -692,14 +710,30 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
 
                     <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                       <div className="relative inline-flex items-center">
-                        <span className={cn("absolute left-2 w-1.5 h-1.5 rounded-full pointer-events-none z-10", getServiceStatusDotColor(s.service_status))} />
+                        <div
+                          className={cn(
+                            "flex items-center gap-1.5 pl-2.5 pr-6 py-1 rounded-full text-[10px] font-medium border pointer-events-none select-none",
+                            getServiceStatusBadgeStyle(s.service_status)
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "w-1.5 h-1.5 rounded-full shrink-0",
+                              getServiceStatusDotColor(s.service_status)
+                            )}
+                          />
+                          <span className="whitespace-nowrap leading-none">
+                            {s.service_status || "Pending"}
+                          </span>
+                          <ChevronDown
+                            size={10}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
+                          />
+                        </div>
                         <select
                           value={s.service_status || "Pending"}
                           onChange={(e) => handleStatusChange(s.id, e.target.value, s.service_name)}
-                          className={cn(
-                            "appearance-none cursor-pointer pl-4.5 pr-4 py-1 rounded-full text-[10px] font-medium border",
-                            getServiceStatusBadgeStyle(s.service_status)
-                          )}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer text-xs"
                         >
                           <option value="Pending">Pending</option>
                           <option value="Processing">Processing</option>

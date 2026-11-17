@@ -215,14 +215,14 @@ export function ClientPaymentsTab({
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="border-b border-slate-200 bg-slate-50/70 text-slate-500 font-semibold">
-                      <th className="py-2.5 px-4">Installment</th>
-                      <th className="py-2.5 px-4 text-right">Amount</th>
-                      <th className="py-2.5 px-4 text-right">Amount Paid</th>
-                      <th className="py-2.5 px-4 text-right">Remaining</th>
-                      <th className="py-2.5 px-4">Due Date</th>
-                      <th className="py-2.5 px-4">Status</th>
-                      <th className="py-2.5 px-4 text-right">Actions</th>
+                    <tr className="bg-[#243E76] text-white font-semibold text-xs tracking-wide">
+                      <th className="py-2.5 px-4 text-center">Installment</th>
+                      <th className="py-2.5 px-4 text-center">Amount</th>
+                      <th className="py-2.5 px-4 text-center">Amount Paid</th>
+                      <th className="py-2.5 px-4 text-center">Remaining</th>
+                      <th className="py-2.5 px-4 text-center">Due Date</th>
+                      <th className="py-2.5 px-4 text-center">Status</th>
+                      <th className="py-2.5 px-4 text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -387,15 +387,15 @@ export function ClientPaymentsTab({
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
-                    <tr className="bg-[#F8FAFC] text-slate-600 border-b border-slate-200 font-semibold">
-                      <th className="py-2.5 px-3">Invoice #</th>
-                      <th className="py-2.5 px-3">Date</th>
-                      <th className="py-2.5 px-3">Due Date</th>
-                      <th className="py-2.5 px-3 text-right">Taxable</th>
-                      <th className="py-2.5 px-3 text-right">Total</th>
-                      <th className="py-2.5 px-3 text-right">Balance</th>
+                    <tr className="bg-[#243E76] text-white font-semibold text-xs tracking-wide align-middle">
+                      <th className="py-2.5 px-3 text-center">Invoice #</th>
+                      <th className="py-2.5 px-3 text-center">Date</th>
+                      <th className="py-2.5 px-3 text-center">Due Date</th>
+                      <th className="py-2.5 px-3 text-center">Taxable</th>
+                      <th className="py-2.5 px-3 text-center">Total</th>
+                      <th className="py-2.5 px-3 text-center">Balance</th>
                       <th className="py-2.5 px-3 text-center">Status</th>
-                      <th className="py-2.5 px-3 text-right">Actions</th>
+                      <th className="py-2.5 px-3 text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">

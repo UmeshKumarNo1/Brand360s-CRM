@@ -164,14 +164,14 @@ export default function EmployeesPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs sm:text-sm">
               <thead>
-                <tr className="bg-[#243E76] text-white font-semibold text-xs tracking-wide">
-                  <th className="py-3 px-4">Employee</th>
-                  <th className="py-3 px-4">Contact</th>
+                <tr className="bg-[#243E76] text-white font-semibold text-xs tracking-wide align-middle">
+                  <th className="py-3 px-4 text-center">Employee</th>
+                  <th className="py-3 px-4 text-center">Contact</th>
                   <th className="py-3 px-4 text-center">System Role</th>
                   <th className="py-3 px-4 text-center">Assigned Clients</th>
                   <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4">Joined Date</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4 text-center">Joined Date</th>
+                  <th className="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">

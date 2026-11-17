@@ -69,14 +69,14 @@ export function ClientsTable({
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide align-middle">
               <th className="py-2.5 px-1 sm:px-1.5 text-center font-semibold">No.</th>
-              <th className="py-2.5 px-1.5 sm:px-2 font-semibold leading-tight">Company Name</th>
-              <th className="py-2.5 px-1 sm:px-1.5 font-semibold leading-tight">Date of Creation</th>
-              <th className="py-2.5 px-1 sm:px-1.5 font-semibold leading-tight">Salesperson</th>
-              <th className="py-2.5 px-1.5 sm:px-2 font-semibold leading-tight">Services Purchased</th>
-              <th className="py-2.5 px-1 sm:px-1.5 text-right font-semibold leading-tight">Contract Value</th>
-              <th className="py-2.5 px-1 sm:px-1.5 text-right font-semibold leading-tight">Payment Received</th>
-              <th className="py-2.5 px-1 sm:px-1.5 text-right font-semibold leading-tight">Balance Receivable</th>
-              <th className="py-2.5 px-1 sm:px-1.5 text-right font-semibold leading-tight">Next Payment Due</th>
+              <th className="py-2.5 px-1.5 sm:px-2 text-center font-semibold leading-tight">Company Name</th>
+              <th className="py-2.5 px-1 sm:px-1.5 text-center font-semibold leading-tight">Date of Creation</th>
+              <th className="py-2.5 px-1 sm:px-1.5 text-center font-semibold leading-tight">Salesperson</th>
+              <th className="py-2.5 px-1.5 sm:px-2 text-center font-semibold leading-tight">Services Purchased</th>
+              <th className="py-2.5 px-1 sm:px-1.5 text-center font-semibold leading-tight">Contract Value</th>
+              <th className="py-2.5 px-1 sm:px-1.5 text-center font-semibold leading-tight">Payment Received</th>
+              <th className="py-2.5 px-1 sm:px-1.5 text-center font-semibold leading-tight">Balance Receivable</th>
+              <th className="py-2.5 px-1 sm:px-1.5 text-center font-semibold leading-tight">Next Payment Due</th>
               <th className="py-2.5 px-1 text-center font-semibold min-w-[120px]">Actions</th>
             </tr>
           </thead>

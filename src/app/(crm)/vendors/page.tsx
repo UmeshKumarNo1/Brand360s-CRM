@@ -175,14 +175,14 @@ export default function VendorsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm border-collapse">
               <thead>
-                <tr className="bg-[#F1F5F9] text-[#1E293B] border-b border-[#E2E8F0] font-semibold text-[13px]">
-                  <th className="py-3 px-4">Vendor Name</th>
-                  <th className="py-3 px-4">Category</th>
-                  <th className="py-3 px-4">Contact Person</th>
-                  <th className="py-3 px-4">Contact Info</th>
+                <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide align-middle">
+                  <th className="py-3 px-4 text-center">Vendor Name</th>
+                  <th className="py-3 px-4 text-center">Category</th>
+                  <th className="py-3 px-4 text-center">Contact Person</th>
+                  <th className="py-3 px-4 text-center">Contact Info</th>
                   <th className="py-3 px-4 text-center">Active Jobs</th>
                   <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#F1F5F9] text-slate-700">

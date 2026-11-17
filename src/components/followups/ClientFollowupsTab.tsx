@@ -145,13 +145,13 @@ export function ClientFollowupsTab({ clientId, clientName }: ClientFollowupsTabP
         <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden shadow-xs">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-[#F8FAFC] text-slate-600 border-b border-slate-200 font-semibold">
-                <th className="py-2.5 px-3">Title / Task</th>
-                <th className="py-2.5 px-3">Type</th>
-                <th className="py-2.5 px-3">Due Date</th>
-                <th className="py-2.5 px-3">Priority</th>
-                <th className="py-2.5 px-3">Status</th>
-                <th className="py-2.5 px-3 text-right">Actions</th>
+              <tr className="bg-[#243E76] text-white font-semibold text-xs tracking-wide">
+                <th className="py-2.5 px-3 text-center">Title / Task</th>
+                <th className="py-2.5 px-3 text-center">Type</th>
+                <th className="py-2.5 px-3 text-center">Due Date</th>
+                <th className="py-2.5 px-3 text-center">Priority</th>
+                <th className="py-2.5 px-3 text-center">Status</th>
+                <th className="py-2.5 px-3 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">

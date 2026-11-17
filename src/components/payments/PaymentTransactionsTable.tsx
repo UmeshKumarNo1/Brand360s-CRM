@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2, Clock, ArrowUpRight, Link2, ArrowRightLeft, CheckCircle, Edit3, RotateCcw, Receipt, FileText } from "lucide-react";
+import { CheckCircle2, Clock, ArrowUpRight, Link2, ArrowRightLeft, CheckCircle, Edit3, RotateCcw, Receipt, FileText, XCircle } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 
 interface PaymentTransactionsTableProps {
@@ -38,7 +38,10 @@ export function PaymentTransactionsTable({
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Date</th>
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Method</th>
               <th className="py-3 px-2 font-semibold whitespace-nowrap">Reference / UTR</th>
-              <th className="py-3 px-2.5 font-semibold whitespace-nowrap">Recorded By / Verification</th>
+              <th className="py-3 px-2.5 font-semibold leading-tight">
+                <span className="block whitespace-nowrap">Recorded By /</span>
+                <span className="block whitespace-nowrap">Verification</span>
+              </th>
               <th className="py-3 px-2 text-center min-w-[150px] font-semibold whitespace-nowrap">Actions</th>
             </tr>
           </thead>
@@ -153,29 +156,35 @@ export function PaymentTransactionsTable({
                     {/* Recorded By / Verification (Combined horizontally: User Name on left, Verification status badge on right) */}
                     <td className="py-2.5 px-2.5 whitespace-nowrap align-middle">
                       <div className="flex items-center gap-2">
-                        <span className="text-slate-700 font-medium text-xs sm:text-[13px]">
+                        <span className="text-slate-900 font-semibold text-xs sm:text-[13px] truncate max-w-[110px]" title={p.recordedBy || "Staff"}>
                           {p.recordedBy || "Staff"}
                         </span>
-                        <span className="text-slate-300">|</span>
+                        <span className="text-slate-300 select-none">|</span>
                         <span
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border shrink-0 ${
                             p.status === "Verified"
                               ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : p.status === "Pending Verification"
+                              : p.status === "Pending Verification" || p.status === "Pending"
                               ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : p.status === "Rejected"
+                              ? "bg-rose-50 text-rose-700 border-rose-200"
                               : p.status === "Reversed"
                               ? "bg-rose-50 text-rose-700 border-rose-200"
                               : "bg-slate-50 text-slate-700 border-slate-200"
                           }`}
                         >
                           {p.status === "Verified" ? (
-                            <CheckCircle2 size={11} className="text-emerald-600" />
+                            <CheckCircle2 size={11} className="text-emerald-600 shrink-0" />
+                          ) : p.status === "Rejected" ? (
+                            <XCircle size={11} className="text-rose-600 shrink-0" />
                           ) : p.status === "Reversed" ? (
-                            <RotateCcw size={11} className="text-rose-600" />
+                            <RotateCcw size={11} className="text-rose-600 shrink-0" />
                           ) : (
-                            <Clock size={11} className="text-amber-600" />
+                            <Clock size={11} className="text-amber-600 shrink-0" />
                           )}
-                          <span>{p.status}</span>
+                          <span>
+                            {p.status === "Pending Verification" ? "Pending" : p.status}
+                          </span>
                         </span>
                       </div>
                     </td>

@@ -1430,7 +1430,13 @@ export async function reversePaymentAction(params: ReversePaymentParams): Promis
     }
   }
 
-  // 4. Record Audit Log
+  // 4. Record Audit Log with complete financial values, linked invoices, and audit metadata
+  const linkedInvoiceIds = (payment.allocations || []).map((a: any) => a.invoice_id).filter(Boolean);
+  const totalAllocatedAmount = (payment.allocations || []).reduce(
+    (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+    0
+  );
+
   await recordAuditLog({
     actorId: user.id,
     action: "VOID",
@@ -1438,9 +1444,16 @@ export async function reversePaymentAction(params: ReversePaymentParams): Promis
     entityId: params.paymentId,
     entityName: clientData?.company_name || "Payment",
     details: {
+      original_payment_id: params.paymentId,
       client_id: payment.client_id,
-      payment_amount: payment.amount,
+      client_name: clientData?.company_name,
+      original_payment_amount: payment.amount,
+      allocated_amount: totalAllocatedAmount,
+      unallocated_amount: Math.max(0, (Number(payment.amount) || 0) - totalAllocatedAmount),
       reversal_reason: params.reason.trim(),
+      reversed_by: user.id,
+      reversal_timestamp: new Date().toISOString(),
+      linked_invoice_ids: linkedInvoiceIds,
       previous_status: payment.status,
       new_status: "Reversed",
       reversed_allocations_count: payment.allocations?.length || 0,

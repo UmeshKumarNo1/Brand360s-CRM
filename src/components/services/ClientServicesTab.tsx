@@ -298,11 +298,11 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
           <div className="hidden md:block w-full">
             <table className="w-full text-left text-xs border-collapse table-fixed">
               <colgroup>
-                <col className="w-[13%]" />
-                <col className="w-[12%]" />
-                <col className="w-[8%]" />
-                <col className="w-[7%]" />
+                <col className="w-[14%]" />
                 <col className="w-[10%]" />
+                <col className="w-[8%]" />
+                <col className="w-[6%]" />
+                <col className="w-[12%]" />
                 <col className="w-[7%]" />
                 <col className="w-[10%]" />
                 <col className="w-[12%]" />
@@ -373,9 +373,9 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                           </div>
                         </td>
 
-                        {/* Category (12%) - Wraps cleanly onto two lines */}
-                        <td className="py-2 px-2 align-middle text-slate-500 font-normal leading-snug text-[11px]">
-                          <span className="line-clamp-2" title={s.service_category || "General"}>
+                        {/* Category (10%) - Wraps cleanly into 2 lines (e.g. Company Incorporation) */}
+                        <td className="py-2 px-2 align-middle text-slate-500 font-normal leading-tight text-[11px]">
+                          <span className="block max-w-[90px] whitespace-normal break-words" title={s.service_category || "General"}>
                             {s.service_category || "General"}
                           </span>
                         </td>
@@ -385,27 +385,27 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                           {formatINR(Number(s.service_fee) || 0)}
                         </td>
 
-                        {/* Govt Fee (7%) */}
+                        {/* Govt Fee (6%) */}
                         <td className="py-2 px-2 align-middle text-right text-slate-500 text-xs">
                           {formatINR(Number(s.govt_fee) || 0)}
                         </td>
 
-                        {/* Service Status (10%) - Compact Dropdown with Colored Dot */}
-                        <td className="py-2 px-2 align-middle text-center">
-                          <div className="relative inline-flex items-center justify-center max-w-full">
+                        {/* Service Status (12%) - Compact Dropdown with Colored Dot - No Overlap */}
+                        <td className="py-2 px-1.5 align-middle text-center">
+                          <div className="relative inline-flex items-center justify-center">
                             {updatingServiceId === s.id ? (
                               <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                                 <RefreshCw size={10} className="animate-spin text-[#077EA1]" />
                                 <span>...</span>
                               </div>
                             ) : (
-                              <div className="relative inline-flex items-center w-full">
-                                <span className={cn("absolute left-2 w-1.5 h-1.5 rounded-full pointer-events-none z-10", getServiceStatusDotColor(s.service_status))} />
+                              <div className="relative inline-flex items-center">
+                                <span className={cn("absolute left-2.5 w-1.5 h-1.5 rounded-full pointer-events-none z-10", getServiceStatusDotColor(s.service_status))} />
                                 <select
                                   value={s.service_status || "Pending"}
                                   onChange={(e) => handleStatusChange(s.id, e.target.value, s.service_name)}
                                   className={cn(
-                                    "appearance-none cursor-pointer pl-4.5 pr-4 py-1 rounded-full text-[10px] font-medium border transition-all shadow-2xs focus:outline-none focus:ring-1 focus:ring-[#077EA1]/40 w-full truncate",
+                                    "appearance-none cursor-pointer pl-5.5 pr-5 py-1 rounded-full text-[10.5px] font-medium border transition-all shadow-2xs focus:outline-none focus:ring-1 focus:ring-[#077EA1]/40 whitespace-nowrap",
                                     getServiceStatusBadgeStyle(s.service_status)
                                   )}
                                   title="Change service status"

@@ -14,6 +14,11 @@ import {
   FileText,
   Paperclip,
   FileUp,
+  Monitor,
+  FileSpreadsheet,
+  AlertCircle,
+  Clock,
+  CheckCircle2,
 } from "lucide-react";
 import { fetchClientServicesAction, removeClientServiceAction, updateClientServiceStatusAction } from "@/app/actions/services";
 import { formatINR, cn } from "@/lib/utils";
@@ -122,11 +127,19 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
     const expiryDateStr = service.expected_completion_date || service.renewal_date;
 
     if (renewalStatus === "Renewed") {
-      return { label: "Renewed", className: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+      return {
+        label: "Renewed",
+        className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+        icon: CheckCircle2,
+      };
     }
 
     if (!expiryDateStr) {
-      return { label: "Not Scheduled", className: "bg-slate-50 text-slate-500 border-slate-200" };
+      return {
+        label: "Not Scheduled",
+        className: "bg-slate-50 text-slate-500 border-slate-200",
+        icon: Clock,
+      };
     }
 
     const today = new Date();
@@ -136,12 +149,24 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
     const diffDays = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
     if (diffDays < 0) {
-      return { label: `Overdue (${Math.abs(diffDays)}d)`, className: "bg-rose-50 text-rose-700 border-rose-200 font-semibold" };
+      return {
+        label: `Expired (${Math.abs(diffDays)}d ago)`,
+        className: "bg-rose-50 text-rose-700 border-rose-200 font-medium",
+        icon: AlertCircle,
+      };
     }
     if (diffDays <= 30) {
-      return { label: `Due Soon (${diffDays}d)`, className: "bg-amber-50 text-amber-700 border-amber-200 font-semibold" };
+      return {
+        label: `Due in ${diffDays} days`,
+        className: "bg-amber-50 text-amber-700 border-amber-200 font-medium",
+        icon: Calendar,
+      };
     }
-    return { label: `Upcoming (${diffDays}d)`, className: "bg-sky-50 text-sky-700 border-sky-200" };
+    return {
+      label: `Active (${diffDays}d left)`,
+      className: "bg-sky-50 text-sky-700 border-sky-200 font-medium",
+      icon: Clock,
+    };
   };
 
   const handleStatusChange = async (serviceId: string, newStatus: string, serviceName: string) => {
@@ -200,8 +225,39 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
         return "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100";
       case "Pending":
       default:
-        return "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100";
+        return "bg-sky-50 text-[#077EA1] border-sky-200 hover:bg-sky-100";
     }
+  };
+
+  const getServiceStatusDotColor = (status: string) => {
+    switch (status) {
+      case "Completed":
+        return "bg-emerald-500";
+      case "Processing":
+      case "In Progress":
+        return "bg-blue-500";
+      case "Waiting for Approval":
+      case "Under Review":
+        return "bg-purple-500";
+      case "On Hold":
+        return "bg-amber-500";
+      case "Cancelled":
+        return "bg-rose-500";
+      case "Pending":
+      default:
+        return "bg-[#077EA1]";
+    }
+  };
+
+  const getServiceIcon = (serviceName: string, category: string) => {
+    const text = `${serviceName} ${category}`.toLowerCase();
+    if (text.includes("web") || text.includes("software") || text.includes("app") || text.includes("dev")) {
+      return { icon: Monitor, color: "text-[#077EA1] bg-sky-50 border-sky-100" };
+    }
+    if (text.includes("gst") || text.includes("tax") || text.includes("audit") || text.includes("compliance") || text.includes("filing")) {
+      return { icon: FileSpreadsheet, color: "text-purple-600 bg-purple-50 border-purple-100" };
+    }
+    return { icon: Layers, color: "text-indigo-600 bg-indigo-50 border-indigo-100" };
   };
 
   return (
@@ -241,32 +297,32 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
-                <tr className="bg-[#F8FAFC] text-slate-600 border-b border-slate-200 font-semibold">
-                  <th className="py-2.5 px-3">Service</th>
-                  <th className="py-2.5 px-3">Category</th>
-                  <th className="py-2.5 px-3 text-right">Service Fee</th>
-                  <th className="py-2.5 px-3 text-right">Govt Fee</th>
-                  <th className="py-2.5 px-3 text-center">Status</th>
-                  <th className="py-2.5 px-3 text-center">Documents</th>
-                  <th className="py-2.5 px-3">Renewal Status</th>
-                  <th className="py-2.5 px-3 min-w-[180px]">Vendor / Outsourcing</th>
-                  <th className="py-2.5 px-3">Expected Date</th>
-                  <th className="py-2.5 px-3 text-right">Actions</th>
+                <tr className="bg-[#F8FAFC] text-slate-700 border-b border-slate-200 font-semibold text-[11px] tracking-tight">
+                  <th className="py-3 px-3.5">Service</th>
+                  <th className="py-3 px-3">Category</th>
+                  <th className="py-3 px-3 text-right whitespace-nowrap">Service Fee</th>
+                  <th className="py-3 px-3 text-right whitespace-nowrap">Govt Fee</th>
+                  <th className="py-3 px-3 text-center whitespace-nowrap">Status</th>
+                  <th className="py-3 px-3 text-center whitespace-nowrap">Documents</th>
+                  <th className="py-3 px-3 whitespace-nowrap">Renewal Status</th>
+                  <th className="py-3 px-3 min-w-[150px] whitespace-nowrap">Vendor / Outsourcing</th>
+                  <th className="py-3 px-3 whitespace-nowrap">Expected Date</th>
+                  <th className="py-3 px-3.5 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={10} className="py-8 text-center text-slate-400">
+                    <td colSpan={10} className="py-10 text-center text-slate-400">
                       <div className="flex items-center justify-center gap-2">
-                        <RefreshCw size={13} className="animate-spin text-[#0481A2]" />
-                        <span>Loading client services...</span>
+                        <RefreshCw size={14} className="animate-spin text-[#077EA1]" />
+                        <span className="text-xs">Loading client services...</span>
                       </div>
                     </td>
                   </tr>
                 ) : services.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-8 text-center text-slate-400">
+                    <td colSpan={10} className="py-10 text-center text-slate-400">
                       No individual service deliverables assigned yet. Click &quot;Add Service&quot; to assign one.
                     </td>
                   </tr>
@@ -279,47 +335,62 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                       (sum, a) => sum + (Number(a.agreed_cost) || 0),
                       0
                     );
+                    const { icon: ServiceIcon, color: iconColor } = getServiceIcon(s.service_name || "", s.service_category || "");
+                    const renewalBadge = getRenewalStatusBadge(s);
+                    const RenewalIcon = renewalBadge.icon;
 
                     return (
-                      <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                        {/* Service Name */}
-                        <td className="py-2.5 px-3 font-semibold text-slate-900">
-                          {s.service_name}
-                          {s.notes && (
-                            <span className="block text-[10px] text-slate-400 truncate max-w-xs font-normal">
-                              {s.notes}
-                            </span>
-                          )}
+                      <tr key={s.id} className="hover:bg-slate-50/80 transition-colors group">
+                        {/* Service Name with modern icon */}
+                        <td className="py-3 px-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className={cn("p-1.5 rounded-lg border flex items-center justify-center shrink-0", iconColor)}>
+                              <ServiceIcon size={14} />
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-semibold text-slate-900 block leading-tight text-xs">
+                                {s.service_name}
+                              </span>
+                              {s.notes && (
+                                <span className="block text-[10px] text-slate-400 truncate max-w-[200px] font-normal mt-0.5" title={s.notes}>
+                                  {s.notes}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </td>
 
                         {/* Category */}
-                        <td className="py-2.5 px-3 text-slate-500">{s.service_category || "General"}</td>
+                        <td className="py-3 px-3 text-slate-500 font-normal whitespace-nowrap">
+                          {s.service_category || "General"}
+                        </td>
 
                         {/* Service Fee */}
-                        <td className="py-2.5 px-3 text-right font-medium text-slate-900">
+                        <td className="py-3 px-3 text-right font-semibold text-slate-900 whitespace-nowrap">
                           {formatINR(Number(s.service_fee) || 0)}
                         </td>
 
                         {/* Govt Fee */}
-                        <td className="py-2.5 px-3 text-right text-slate-500">
+                        <td className="py-3 px-3 text-right text-slate-500 whitespace-nowrap">
                           {formatINR(Number(s.govt_fee) || 0)}
                         </td>
 
-                        {/* Service Status - Editable Dropdown */}
-                        <td className="py-2.5 px-3 text-center">
+                        {/* Service Status - Compact Dropdown with Colored Dot */}
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
                           <div className="relative inline-flex items-center justify-center">
                             {updatingServiceId === s.id ? (
-                              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-                                <RefreshCw size={10} className="animate-spin text-[#0481A2]" />
+                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                                <RefreshCw size={10} className="animate-spin text-[#077EA1]" />
                                 <span>Saving...</span>
                               </div>
                             ) : (
-                              <div className="relative inline-block">
+                              <div className="relative inline-flex items-center">
+                                <span className={cn("absolute left-2.5 w-1.5 h-1.5 rounded-full pointer-events-none z-10", getServiceStatusDotColor(s.service_status))} />
                                 <select
                                   value={s.service_status || "Pending"}
                                   onChange={(e) => handleStatusChange(s.id, e.target.value, s.service_name)}
                                   className={cn(
-                                    "appearance-none cursor-pointer pl-2.5 pr-5 py-0.5 rounded text-[10px] font-semibold border transition-all shadow-2xs focus:outline-none focus:ring-1 focus:ring-[#0481A2]/40",
+                                    "appearance-none cursor-pointer pl-5 pr-6 py-1 rounded-full text-[11px] font-medium border transition-all shadow-2xs focus:outline-none focus:ring-1 focus:ring-[#077EA1]/40",
                                     getServiceStatusBadgeStyle(s.service_status)
                                   )}
                                   title="Change service status"
@@ -333,8 +404,8 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                                   <option value="Cancelled" className="bg-white text-slate-800">Cancelled</option>
                                 </select>
                                 <ChevronDown
-                                  size={10}
-                                  className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 opacity-70"
+                                  size={11}
+                                  className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-slate-600"
                                 />
                               </div>
                             )}
@@ -342,7 +413,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                         </td>
 
                         {/* Documents Column */}
-                        <td className="py-2.5 px-3 text-center">
+                        <td className="py-3 px-3 text-center whitespace-nowrap">
                           {(() => {
                             const docs = s.documents || [];
                             const isCompleted = s.service_status === "Completed";
@@ -353,10 +424,10 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                                 <button
                                   type="button"
                                   onClick={() => setDocumentsModalService(s)}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-[#0481A2] border border-sky-200 hover:bg-sky-100 transition-colors cursor-pointer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-sky-50 text-[#077EA1] border border-sky-200 hover:bg-sky-100 transition-colors cursor-pointer"
                                   title="View or upload attached documents"
                                 >
-                                  <Paperclip size={10} />
+                                  <Paperclip size={11} />
                                   <span>
                                     {docs.length} {docs.length === 1 ? "Doc" : "Docs"}
                                   </span>
@@ -369,11 +440,11 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                                 <button
                                   type="button"
                                   onClick={() => setDeliverableModalService(s)}
-                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-50 text-[#0481A2] border border-sky-200 hover:bg-sky-100 transition-colors cursor-pointer"
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
                                   title="Service completed: Upload certificate"
                                 >
-                                  <FileUp size={10} />
-                                  <span>+ Upload</span>
+                                  <FileUp size={11} />
+                                  <span>Upload</span>
                                 </button>
                               );
                             }
@@ -382,88 +453,88 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                               <button
                                 type="button"
                                 onClick={() => setDocumentsModalService(s)}
-                                className="text-[10px] text-slate-400 hover:text-[#0481A2] cursor-pointer"
+                                className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-[#077EA1] font-medium transition-colors cursor-pointer"
                                 title="Attach documents"
                               >
-                                + Attach
+                                <Paperclip size={11} />
+                                <span>Attach</span>
                               </button>
                             );
                           })()}
                         </td>
 
-                        {/* Renewal Status */}
-                        <td className="py-2.5 px-3">
-                          {(() => {
-                            const badge = getRenewalStatusBadge(s);
-                            return (
-                              <span
-                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] border ${badge.className}`}
-                              >
-                                {badge.label}
-                              </span>
-                            );
-                          })()}
+                        {/* Renewal Status - Compact single-line pill */}
+                        <td className="py-3 px-3 whitespace-nowrap">
+                          <span
+                            className={cn(
+                              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] border whitespace-nowrap",
+                              renewalBadge.className
+                            )}
+                          >
+                            <RenewalIcon size={12} className="shrink-0" />
+                            <span>{renewalBadge.label}</span>
+                          </span>
                         </td>
 
                         {/* Vendor / Outsourcing Column */}
-                        <td className="py-2.5 px-3">
+                        <td className="py-3 px-3 whitespace-nowrap">
                           {hasVendors ? (
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-semibold text-slate-900">
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-semibold text-slate-800 text-xs">
                                   {firstVendor?.vendor?.name || "Vendor"}
                                 </span>
                                 {vendorAssignments.length > 1 && (
                                   <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 font-bold text-[10px] border border-slate-200">
-                                    +{vendorAssignments.length - 1} more
+                                    +{vendorAssignments.length - 1}
                                   </span>
                                 )}
                               </div>
 
-                              <div className="flex items-center gap-2 text-[11px]">
-                                <span className="text-[#0481A2] font-bold">
-                                  Cost: {formatINR(totalVendorCost)}
+                              <div className="flex items-center gap-2 text-[10px]">
+                                <span className="text-[#077EA1] font-semibold">
+                                  {formatINR(totalVendorCost)}
                                 </span>
                                 <span
-                                  className={`px-1.5 py-0.2 rounded text-[10px] font-semibold border ${getVendorStatusBadge(
-                                    firstVendor?.payment_status
-                                  )}`}
+                                  className={cn("px-1.5 py-0.2 rounded text-[9px] font-semibold border", getVendorStatusBadge(firstVendor?.payment_status))}
                                 >
                                   {firstVendor?.payment_status}
                                 </span>
-                              </div>
-
-                              <div>
                                 <button
+                                  type="button"
                                   onClick={() => setManageVendorsService(s)}
-                                  className="text-[11px] text-[#0481A2] hover:underline font-semibold cursor-pointer"
+                                  className="text-[10px] text-slate-500 hover:text-[#077EA1] hover:underline cursor-pointer ml-auto"
                                 >
-                                  Manage Vendors ({vendorAssignments.length})
+                                  Manage
                                 </button>
                               </div>
                             </div>
                           ) : (
-                            <div className="flex flex-col gap-1">
-                              <span className="text-[11px] text-slate-400 italic">No vendor assigned</span>
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[11px] text-slate-400">Not assigned</span>
                               <button
+                                type="button"
                                 onClick={() => setVendorModalService(s)}
-                                className="text-[11px] text-[#0481A2] hover:underline font-semibold cursor-pointer self-start"
+                                className="inline-flex items-center gap-1 text-[11px] text-[#077EA1] hover:text-[#036c88] font-medium hover:underline cursor-pointer self-start"
                               >
-                                + Assign Vendor
+                                <Plus size={11} />
+                                <span>Assign Vendor</span>
                               </button>
                             </div>
                           )}
                         </td>
 
                         {/* Expected Date */}
-                        <td className="py-2.5 px-3 text-slate-600 font-medium">
+                        <td className="py-3 px-3 text-slate-600 font-normal whitespace-nowrap">
                           {s.expected_completion_date || "-"}
                         </td>
 
-                        {/* Actions */}
-                        <td className="py-2.5 px-3 text-right">
+                        {/* Actions Column */}
+                        <td className="py-3 px-3.5 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
+                            {/* Renew Button - Compact Outlined Green Button */}
                             <button
+                              type="button"
                               onClick={() => {
                                 setRenewModalService({
                                   id: s.id,
@@ -478,14 +549,16 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                                   paymentStatus: "Unpaid",
                                 });
                               }}
-                              className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1 border border-emerald-200"
+                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-emerald-50/60 text-emerald-700 rounded-md text-[11px] font-medium transition-colors cursor-pointer border border-emerald-300 shadow-2xs"
                               title="Renew Service"
                             >
-                              <RefreshCw size={11} />
+                              <RefreshCw size={11} className="text-emerald-600" />
                               <span>Renew</span>
                             </button>
 
+                            {/* Renewal History - Small Icon Button with Tooltip */}
                             <button
+                              type="button"
                               onClick={() => {
                                 setHistoryModalService({
                                   id: s.id,
@@ -494,39 +567,28 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                                   client_id: clientId,
                                 });
                               }}
-                              className="p-1 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded text-[11px] transition-colors cursor-pointer border border-slate-200"
+                              className="p-1.5 bg-white hover:bg-slate-100 text-slate-600 rounded-md transition-colors cursor-pointer border border-slate-200 shadow-2xs"
                               title="Renewal History"
                             >
-                              <History size={12} />
+                              <History size={13} />
                             </button>
 
+                            {/* Documents - Consistent Document Icon Button with Tooltip */}
                             <button
-                              onClick={() => {
-                                if (hasVendors) {
-                                  setManageVendorsService(s);
-                                } else {
-                                  setVendorModalService(s);
-                                }
-                              }}
-                              className="px-2 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded text-[11px] font-semibold transition-colors cursor-pointer flex items-center gap-1"
-                              title={hasVendors ? "Manage Outsourcing" : "Assign External Vendor"}
-                            >
-                              <Store size={12} />
-                              <span>{hasVendors ? "Vendors" : "+ Vendor"}</span>
-                            </button>
-
-                            <button
+                              type="button"
                               onClick={() => setDocumentsModalService(s)}
-                              className="p-1 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded text-[11px] transition-colors cursor-pointer border border-slate-200"
+                              className="p-1.5 bg-white hover:bg-slate-100 text-slate-600 rounded-md transition-colors cursor-pointer border border-slate-200 shadow-2xs"
                               title="View & Upload Documents / Deliverables"
                             >
-                              <FileText size={12} />
+                              <FileText size={13} />
                             </button>
 
+                            {/* Delete - Consistent subtle red icon button with tooltip */}
                             {isAdmin && (
                               <button
+                                type="button"
                                 onClick={() => handleRemove(s.id)}
-                                className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer"
+                                className="p-1.5 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-md transition-colors cursor-pointer border border-slate-200 hover:border-rose-200 shadow-2xs"
                                 title="Remove service"
                               >
                                 <Trash2 size={13} />

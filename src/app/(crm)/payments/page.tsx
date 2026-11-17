@@ -43,6 +43,7 @@ export default function PaymentsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [methodFilter, setMethodFilter] = useState("All");
   const [verificationFilter, setVerificationFilter] = useState("All");
+  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "name_asc" | "name_desc" | "amount_desc" | "amount_asc">("newest");
 
   // Modals
   const [isRecordPaymentModalOpen, setIsRecordPaymentModalOpen] = useState(false);
@@ -184,9 +185,9 @@ export default function PaymentsPage() {
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [payments, installments]);
 
-  // Filtered Payments
+  // Filtered & Sorted Payments
   const filteredPayments = useMemo(() => {
-    return payments.filter((p) => {
+    const list = payments.filter((p) => {
       if (statusFilter !== "All" && p.allocationStatus !== statusFilter) return false;
       if (verificationFilter !== "All" && p.status !== verificationFilter) return false;
       if (methodFilter !== "All" && p.paymentMethod !== methodFilter) return false;
@@ -199,7 +200,40 @@ export default function PaymentsPage() {
         (p.transactionRef && p.transactionRef.toLowerCase().includes(q))
       );
     });
-  }, [payments, statusFilter, verificationFilter, methodFilter, searchQuery]);
+
+    // Apply sorting to the filtered dataset
+    return list.sort((a, b) => {
+      if (sortBy === "oldest") {
+        const timeA = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+        const timeB = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
+        return timeA - timeB;
+      }
+      if (sortBy === "name_asc") {
+        const nameA = (a.companyName || "").toLowerCase();
+        const nameB = (b.companyName || "").toLowerCase();
+        return nameA.localeCompare(nameB);
+      }
+      if (sortBy === "name_desc") {
+        const nameA = (a.companyName || "").toLowerCase();
+        const nameB = (b.companyName || "").toLowerCase();
+        return nameB.localeCompare(nameA);
+      }
+      if (sortBy === "amount_desc") {
+        const amountA = Number(a.amount) || 0;
+        const amountB = Number(b.amount) || 0;
+        return amountB - amountA;
+      }
+      if (sortBy === "amount_asc") {
+        const amountA = Number(a.amount) || 0;
+        const amountB = Number(b.amount) || 0;
+        return amountA - amountB;
+      }
+      // Default: "newest" (payment date descending)
+      const timeA = a.paymentDate ? new Date(a.paymentDate).getTime() : 0;
+      const timeB = b.paymentDate ? new Date(b.paymentDate).getTime() : 0;
+      return timeB - timeA;
+    });
+  }, [payments, statusFilter, verificationFilter, methodFilter, searchQuery, sortBy]);
 
   const totalTransactionPages = Math.ceil(filteredPayments.length / transactionPageSize) || 1;
   const paginatedPayments = useMemo(() => {
@@ -280,6 +314,7 @@ export default function PaymentsPage() {
     setStatusFilter("All");
     setMethodFilter("All");
     setVerificationFilter("All");
+    setSortBy("newest");
     setInstallmentClientFilter("All");
     setInstallmentDueDateFilter("All");
     setTransactionPage(1);
@@ -396,6 +431,11 @@ export default function PaymentsPage() {
         verificationFilter={verificationFilter}
         setVerificationFilter={(val) => {
           setVerificationFilter(val);
+          setTransactionPage(1);
+        }}
+        sortBy={sortBy}
+        setSortBy={(val: any) => {
+          setSortBy(val);
           setTransactionPage(1);
         }}
         installmentClientFilter={installmentClientFilter}

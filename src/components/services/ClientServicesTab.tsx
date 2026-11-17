@@ -294,26 +294,39 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
 
       {!errorMessage && (
         <div className="bg-white border border-[#E2E8F0] rounded-xl overflow-hidden shadow-xs">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          {/* Desktop Table View - No Horizontal Scroll, Fixed Proportional Layout */}
+          <div className="hidden md:block w-full">
+            <table className="w-full text-left text-xs border-collapse table-fixed">
+              <colgroup>
+                <col className="w-[13%]" />
+                <col className="w-[12%]" />
+                <col className="w-[8%]" />
+                <col className="w-[7%]" />
+                <col className="w-[10%]" />
+                <col className="w-[7%]" />
+                <col className="w-[10%]" />
+                <col className="w-[12%]" />
+                <col className="w-[9%]" />
+                <col className="w-[12%]" />
+              </colgroup>
               <thead>
                 <tr className="bg-[#F8FAFC] text-slate-700 border-b border-slate-200 font-semibold text-[11px] tracking-tight">
-                  <th className="py-3 px-3.5">Service</th>
-                  <th className="py-3 px-3">Category</th>
-                  <th className="py-3 px-3 text-right whitespace-nowrap">Service Fee</th>
-                  <th className="py-3 px-3 text-right whitespace-nowrap">Govt Fee</th>
-                  <th className="py-3 px-3 text-center whitespace-nowrap">Status</th>
-                  <th className="py-3 px-3 text-center whitespace-nowrap">Documents</th>
-                  <th className="py-3 px-3 whitespace-nowrap">Renewal Status</th>
-                  <th className="py-3 px-3 min-w-[150px] whitespace-nowrap">Vendor / Outsourcing</th>
-                  <th className="py-3 px-3 whitespace-nowrap">Expected Date</th>
-                  <th className="py-3 px-3.5 text-right whitespace-nowrap">Actions</th>
+                  <th className="py-2.5 px-2">Service</th>
+                  <th className="py-2.5 px-2">Category</th>
+                  <th className="py-2.5 px-2 text-right">Service Fee</th>
+                  <th className="py-2.5 px-2 text-right">Govt Fee</th>
+                  <th className="py-2.5 px-2 text-center">Status</th>
+                  <th className="py-2.5 px-2 text-center">Documents</th>
+                  <th className="py-2.5 px-2 text-center">Renewal Status</th>
+                  <th className="py-2.5 px-2">Vendor / Outsourcing</th>
+                  <th className="py-2.5 px-2">Expected Date</th>
+                  <th className="py-2.5 px-2 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={10} className="py-10 text-center text-slate-400">
+                    <td colSpan={10} className="py-12 text-center text-slate-400">
                       <div className="flex items-center justify-center gap-2">
                         <RefreshCw size={14} className="animate-spin text-[#077EA1]" />
                         <span className="text-xs">Loading client services...</span>
@@ -322,7 +335,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                   </tr>
                 ) : services.length === 0 ? (
                   <tr>
-                    <td colSpan={10} className="py-10 text-center text-slate-400">
+                    <td colSpan={10} className="py-12 text-center text-slate-400">
                       No individual service deliverables assigned yet. Click &quot;Add Service&quot; to assign one.
                     </td>
                   </tr>
@@ -340,19 +353,19 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                     const RenewalIcon = renewalBadge.icon;
 
                     return (
-                      <tr key={s.id} className="hover:bg-slate-50/80 transition-colors group">
-                        {/* Service Name with modern icon */}
-                        <td className="py-3 px-3.5">
-                          <div className="flex items-center gap-2.5">
+                      <tr key={s.id} className="hover:bg-slate-50/80 transition-colors group h-[76px]">
+                        {/* Service Name with icon (13%) - Wraps cleanly onto two lines */}
+                        <td className="py-2 px-2 align-middle">
+                          <div className="flex items-center gap-2">
                             <div className={cn("p-1.5 rounded-lg border flex items-center justify-center shrink-0", iconColor)}>
                               <ServiceIcon size={14} />
                             </div>
                             <div className="min-w-0">
-                              <span className="font-semibold text-slate-900 block leading-tight text-xs">
+                              <span className="font-semibold text-slate-900 block leading-snug text-xs line-clamp-2" title={s.service_name}>
                                 {s.service_name}
                               </span>
                               {s.notes && (
-                                <span className="block text-[10px] text-slate-400 truncate max-w-[200px] font-normal mt-0.5" title={s.notes}>
+                                <span className="block text-[10px] text-slate-400 truncate max-w-full font-normal" title={s.notes}>
                                   {s.notes}
                                 </span>
                               )}
@@ -360,37 +373,39 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                           </div>
                         </td>
 
-                        {/* Category */}
-                        <td className="py-3 px-3 text-slate-500 font-normal whitespace-nowrap">
-                          {s.service_category || "General"}
+                        {/* Category (12%) - Wraps cleanly onto two lines */}
+                        <td className="py-2 px-2 align-middle text-slate-500 font-normal leading-snug text-[11px]">
+                          <span className="line-clamp-2" title={s.service_category || "General"}>
+                            {s.service_category || "General"}
+                          </span>
                         </td>
 
-                        {/* Service Fee */}
-                        <td className="py-3 px-3 text-right font-semibold text-slate-900 whitespace-nowrap">
+                        {/* Service Fee (8%) */}
+                        <td className="py-2 px-2 align-middle text-right font-semibold text-slate-900 text-xs">
                           {formatINR(Number(s.service_fee) || 0)}
                         </td>
 
-                        {/* Govt Fee */}
-                        <td className="py-3 px-3 text-right text-slate-500 whitespace-nowrap">
+                        {/* Govt Fee (7%) */}
+                        <td className="py-2 px-2 align-middle text-right text-slate-500 text-xs">
                           {formatINR(Number(s.govt_fee) || 0)}
                         </td>
 
-                        {/* Service Status - Compact Dropdown with Colored Dot */}
-                        <td className="py-3 px-3 text-center whitespace-nowrap">
-                          <div className="relative inline-flex items-center justify-center">
+                        {/* Service Status (10%) - Compact Dropdown with Colored Dot */}
+                        <td className="py-2 px-2 align-middle text-center">
+                          <div className="relative inline-flex items-center justify-center max-w-full">
                             {updatingServiceId === s.id ? (
-                              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                              <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
                                 <RefreshCw size={10} className="animate-spin text-[#077EA1]" />
-                                <span>Saving...</span>
+                                <span>...</span>
                               </div>
                             ) : (
-                              <div className="relative inline-flex items-center">
-                                <span className={cn("absolute left-2.5 w-1.5 h-1.5 rounded-full pointer-events-none z-10", getServiceStatusDotColor(s.service_status))} />
+                              <div className="relative inline-flex items-center w-full">
+                                <span className={cn("absolute left-2 w-1.5 h-1.5 rounded-full pointer-events-none z-10", getServiceStatusDotColor(s.service_status))} />
                                 <select
                                   value={s.service_status || "Pending"}
                                   onChange={(e) => handleStatusChange(s.id, e.target.value, s.service_name)}
                                   className={cn(
-                                    "appearance-none cursor-pointer pl-5 pr-6 py-1 rounded-full text-[11px] font-medium border transition-all shadow-2xs focus:outline-none focus:ring-1 focus:ring-[#077EA1]/40",
+                                    "appearance-none cursor-pointer pl-4.5 pr-4 py-1 rounded-full text-[10px] font-medium border transition-all shadow-2xs focus:outline-none focus:ring-1 focus:ring-[#077EA1]/40 w-full truncate",
                                     getServiceStatusBadgeStyle(s.service_status)
                                   )}
                                   title="Change service status"
@@ -398,22 +413,22 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                                   <option value="Pending" className="bg-white text-slate-800">Pending</option>
                                   <option value="Processing" className="bg-white text-slate-800">Processing</option>
                                   <option value="In Progress" className="bg-white text-slate-800">In Progress</option>
-                                  <option value="Waiting for Approval" className="bg-white text-slate-800">Waiting for Approval</option>
+                                  <option value="Waiting for Approval" className="bg-white text-slate-800">Waiting</option>
                                   <option value="Completed" className="bg-white text-slate-800 font-bold text-emerald-700">Completed</option>
                                   <option value="On Hold" className="bg-white text-slate-800">On Hold</option>
                                   <option value="Cancelled" className="bg-white text-slate-800">Cancelled</option>
                                 </select>
                                 <ChevronDown
-                                  size={11}
-                                  className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-slate-600"
+                                  size={10}
+                                  className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 group-hover:text-slate-600"
                                 />
                               </div>
                             )}
                           </div>
                         </td>
 
-                        {/* Documents Column */}
-                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                        {/* Documents Column (7%) */}
+                        <td className="py-2 px-2 align-middle text-center">
                           {(() => {
                             const docs = s.documents || [];
                             const isCompleted = s.service_status === "Completed";
@@ -424,13 +439,11 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                                 <button
                                   type="button"
                                   onClick={() => setDocumentsModalService(s)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-sky-50 text-[#077EA1] border border-sky-200 hover:bg-sky-100 transition-colors cursor-pointer"
+                                  className="inline-flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] font-medium bg-sky-50 text-[#077EA1] border border-sky-200 hover:bg-sky-100 transition-colors cursor-pointer"
                                   title="View or upload attached documents"
                                 >
-                                  <Paperclip size={11} />
-                                  <span>
-                                    {docs.length} {docs.length === 1 ? "Doc" : "Docs"}
-                                  </span>
+                                  <Paperclip size={10} />
+                                  <span>{docs.length}</span>
                                 </button>
                               );
                             }
@@ -440,10 +453,10 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                                 <button
                                   type="button"
                                   onClick={() => setDeliverableModalService(s)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
+                                  className="inline-flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
                                   title="Service completed: Upload certificate"
                                 >
-                                  <FileUp size={11} />
+                                  <FileUp size={10} />
                                   <span>Upload</span>
                                 </button>
                               );
@@ -453,85 +466,84 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                               <button
                                 type="button"
                                 onClick={() => setDocumentsModalService(s)}
-                                className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-[#077EA1] font-medium transition-colors cursor-pointer"
+                                className="inline-flex items-center gap-1 text-[10px] text-slate-400 hover:text-[#077EA1] font-medium transition-colors cursor-pointer"
                                 title="Attach documents"
                               >
-                                <Paperclip size={11} />
+                                <Paperclip size={10} />
                                 <span>Attach</span>
                               </button>
                             );
                           })()}
                         </td>
 
-                        {/* Renewal Status - Compact single-line pill */}
-                        <td className="py-3 px-3 whitespace-nowrap">
+                        {/* Renewal Status (10%) - Small, readable badge */}
+                        <td className="py-2 px-2 align-middle text-center">
                           <span
                             className={cn(
-                              "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] border whitespace-nowrap",
+                              "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border leading-tight text-center",
                               renewalBadge.className
                             )}
                           >
-                            <RenewalIcon size={12} className="shrink-0" />
-                            <span>{renewalBadge.label}</span>
+                            <RenewalIcon size={11} className="shrink-0" />
+                            <span className="truncate">{renewalBadge.label}</span>
                           </span>
                         </td>
 
-                        {/* Vendor / Outsourcing Column */}
-                        <td className="py-3 px-3 whitespace-nowrap">
+                        {/* Vendor / Outsourcing Column (12%) - 2 lines */}
+                        <td className="py-2 px-2 align-middle">
                           {hasVendors ? (
-                            <div className="space-y-0.5">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-semibold text-slate-800 text-xs">
+                            <div className="space-y-0.5 leading-tight">
+                              <div className="flex items-center gap-1 truncate">
+                                <span className="font-semibold text-slate-800 text-xs truncate" title={firstVendor?.vendor?.name}>
                                   {firstVendor?.vendor?.name || "Vendor"}
                                 </span>
                                 {vendorAssignments.length > 1 && (
-                                  <span className="px-1.5 py-0.2 rounded-full bg-slate-100 text-slate-600 font-bold text-[10px] border border-slate-200">
+                                  <span className="px-1 py-0.2 rounded-full bg-slate-100 text-slate-600 font-bold text-[9px] border border-slate-200 shrink-0">
                                     +{vendorAssignments.length - 1}
                                   </span>
                                 )}
                               </div>
 
-                              <div className="flex items-center gap-2 text-[10px]">
+                              <div className="flex items-center gap-1 text-[9px] text-slate-500">
                                 <span className="text-[#077EA1] font-semibold">
                                   {formatINR(totalVendorCost)}
-                                </span>
-                                <span
-                                  className={cn("px-1.5 py-0.2 rounded text-[9px] font-semibold border", getVendorStatusBadge(firstVendor?.payment_status))}
-                                >
-                                  {firstVendor?.payment_status}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => setManageVendorsService(s)}
-                                  className="text-[10px] text-slate-500 hover:text-[#077EA1] hover:underline cursor-pointer ml-auto"
+                                  className="text-[9px] text-[#077EA1] hover:underline cursor-pointer font-medium ml-auto"
                                 >
                                   Manage
                                 </button>
                               </div>
                             </div>
                           ) : (
-                            <div className="flex flex-col gap-0.5">
-                              <span className="text-[11px] text-slate-400">Not assigned</span>
+                            <div className="flex flex-col gap-0.5 leading-tight">
+                              <span className="text-[10px] text-slate-400">Not assigned</span>
                               <button
                                 type="button"
                                 onClick={() => setVendorModalService(s)}
-                                className="inline-flex items-center gap-1 text-[11px] text-[#077EA1] hover:text-[#036c88] font-medium hover:underline cursor-pointer self-start"
+                                className="inline-flex items-center gap-0.5 text-[10px] text-[#077EA1] hover:text-[#036c88] font-medium hover:underline cursor-pointer self-start"
                               >
-                                <Plus size={11} />
+                                <Plus size={10} />
                                 <span>Assign Vendor</span>
                               </button>
                             </div>
                           )}
                         </td>
 
-                        {/* Expected Date */}
-                        <td className="py-3 px-3 text-slate-600 font-normal whitespace-nowrap">
-                          {s.expected_completion_date || "-"}
+                        {/* Expected Date (9%) */}
+                        <td className="py-2 px-2 align-middle text-slate-600 font-normal text-[11px] leading-tight">
+                          {s.expected_completion_date ? (
+                            <span>{s.expected_completion_date}</span>
+                          ) : (
+                            <span className="text-slate-400">-</span>
+                          )}
                         </td>
 
-                        {/* Actions Column */}
-                        <td className="py-3 px-3.5 text-right whitespace-nowrap">
-                          <div className="flex items-center justify-end gap-1.5">
+                        {/* Actions Column (12%) - Compact flex row */}
+                        <td className="py-2 px-2 align-middle text-right">
+                          <div className="flex items-center justify-end gap-1">
                             {/* Renew Button - Compact Outlined Green Button */}
                             <button
                               type="button"
@@ -549,14 +561,14 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                                   paymentStatus: "Unpaid",
                                 });
                               }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-emerald-50/60 text-emerald-700 rounded-md text-[11px] font-medium transition-colors cursor-pointer border border-emerald-300 shadow-2xs"
+                              className="inline-flex items-center gap-0.5 px-2 py-1 bg-white hover:bg-emerald-50/60 text-emerald-700 rounded text-[10px] font-medium transition-colors cursor-pointer border border-emerald-300 shadow-2xs shrink-0"
                               title="Renew Service"
                             >
-                              <RefreshCw size={11} className="text-emerald-600" />
+                              <RefreshCw size={10} className="text-emerald-600 shrink-0" />
                               <span>Renew</span>
                             </button>
 
-                            {/* Renewal History - Small Icon Button with Tooltip */}
+                            {/* Renewal History - Small square icon button with tooltip */}
                             <button
                               type="button"
                               onClick={() => {
@@ -567,20 +579,20 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                                   client_id: clientId,
                                 });
                               }}
-                              className="p-1.5 bg-white hover:bg-slate-100 text-slate-600 rounded-md transition-colors cursor-pointer border border-slate-200 shadow-2xs"
+                              className="w-6 h-6 flex items-center justify-center bg-white hover:bg-slate-100 text-slate-600 rounded transition-colors cursor-pointer border border-slate-200 shadow-2xs shrink-0"
                               title="Renewal History"
                             >
-                              <History size={13} />
+                              <History size={11} />
                             </button>
 
                             {/* Documents - Consistent Document Icon Button with Tooltip */}
                             <button
                               type="button"
                               onClick={() => setDocumentsModalService(s)}
-                              className="p-1.5 bg-white hover:bg-slate-100 text-slate-600 rounded-md transition-colors cursor-pointer border border-slate-200 shadow-2xs"
+                              className="w-6 h-6 flex items-center justify-center bg-white hover:bg-slate-100 text-slate-600 rounded transition-colors cursor-pointer border border-slate-200 shadow-2xs shrink-0"
                               title="View & Upload Documents / Deliverables"
                             >
-                              <FileText size={13} />
+                              <FileText size={11} />
                             </button>
 
                             {/* Delete - Consistent subtle red icon button with tooltip */}
@@ -588,10 +600,10 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                               <button
                                 type="button"
                                 onClick={() => handleRemove(s.id)}
-                                className="p-1.5 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-md transition-colors cursor-pointer border border-slate-200 hover:border-rose-200 shadow-2xs"
+                                className="w-6 h-6 flex items-center justify-center bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer border border-slate-200 hover:border-rose-200 shadow-2xs shrink-0"
                                 title="Remove service"
                               >
-                                <Trash2 size={13} />
+                                <Trash2 size={11} />
                               </button>
                             )}
                           </div>
@@ -602,6 +614,164 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                 )}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile / Tablet Responsive Stacked Service-Card Layout */}
+          <div className="block md:hidden divide-y divide-slate-100">
+            {isLoading ? (
+              <div className="py-8 text-center text-slate-400">
+                <div className="flex items-center justify-center gap-2">
+                  <RefreshCw size={14} className="animate-spin text-[#077EA1]" />
+                  <span className="text-xs">Loading client services...</span>
+                </div>
+              </div>
+            ) : services.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-xs">
+                No individual service deliverables assigned yet. Click &quot;Add Service&quot; to assign one.
+              </div>
+            ) : (
+              services.map((s) => {
+                const vendorAssignments: any[] = s.vendor_assignments || [];
+                const hasVendors = vendorAssignments.length > 0;
+                const firstVendor = hasVendors ? vendorAssignments[0] : null;
+                const totalVendorCost = vendorAssignments.reduce(
+                  (sum, a) => sum + (Number(a.agreed_cost) || 0),
+                  0
+                );
+                const { icon: ServiceIcon, color: iconColor } = getServiceIcon(s.service_name || "", s.service_category || "");
+                const renewalBadge = getRenewalStatusBadge(s);
+                const RenewalIcon = renewalBadge.icon;
+                const docs = s.documents || [];
+
+                return (
+                  <div key={s.id} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <div className={cn("p-1.5 rounded-lg border flex items-center justify-center shrink-0 mt-0.5", iconColor)}>
+                          <ServiceIcon size={14} />
+                        </div>
+                        <div>
+                          <h5 className="font-semibold text-slate-900 text-xs leading-snug">{s.service_name}</h5>
+                          <span className="text-[10px] text-slate-400 block">{s.service_category || "General"}</span>
+                        </div>
+                      </div>
+                      <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border shrink-0", renewalBadge.className)}>
+                        <RenewalIcon size={10} />
+                        <span>{renewalBadge.label}</span>
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-50">
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Service Fee</span>
+                        <span className="font-semibold text-slate-900">{formatINR(Number(s.service_fee) || 0)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Govt Fee</span>
+                        <span className="text-slate-600">{formatINR(Number(s.govt_fee) || 0)}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Expected Date</span>
+                        <span className="text-slate-600">{s.expected_completion_date || "-"}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10px]">Vendor</span>
+                        {hasVendors ? (
+                          <span className="text-slate-800 font-medium truncate block">{firstVendor?.vendor?.name}</span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setVendorModalService(s)}
+                            className="text-[#077EA1] font-medium text-[10px] hover:underline"
+                          >
+                            + Assign Vendor
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                      <div className="relative inline-flex items-center">
+                        <span className={cn("absolute left-2 w-1.5 h-1.5 rounded-full pointer-events-none z-10", getServiceStatusDotColor(s.service_status))} />
+                        <select
+                          value={s.service_status || "Pending"}
+                          onChange={(e) => handleStatusChange(s.id, e.target.value, s.service_name)}
+                          className={cn(
+                            "appearance-none cursor-pointer pl-4.5 pr-4 py-1 rounded-full text-[10px] font-medium border",
+                            getServiceStatusBadgeStyle(s.service_status)
+                          )}
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="Processing">Processing</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Waiting for Approval">Waiting</option>
+                          <option value="Completed">Completed</option>
+                          <option value="On Hold">On Hold</option>
+                          <option value="Cancelled">Cancelled</option>
+                        </select>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRenewModalService({
+                              id: s.id,
+                              clientId: clientId,
+                              clientName: clientName,
+                              serviceName: s.service_name,
+                              serviceCategory: s.service_category || "General",
+                              renewalDate: s.expected_completion_date || s.renewal_date || new Date().toISOString().split("T")[0],
+                              renewalAmount: Number(s.service_fee) || Number(s.renewal_amount) || 0,
+                              renewalStatus: s.renewal_status || "Upcoming",
+                              salespersonName: "",
+                              paymentStatus: "Unpaid",
+                            });
+                          }}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-white hover:bg-emerald-50 text-emerald-700 rounded text-[10px] font-medium border border-emerald-300"
+                        >
+                          <RefreshCw size={10} />
+                          <span>Renew</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHistoryModalService({
+                              id: s.id,
+                              service_name: s.service_name,
+                              client_name: clientName,
+                              client_id: clientId,
+                            });
+                          }}
+                          className="p-1 bg-white border border-slate-200 rounded text-slate-600"
+                          title="History"
+                        >
+                          <History size={12} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDocumentsModalService(s)}
+                          className="p-1 bg-white border border-slate-200 rounded text-slate-600"
+                          title="Documents"
+                        >
+                          <FileText size={12} />
+                        </button>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemove(s.id)}
+                            className="p-1 bg-white border border-slate-200 rounded text-rose-600"
+                            title="Delete"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}

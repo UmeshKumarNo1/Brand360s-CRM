@@ -541,7 +541,7 @@ export function ClientsTable({
                               {/* Left: Clean Title */}
                               <div className="flex items-center gap-2">
                                 <span className="font-bold text-[#1E3A5F] text-xs sm:text-[13px] tracking-tight">
-                                  Services for {client.companyName} ({services.length})
+                                  Services
                                 </span>
                               </div>
 

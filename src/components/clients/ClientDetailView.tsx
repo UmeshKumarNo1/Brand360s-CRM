@@ -84,8 +84,8 @@ export function ClientDetailView({
   initialAddService = false,
 }: ClientDetailViewProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"overview" | "services" | "payments" | "followups" | "activity">(
-    initialTab
+  const [activeTab, setActiveTab] = useState<"services" | "overview" | "payments" | "followups" | "activity">(
+    initialTab === "services" || initialTab === "overview" ? "services" : initialTab
   );
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
@@ -398,126 +398,8 @@ export function ClientDetailView({
         </div>
       </div>
 
-      {/* PRIMARY SECTION: Vertically Stacked Detailed Service Cards Directly Below Summaries */}
-      <div className="space-y-4">
-        {/* Header Bar matching Reference Image 2 */}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-            Client Services ({detailedServices.length})
-          </h2>
-
-          <div className="flex flex-wrap items-center gap-3 text-xs bg-slate-50/90 px-3.5 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs">
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-500 font-medium">Contract:</span>
-              <strong className="text-slate-900 font-sans font-number font-semibold">
-                {formatINR(totalContract || client.contractValue)}
-              </strong>
-            </div>
-            <span className="text-slate-300">|</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-500 font-medium">Invoiced:</span>
-              <strong className="text-slate-900 font-sans font-number font-semibold">
-                {formatINR(totalInvoiced || client.contractValue)}
-              </strong>
-            </div>
-            <span className="text-slate-300">|</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-500 font-medium">Collected:</span>
-              <strong className="text-emerald-700 font-sans font-number font-bold">
-                {formatINR(totalCollected || client.paymentsReceived)}
-              </strong>
-            </div>
-            <span className="text-slate-300">|</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-500 font-medium">Outstanding:</span>
-              <strong className="text-rose-600 font-sans font-number font-bold">
-                {formatINR(totalOutstanding || client.balanceReceivable)}
-              </strong>
-            </div>
-
-            <div className="pl-2 flex items-center gap-1.5 border-l border-slate-200 ml-1">
-              <button
-                onClick={() => loadDetailedServices()}
-                className="p-1 text-slate-400 hover:text-slate-700 rounded-md hover:bg-white transition-colors cursor-pointer"
-                title="Refresh services"
-              >
-                <RefreshCw size={12} className={isLoadingServices ? "animate-spin text-[#0481A2]" : ""} />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Stack of Individual Service Detailed Cards */}
-        {servicesError && (
-          <ErrorRetryState message={servicesError} onRetry={() => loadDetailedServices()} />
-        )}
-
-        {!servicesError && (
-          <div className="space-y-5">
-            {isLoadingServices ? (
-              <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 shadow-2xs">
-                <div className="flex items-center justify-center gap-2">
-                  <RefreshCw size={16} className="animate-spin text-[#0481A2]" />
-                  <span className="text-xs font-medium">Loading individual client services...</span>
-                </div>
-              </div>
-            ) : detailedServices.length === 0 ? (
-              <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-sky-50 text-[#0481A2] flex items-center justify-center mx-auto">
-                  <Layers size={22} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">No Services Purchased Yet</h4>
-                  <p className="text-xs text-slate-500 mt-1">
-                    Assign a service deliverable to track milestones, invoices, and payment collections.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsAddServiceModalOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
-                >
-                  <Plus size={14} />
-                  <span>Assign First Service</span>
-                </button>
-              </div>
-            ) : (
-              detailedServices.map((service, idx) => (
-                <ClientDetailedServiceCard
-                  key={service.id}
-                  service={service}
-                  index={idx}
-                  totalServices={detailedServices.length}
-                  defaultExpanded={idx === 0}
-                  onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
-                  onAddDocument={(svcId) => {
-                    const match = detailedServices.find((s) => s.id === svcId);
-                    setDeliverableModalService(match || service);
-                  }}
-                  onManageService={(svc) => {
-                    setDocumentsModalService(svc);
-                  }}
-                />
-              ))
-            )}
-          </div>
-        )}
-      </div>
-
       {/* Navigation Tabs Bar */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-1.5 flex items-center gap-1 shadow-2xs overflow-x-auto">
-        <button
-          onClick={() => setActiveTab("overview")}
-          className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "overview"
-              ? "bg-[#1B3260] text-white shadow-xs"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-          }`}
-        >
-          <Home size={15} />
-          <span>Overview</span>
-        </button>
-
         <button
           onClick={() => setActiveTab("services")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
@@ -528,6 +410,18 @@ export function ClientDetailView({
         >
           <Layers size={15} />
           <span>Services ({serviceCount})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("overview")}
+          className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === "overview"
+              ? "bg-[#1B3260] text-white shadow-xs"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+          }`}
+        >
+          <Home size={15} />
+          <span>Overview</span>
         </button>
 
         <button
@@ -569,6 +463,112 @@ export function ClientDetailView({
 
       {/* Tab Panels */}
       <div>
+        {activeTab === "services" && (
+          <div className="space-y-4">
+            {/* Header Bar matching Reference Image 2 */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+                Client Services ({detailedServices.length})
+              </h2>
+
+              <div className="flex flex-wrap items-center gap-3 text-xs bg-slate-50/90 px-3.5 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500 font-medium">Contract:</span>
+                  <strong className="text-slate-900 font-sans font-number font-semibold">
+                    {formatINR(totalContract || client.contractValue)}
+                  </strong>
+                </div>
+                <span className="text-slate-300">|</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500 font-medium">Invoiced:</span>
+                  <strong className="text-slate-900 font-sans font-number font-semibold">
+                    {formatINR(totalInvoiced || client.contractValue)}
+                  </strong>
+                </div>
+                <span className="text-slate-300">|</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500 font-medium">Collected:</span>
+                  <strong className="text-emerald-700 font-sans font-number font-bold">
+                    {formatINR(totalCollected || client.paymentsReceived)}
+                  </strong>
+                </div>
+                <span className="text-slate-300">|</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-500 font-medium">Outstanding:</span>
+                  <strong className="text-rose-600 font-sans font-number font-bold">
+                    {formatINR(totalOutstanding || client.balanceReceivable)}
+                  </strong>
+                </div>
+
+                <div className="pl-2 flex items-center gap-1.5 border-l border-slate-200 ml-1">
+                  <button
+                    onClick={() => loadDetailedServices()}
+                    className="p-1 text-slate-400 hover:text-slate-700 rounded-md hover:bg-white transition-colors cursor-pointer"
+                    title="Refresh services"
+                  >
+                    <RefreshCw size={12} className={isLoadingServices ? "animate-spin text-[#0481A2]" : ""} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Stack of Individual Service Detailed Cards */}
+            {servicesError && (
+              <ErrorRetryState message={servicesError} onRetry={() => loadDetailedServices()} />
+            )}
+
+            {!servicesError && (
+              <div className="space-y-5">
+                {isLoadingServices ? (
+                  <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 shadow-2xs">
+                    <div className="flex items-center justify-center gap-2">
+                      <RefreshCw size={16} className="animate-spin text-[#0481A2]" />
+                      <span className="text-xs font-medium">Loading individual client services...</span>
+                    </div>
+                  </div>
+                ) : detailedServices.length === 0 ? (
+                  <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-sky-50 text-[#0481A2] flex items-center justify-center mx-auto">
+                      <Layers size={22} />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">No Services Purchased Yet</h4>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Assign a service deliverable to track milestones, invoices, and payment collections.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddServiceModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
+                    >
+                      <Plus size={14} />
+                      <span>Assign First Service</span>
+                    </button>
+                  </div>
+                ) : (
+                  detailedServices.map((service, idx) => (
+                    <ClientDetailedServiceCard
+                      key={service.id}
+                      service={service}
+                      index={idx}
+                      totalServices={detailedServices.length}
+                      defaultExpanded={idx === 0}
+                      onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
+                      onAddDocument={(svcId) => {
+                        const match = detailedServices.find((s) => s.id === svcId);
+                        setDeliverableModalService(match || service);
+                      }}
+                      onManageService={(svc) => {
+                        setDocumentsModalService(svc);
+                      }}
+                    />
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        )}
         {activeTab === "overview" && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -873,17 +873,6 @@ export function ClientDetailView({
                 <p className="text-slate-600 leading-relaxed whitespace-pre-line pl-6">{client.notes}</p>
               </div>
             )}
-          </div>
-        )}
-
-        {activeTab === "services" && (
-          <div className="bg-white border border-[#E2E8F0] rounded-2xl p-6 shadow-xs">
-            <ClientServicesTab
-              clientId={client.id}
-              clientName={client.companyName}
-              isAdmin={isAdmin}
-              initialAddService={initialAddService}
-            />
           </div>
         )}
 

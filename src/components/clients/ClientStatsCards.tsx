@@ -2,9 +2,9 @@
 
 import {
   Users,
-  Briefcase,
+  Building2,
   Layers,
-  FileSpreadsheet,
+  FileText,
   CheckCircle2,
   Clock,
   CalendarDays,
@@ -35,14 +35,14 @@ export function ClientStatsCards({
       value: totalClients,
       sublabel: "All Registered",
       icon: Users,
-      iconBg: "bg-[#E0F3F7]",
-      iconColor: "text-[#0481A2]",
+      iconBg: "bg-[#E0F2FE]",
+      iconColor: "text-[#0284C7]",
     },
     {
       label: "Active Clients",
       value: activeClients,
       sublabel: "Operational",
-      icon: Briefcase,
+      icon: Building2,
       iconBg: "bg-[#243E76]",
       iconColor: "text-white",
     },
@@ -58,81 +58,65 @@ export function ClientStatsCards({
       label: "Total Contract Value (Excl. GST)",
       value: totalContractValue,
       sublabel: "Excl. GST",
-      icon: FileSpreadsheet,
-      iconBg: "bg-[#243E76]",
-      iconColor: "text-white",
+      icon: FileText,
+      iconBg: "bg-[#E0F2FE]",
+      iconColor: "text-[#0284C7]",
     },
     {
       label: "Amount Collected",
       value: amountCollected,
       sublabel: "Received",
       icon: CheckCircle2,
-      iconBg: "bg-emerald-50",
-      iconColor: "text-emerald-700",
+      iconBg: "bg-[#DCFCE7]",
+      iconColor: "text-[#16A34A]",
     },
     {
       label: "Outstanding",
       value: totalOutstanding,
       sublabel: "Receivable",
       icon: Clock,
-      iconBg: "bg-amber-50",
-      iconColor: "text-amber-700",
+      iconBg: "bg-[#FEF3C7]",
+      iconColor: "text-[#D97706]",
     },
     {
       label: "Pending follow ups",
       value: pendingFollowups,
       sublabel: "Action Required",
       icon: CalendarDays,
-      iconBg: "bg-[#E0F3F7]",
-      iconColor: "text-[#0481A2]",
+      iconBg: "bg-[#FEF3C7]",
+      iconColor: "text-[#D97706]",
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-7 gap-3 sm:gap-3.5 w-full">
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2.5 sm:gap-3 w-full">
       {stats.map((stat, idx) => {
         const Icon = stat.icon;
         return (
           <div
             key={idx}
-            className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-center gap-2.5 sm:gap-3 transition-all duration-200 hover:shadow-xs min-h-[92px] min-w-0"
+            className="bg-white rounded-xl sm:rounded-2xl p-2.5 sm:p-3 border border-slate-200/90 shadow-2xs flex items-center gap-2.5 sm:gap-3 transition-all duration-200 hover:shadow-xs min-h-[82px] sm:min-h-[86px] min-w-0"
           >
-            {/* Soft decorative wave background on bottom right */}
-            <div className="pointer-events-none absolute right-0 bottom-0 w-24 h-16 opacity-35">
-              <svg viewBox="0 0 120 80" fill="none" className="w-full h-full">
-                <path
-                  d="M120 80C90 75 70 50 80 20C90 -5 110 5 120 0V80Z"
-                  fill="#0481A2"
-                  opacity="0.2"
-                />
-                <path
-                  d="M120 80C80 80 50 65 60 40C70 15 100 25 120 15V80Z"
-                  fill="#38BDF8"
-                  opacity="0.15"
-                />
-              </svg>
-            </div>
-
             {/* Icon Circle */}
             <div
-              className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full shrink-0 flex items-center justify-center ${stat.iconBg} ${stat.iconColor} shadow-2xs z-10`}
+              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full shrink-0 flex items-center justify-center ${stat.iconBg} ${stat.iconColor} shadow-2xs`}
             >
-              <Icon size={18} strokeWidth={2.2} />
+              <Icon size={17} strokeWidth={2.2} />
             </div>
 
             {/* Value & Label */}
-            <div className="z-10 min-w-0 flex-1">
-              <div className="text-xl sm:text-2xl font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number truncate">
+            <div className="min-w-0 flex-1 flex flex-col justify-center">
+              <div className="text-lg sm:text-xl font-bold font-number text-slate-900 leading-tight truncate">
                 {stat.value}
               </div>
               <p
-                className="text-[11px] sm:text-xs font-semibold text-slate-500 mt-0.5 leading-snug line-clamp-2"
+                className="text-[11px] font-bold text-slate-800 leading-tight mt-0.5 break-words line-clamp-2"
                 title={stat.label}
               >
                 {stat.label}
               </p>
               {stat.sublabel && (
-                <p className="text-[10px] font-medium text-slate-400 mt-0.5 truncate">
+                <p className="text-[10px] font-medium text-slate-400 mt-0.5 leading-tight truncate">
                   {stat.sublabel}
                 </p>
               )}

@@ -52,11 +52,62 @@ export function AssignServiceModal({
   const { success, error: toastError } = useToast();
   const handledStateRef = useRef<any>(null);
 
+  // Helper: calculate initial date that is guaranteed to be a working day (Mon-Fri)
+  const getInitialWorkingDate = () => {
+    const d = new Date();
+    let added = 0;
+    while (added < 10) {
+      d.setDate(d.getDate() + 1);
+      if (d.getDay() !== 0 && d.getDay() !== 6) {
+        added++;
+      }
+    }
+    const y = d.getFullYear();
+    const nm = String(d.getMonth() + 1).padStart(2, "0");
+    const nd = String(d.getDate()).padStart(2, "0");
+    return `${y}-${nm}-${nd}`;
+  };
+
+  const [expectedDate, setExpectedDate] = useState<string>(getInitialWorkingDate);
+  const [weekendWarning, setWeekendWarning] = useState<string | null>(null);
+
+  const handleExpectedDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (!val) {
+      setExpectedDate("");
+      setWeekendWarning(null);
+      return;
+    }
+    const [y, m, d] = val.split("-").map(Number);
+    const picked = new Date(y, m - 1, d);
+    const day = picked.getDay();
+    if (day === 6) {
+      picked.setDate(picked.getDate() + 2); // Saturday -> Monday
+      const ny = picked.getFullYear();
+      const nm = String(picked.getMonth() + 1).padStart(2, "0");
+      const nd = String(picked.getDate()).padStart(2, "0");
+      setExpectedDate(`${ny}-${nm}-${nd}`);
+      setWeekendWarning("Saturday selected. Auto-snapped to Monday (working day).");
+    } else if (day === 0) {
+      picked.setDate(picked.getDate() + 1); // Sunday -> Monday
+      const ny = picked.getFullYear();
+      const nm = String(picked.getMonth() + 1).padStart(2, "0");
+      const nd = String(picked.getDate()).padStart(2, "0");
+      setExpectedDate(`${ny}-${nm}-${nd}`);
+      setWeekendWarning("Sunday selected. Auto-snapped to Monday (working day).");
+    } else {
+      setExpectedDate(val);
+      setWeekendWarning(null);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       fetchServicesCatalogAction().then((data) => setCatalog(data || []));
       fetchSalespeopleAction().then((data) => setSalespeople(data || []));
       setAttachedFiles([]);
+      setExpectedDate(getInitialWorkingDate());
+      setWeekendWarning(null);
     }
   }, [isOpen]);
 
@@ -339,13 +390,26 @@ export function AssignServiceModal({
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Expected Completion</label>
+              <label className="block font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                <span>Promised Due Date</span>
+                <span className="text-[10px] text-emerald-600 font-semibold">Working Days Only</span>
+              </label>
               <input
                 name="expected_completion_date"
                 type="date"
-                defaultValue={new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
+                value={expectedDate}
+                onChange={handleExpectedDateChange}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2] text-xs"
               />
+              {weekendWarning ? (
+                <p className="text-[10.5px] text-amber-600 font-medium mt-1 leading-tight">
+                  ⚠️ {weekendWarning}
+                </p>
+              ) : (
+                <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+                  Promised by salesperson (Mon–Fri only).
+                </p>
+              )}
             </div>
           </div>
 

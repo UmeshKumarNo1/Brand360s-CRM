@@ -546,5 +546,3 @@ export async function updateClientServiceDueDateAction(
   revalidatePath("/reports");
   return { success: true };
 }
-  return { success: true };
-}

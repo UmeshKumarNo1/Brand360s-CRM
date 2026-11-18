@@ -87,61 +87,61 @@ export function ClientDetailedServiceCard({
       {/* 1. Collapsible Service Header matching Reference Image 2 */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}
-        className="px-6 py-4.5 bg-gradient-to-r from-slate-50/70 via-white to-sky-50/30 border-b border-slate-100 flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-50 transition-colors select-none"
+        className="px-6 py-5 bg-gradient-to-r from-slate-50/80 via-white to-sky-50/40 border-b border-slate-100 flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/90 transition-all select-none min-h-[72px]"
       >
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-3.5 min-w-0">
           {/* Expand / Collapse Icon */}
           <button
             type="button"
-            className="w-7 h-7 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200 flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-lg bg-slate-100/90 text-slate-500 hover:bg-slate-200 flex items-center justify-center transition-colors shrink-0 shadow-2xs"
           >
             {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
           </button>
 
           {/* Service Icon */}
-          <div className="w-9 h-9 rounded-xl bg-sky-50 text-[#077EA1] border border-sky-100 flex items-center justify-center shrink-0">
-            <ServiceIcon size={18} />
+          <div className="w-10 h-10 rounded-xl bg-sky-50 text-[#077EA1] border border-sky-100 flex items-center justify-center shrink-0 shadow-2xs">
+            <ServiceIcon size={20} />
           </div>
 
           {/* Title & Service Sequence Number */}
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-slate-900 text-sm truncate" title={service.serviceName}>
+              <h3 className="font-bold text-slate-900 text-sm tracking-tight truncate" title={service.serviceName}>
                 {service.serviceName}
               </h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-[#0481A2] border border-sky-200 shrink-0">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-[#0481A2] border border-sky-200 shrink-0">
                 Service {index + 1} of {totalServices}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 mt-0.5 truncate">{service.serviceCategory}</p>
+            <p className="text-xs text-slate-400 mt-0.5 truncate">{service.serviceCategory}</p>
           </div>
         </div>
 
         {/* Header Financial Indicators matching Reference Image 2 */}
-        <div className="flex items-center gap-6 text-xs shrink-0">
+        <div className="flex items-center gap-6 sm:gap-8 text-xs shrink-0">
           <div className="text-right hidden sm:block">
-            <span className="text-[10px] uppercase font-semibold text-slate-400 block">Contract Value</span>
-            <span className="font-bold text-slate-900 font-sans font-number">{formatINR(service.contractValue)}</span>
+            <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider block">Contract Value</span>
+            <span className="font-bold text-slate-900 text-sm font-sans font-number">{formatINR(service.contractValue)}</span>
           </div>
 
           <div className="text-right hidden sm:block">
-            <span className="text-[10px] uppercase font-semibold text-slate-400 block">Invoiced</span>
-            <span className="font-bold text-slate-800 font-sans font-number">{formatINR(service.invoicedAmount)}</span>
+            <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider block">Invoiced</span>
+            <span className="font-bold text-slate-800 text-sm font-sans font-number">{formatINR(service.invoicedAmount)}</span>
           </div>
 
           <div className="text-right">
-            <span className="text-[10px] uppercase font-semibold text-slate-400 block">Collected</span>
-            <span className="font-bold text-emerald-700 font-sans font-number">{formatINR(service.collectedAmount)}</span>
+            <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider block">Collected</span>
+            <span className="font-bold text-emerald-700 text-sm font-sans font-number">{formatINR(service.collectedAmount)}</span>
           </div>
 
           <div className="text-right">
-            <span className="text-[10px] uppercase font-semibold text-slate-400 block">Outstanding</span>
-            <span className="font-bold text-rose-600 font-sans font-number">{formatINR(service.outstandingAmount)}</span>
+            <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider block">Outstanding</span>
+            <span className="font-bold text-rose-600 text-sm font-sans font-number">{formatINR(service.outstandingAmount)}</span>
           </div>
 
           {/* Status Pill */}
-          <span className={cn("inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border", statusBadge)}>
-            <span className={cn("w-1.5 h-1.5 rounded-full", isCompleted ? "bg-emerald-600" : "bg-amber-500")} />
+          <span className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-2xs", statusBadge)}>
+            <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", isCompleted ? "bg-emerald-600" : "bg-amber-500")} />
             <span>{service.serviceStatus}</span>
           </span>
 
@@ -151,7 +151,7 @@ export function ClientDetailedServiceCard({
               e.stopPropagation();
               onManageService?.(service);
             }}
-            className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors"
             title="Service Actions"
           >
             <MoreVertical size={16} />

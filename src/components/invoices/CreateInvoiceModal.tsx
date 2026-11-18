@@ -11,6 +11,9 @@ interface CreateInvoiceModalProps {
   onSuccess: () => void;
   defaultClientId?: string;
   defaultClientName?: string;
+  defaultServiceId?: string;
+  defaultDescription?: string;
+  defaultAmount?: number;
 }
 
 export function CreateInvoiceModal({
@@ -19,6 +22,9 @@ export function CreateInvoiceModal({
   onSuccess,
   defaultClientId,
   defaultClientName,
+  defaultServiceId,
+  defaultDescription,
+  defaultAmount,
 }: CreateInvoiceModalProps) {
   const [state, formAction, isPending] = useActionState(createInvoiceAction, null);
   const handledStateRef = useRef<any>(null);
@@ -102,9 +108,12 @@ export function CreateInvoiceModal({
               name="description"
               required
               type="text"
-              defaultValue="Company Registration, Compliance & Filing Fees"
+              defaultValue={defaultDescription || "Company Registration, Compliance & Filing Fees"}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
             />
+            {defaultServiceId && (
+              <input type="hidden" name="client_service_id" value={defaultServiceId} />
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -115,6 +124,7 @@ export function CreateInvoiceModal({
                 required
                 type="number"
                 step="any"
+                defaultValue={defaultAmount ? Math.round((defaultAmount / 1.18) * 100) / 100 : ""}
                 placeholder="50000"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
               />

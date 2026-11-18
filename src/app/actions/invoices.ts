@@ -277,6 +277,7 @@ export async function createInvoiceAction(
 
   if (formData instanceof FormData) {
     const clientId = formData.get("client_id") as string;
+    const clientServiceId = (formData.get("client_service_id") as string) || null;
     const description = (formData.get("description") as string) || "Professional Services";
     const subtotal = parseFloat(formData.get("subtotal") as string) || 0;
     const taxRate = parseFloat(formData.get("tax_rate") as string) || 18;
@@ -305,6 +306,7 @@ export async function createInvoiceAction(
       terms: "Payment due within terms. Brand 360s Enterprises.",
       items: [
         {
+          client_service_id: clientServiceId,
           description,
           quantity: 1,
           unit_price: subtotal,

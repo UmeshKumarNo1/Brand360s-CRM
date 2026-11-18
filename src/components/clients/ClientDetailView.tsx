@@ -468,16 +468,16 @@ export function ClientDetailView({
       </div>
 
       {/* Tab Panels */}
-      <div className="pt-2">
+      <div className="pt-3">
         {activeTab === "services" && (
-          <div className="space-y-5">
+          <div className="space-y-6 pt-1">
             {/* Header Bar matching Reference Image 2 */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1 pb-1">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 pb-2">
               <h2 className="text-lg font-bold text-slate-900 tracking-tight">
                 Client Services ({detailedServices.length})
               </h2>
 
-              <div className="flex flex-wrap items-center gap-3 text-xs bg-slate-50/90 px-3.5 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs">
+              <div className="flex flex-wrap items-center gap-3 text-xs bg-slate-50/90 px-4 py-2 rounded-xl border border-slate-200/80 shadow-2xs">
                 <div className="flex items-center gap-1.5">
                   <span className="text-slate-500 font-medium">Contract:</span>
                   <strong className="text-slate-900 font-sans font-number font-semibold">

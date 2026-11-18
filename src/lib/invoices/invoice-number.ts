@@ -52,3 +52,4 @@ export async function generateInvoiceNumberAction(customYear?: number): Promise<
   const nextSeq = maxSeq + 1;
   return `${prefix}${String(nextSeq).padStart(4, "0")}`;
 }
+

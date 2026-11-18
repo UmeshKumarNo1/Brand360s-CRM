@@ -46,6 +46,17 @@ function formatDate(dateStr?: string | null) {
   return dateStr;
 }
 
+function formatCurrentStage(stage?: string, isComplete?: boolean) {
+  if (isComplete) return { title: "Completed", sub: null };
+  if (!stage) return { title: "Onboarding", sub: "(Pending)" };
+
+  const match = stage.match(/^(.*?)\s*(\(.*?\))$/);
+  if (match) {
+    return { title: match[1].trim(), sub: match[2].trim() };
+  }
+  return { title: stage.trim(), sub: null };
+}
+
 function getSalespersonAvatarColor(name: string) {
   const colors = [
     "bg-purple-100 text-purple-700 border-purple-200",
@@ -712,21 +723,20 @@ export function ClientsTable({
 
                                           {/* CURRENT STAGE: Soft cyan/teal rounded pill with Clock icon */}
                                           <td className="py-3.5 px-3 text-center align-middle whitespace-nowrap">
-                                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E0F7FA] text-[#00695C] border border-[#B2EBF2] shadow-2xs text-left">
-                                              <Clock size={13} className="text-[#00695C] shrink-0" />
-                                              <div className="leading-tight">
-                                                <p className="text-[11px] font-bold">
-                                                  {isServComplete
-                                                    ? "Completed"
-                                                    : service.stage || "Onboarding"}
-                                                </p>
-                                                {!isServComplete && (
-                                                  <p className="text-[9px] font-medium text-[#00796B]/80">
-                                                    (Pending)
-                                                  </p>
-                                                )}
-                                              </div>
-                                            </div>
+                                            {(() => {
+                                              const { title, sub } = formatCurrentStage(service.stage, isServComplete);
+                                              return (
+                                                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E0F7FA] text-[#00695C] border border-[#B2EBF2] shadow-2xs text-left">
+                                                  <Clock size={13} className="text-[#00695C] shrink-0" />
+                                                  <div className="leading-tight">
+                                                    <p className="text-[11px] font-bold">{title}</p>
+                                                    {sub && (
+                                                      <p className="text-[9px] font-medium text-[#00796B]/80">{sub}</p>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              );
+                                            })()}
                                           </td>
 
                                           {/* ASSIGNED TO: Soft gray pill with User icon */}

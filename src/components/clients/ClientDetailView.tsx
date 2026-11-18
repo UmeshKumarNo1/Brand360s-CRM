@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -39,6 +39,7 @@ import {
   Link2,
   FileCheck,
   Activity,
+  RefreshCw,
 } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { PaymentStatusBadge } from "@/components/clients/PaymentStatusBadge";
@@ -47,6 +48,15 @@ import { ClientServicesTab } from "@/components/services/ClientServicesTab";
 import { ClientFollowupsTab } from "@/components/followups/ClientFollowupsTab";
 import { ClientActivityTab } from "@/components/clients/ClientActivityTab";
 import { ReassignClientModal } from "@/components/clients/ReassignClientModal";
+import { ClientDetailedServiceCard } from "@/components/clients/ClientDetailedServiceCard";
+import {
+  fetchClientDetailedServicesAction,
+  DetailedServiceData,
+} from "@/app/actions/client-detailed-services";
+import { AssignServiceModal } from "@/components/services/AssignServiceModal";
+import { UploadServiceDeliverableModal } from "@/components/services/UploadServiceDeliverableModal";
+import { ServiceDocumentsModal } from "@/components/services/ServiceDocumentsModal";
+import { InvoicePreviewModal } from "@/components/invoices/InvoicePreviewModal";
 import {
   deleteClientAction,
   archiveClientAction,
@@ -56,6 +66,7 @@ import {
 } from "@/app/actions/client-delete";
 import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationModal";
 import { useToast } from "@/components/common/ToastProvider";
+import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 
 interface ClientDetailViewProps {
   client: any;
@@ -73,12 +84,51 @@ export function ClientDetailView({
   initialAddService = false,
 }: ClientDetailViewProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"overview" | "services" | "payments" | "followups" | "activity">(initialTab);
+  const [activeTab, setActiveTab] = useState<"overview" | "services" | "payments" | "followups" | "activity">(
+    initialTab
+  );
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
   const [depCheck, setDepCheck] = useState<DeleteClientCheckResult | null>(null);
 
+  // Detailed Services State
+  const [detailedServices, setDetailedServices] = useState<DetailedServiceData[]>([]);
+  const [isLoadingServices, setIsLoadingServices] = useState(true);
+  const [servicesError, setServicesError] = useState<string | null>(null);
+
+  // Modals
+  const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(Boolean(initialAddService));
+  const [deliverableModalService, setDeliverableModalService] = useState<any | null>(null);
+  const [documentsModalService, setDocumentsModalService] = useState<any | null>(null);
+  const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
+
   const { success, error: toastError } = useToast();
+  const reqIdRef = useRef(0);
+
+  const loadDetailedServices = useCallback(async (silent = false) => {
+    const curId = ++reqIdRef.current;
+    if (!silent) setIsLoadingServices(true);
+    setServicesError(null);
+
+    try {
+      const data = await fetchClientDetailedServicesAction(client.id);
+      if (curId === reqIdRef.current) {
+        setDetailedServices(data || []);
+      }
+    } catch (err: any) {
+      if (curId === reqIdRef.current) {
+        setServicesError(err.message || "Failed to load detailed services.");
+      }
+    } finally {
+      if (curId === reqIdRef.current && !silent) {
+        setIsLoadingServices(false);
+      }
+    }
+  }, [client.id]);
+
+  useEffect(() => {
+    loadDetailedServices();
+  }, [loadDetailedServices]);
 
   const isArchived = client.clientStatus === "Archived";
 
@@ -126,6 +176,12 @@ export function ClientDetailView({
   const serviceCount = client.servicesPurchased
     ? client.servicesPurchased.split(",").filter(Boolean).length
     : 0;
+
+  // Aggregated Header Metrics for Services Stack
+  const totalContract = detailedServices.reduce((sum, s) => sum + (Number(s.contractValue) || 0), 0);
+  const totalInvoiced = detailedServices.reduce((sum, s) => sum + (Number(s.invoicedAmount) || 0), 0);
+  const totalCollected = detailedServices.reduce((sum, s) => sum + (Number(s.collectedAmount) || 0), 0);
+  const totalOutstanding = Math.max(0, totalContract - totalCollected);
 
   return (
     <div className="relative space-y-6 font-sans">
@@ -340,6 +396,112 @@ export function ClientDetailView({
             <path d="M20,80 C50,50 80,75 120,45 L120,80 Z" />
           </svg>
         </div>
+      </div>
+
+      {/* PRIMARY SECTION: Vertically Stacked Detailed Service Cards Directly Below Summaries */}
+      <div className="space-y-4">
+        {/* Header Bar matching Reference Image 2 */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+            Client Services ({detailedServices.length})
+          </h2>
+
+          <div className="flex flex-wrap items-center gap-3 text-xs bg-slate-50/90 px-3.5 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs">
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500 font-medium">Contract:</span>
+              <strong className="text-slate-900 font-sans font-number font-semibold">
+                {formatINR(totalContract || client.contractValue)}
+              </strong>
+            </div>
+            <span className="text-slate-300">|</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500 font-medium">Invoiced:</span>
+              <strong className="text-slate-900 font-sans font-number font-semibold">
+                {formatINR(totalInvoiced || client.contractValue)}
+              </strong>
+            </div>
+            <span className="text-slate-300">|</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500 font-medium">Collected:</span>
+              <strong className="text-emerald-700 font-sans font-number font-bold">
+                {formatINR(totalCollected || client.paymentsReceived)}
+              </strong>
+            </div>
+            <span className="text-slate-300">|</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-slate-500 font-medium">Outstanding:</span>
+              <strong className="text-rose-600 font-sans font-number font-bold">
+                {formatINR(totalOutstanding || client.balanceReceivable)}
+              </strong>
+            </div>
+
+            <div className="pl-2 flex items-center gap-1.5 border-l border-slate-200 ml-1">
+              <button
+                onClick={() => loadDetailedServices()}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-md hover:bg-white transition-colors cursor-pointer"
+                title="Refresh services"
+              >
+                <RefreshCw size={12} className={isLoadingServices ? "animate-spin text-[#0481A2]" : ""} />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Stack of Individual Service Detailed Cards */}
+        {servicesError && (
+          <ErrorRetryState message={servicesError} onRetry={() => loadDetailedServices()} />
+        )}
+
+        {!servicesError && (
+          <div className="space-y-5">
+            {isLoadingServices ? (
+              <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 shadow-2xs">
+                <div className="flex items-center justify-center gap-2">
+                  <RefreshCw size={16} className="animate-spin text-[#0481A2]" />
+                  <span className="text-xs font-medium">Loading individual client services...</span>
+                </div>
+              </div>
+            ) : detailedServices.length === 0 ? (
+              <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-10 text-center space-y-3">
+                <div className="w-12 h-12 rounded-2xl bg-sky-50 text-[#0481A2] flex items-center justify-center mx-auto">
+                  <Layers size={22} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">No Services Purchased Yet</h4>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Assign a service deliverable to track milestones, invoices, and payment collections.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsAddServiceModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  <Plus size={14} />
+                  <span>Assign First Service</span>
+                </button>
+              </div>
+            ) : (
+              detailedServices.map((service, idx) => (
+                <ClientDetailedServiceCard
+                  key={service.id}
+                  service={service}
+                  index={idx}
+                  totalServices={detailedServices.length}
+                  defaultExpanded={idx === 0}
+                  onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
+                  onAddDocument={(svcId) => {
+                    const match = detailedServices.find((s) => s.id === svcId);
+                    setDeliverableModalService(match || service);
+                  }}
+                  onManageService={(svc) => {
+                    setDocumentsModalService(svc);
+                  }}
+                />
+              ))
+            )}
+          </div>
+        )}
       </div>
 
       {/* Navigation Tabs Bar */}
@@ -752,6 +914,58 @@ export function ClientDetailView({
           </div>
         )}
       </div>
+
+      {/* Assign Service Modal */}
+      {isAddServiceModalOpen && (
+        <AssignServiceModal
+          isOpen={isAddServiceModalOpen}
+          onClose={() => setIsAddServiceModalOpen(false)}
+          onSuccess={() => {
+            loadDetailedServices();
+            router.refresh();
+          }}
+          clientId={client.id}
+          clientName={client.companyName}
+        />
+      )}
+
+      {/* Upload Deliverable Modal */}
+      {deliverableModalService && (
+        <UploadServiceDeliverableModal
+          isOpen={Boolean(deliverableModalService)}
+          onClose={() => setDeliverableModalService(null)}
+          onSuccess={() => {
+            loadDetailedServices();
+          }}
+          clientId={client.id}
+          clientServiceId={deliverableModalService.id}
+          serviceName={deliverableModalService.serviceName}
+          clientName={client.companyName}
+        />
+      )}
+
+      {/* Service Documents Modal */}
+      {documentsModalService && (
+        <ServiceDocumentsModal
+          isOpen={Boolean(documentsModalService)}
+          onClose={() => setDocumentsModalService(null)}
+          onRefreshParent={() => loadDetailedServices()}
+          clientId={client.id}
+          clientServiceId={documentsModalService.id}
+          serviceName={documentsModalService.serviceName}
+          clientName={client.companyName}
+          serviceStatus={documentsModalService.serviceStatus}
+        />
+      )}
+
+      {/* Invoice Preview Modal */}
+      {previewInvoiceId && (
+        <InvoicePreviewModal
+          isOpen={Boolean(previewInvoiceId)}
+          onClose={() => setPreviewInvoiceId(null)}
+          invoiceId={previewInvoiceId}
+        />
+      )}
 
       {/* Delete / Archive Confirmation Modal */}
       {isDeleteModalOpen && (

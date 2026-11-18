@@ -83,6 +83,7 @@ export async function toggleCatalogServiceAction(id: string, currentStatus: bool
 export async function fetchClientServicesAction(clientId: string) {
   const supabase = await createClient();
 
+  // 1. Fetch client services
   const { data, error } = await supabase
     .from("client_services")
     .select(`
@@ -123,14 +124,63 @@ export async function fetchClientServicesAction(clientId: string) {
     return [];
   }
 
-  return (data || []).map((s: any) => ({
-    ...s,
-    vendor_assignments: (s.vendor_assignments || []).map((va: any) => ({
-      ...va,
-      vendor: Array.isArray(va.vendor) ? va.vendor[0] : va.vendor,
-    })),
-    documents: s.documents || [],
-  }));
+  // 2. Fetch invoice allocations mapped to client services (or invoice items linked to services)
+  const serviceIds = (data || []).map((s: any) => s.id);
+  const paidByService: Record<string, number> = {};
+  const invoicedByService: Record<string, number> = {};
+
+  if (serviceIds.length > 0) {
+    // Check direct allocations to client_service_id
+    const { data: directAllocs } = await supabase
+      .from("invoice_payment_allocations")
+      .select("client_service_id, allocated_amount")
+      .in("client_service_id", serviceIds);
+
+    (directAllocs || []).forEach((a: any) => {
+      if (a.client_service_id) {
+        paidByService[a.client_service_id] =
+          (paidByService[a.client_service_id] || 0) + (Number(a.allocated_amount) || 0);
+      }
+    });
+
+    // Also fetch invoice items linked to client services
+    const { data: invoiceItems } = await supabase
+      .from("invoice_items")
+      .select("id, client_service_id, total");
+
+    (invoiceItems || []).forEach((item: any) => {
+      if (item.client_service_id && serviceIds.includes(item.client_service_id)) {
+        invoicedByService[item.client_service_id] =
+          (invoicedByService[item.client_service_id] || 0) + (Number(item.total) || 0);
+      }
+    });
+  }
+
+  return (data || []).map((s: any) => {
+    const contractVal = Number(s.total_amount) || (Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0);
+    const amountPaid = paidByService[s.id] || 0;
+    const invoicedAmt = invoicedByService[s.id] || contractVal;
+
+    let paymentStatus: "Paid" | "Partial" | "Unpaid" = "Unpaid";
+    if (contractVal > 0 && amountPaid >= contractVal - 0.009) {
+      paymentStatus = "Paid";
+    } else if (amountPaid > 0.009) {
+      paymentStatus = "Partial";
+    }
+
+    return {
+      ...s,
+      contractValue: contractVal,
+      amountPaid,
+      invoicedAmount: invoicedAmt,
+      paymentStatus,
+      vendor_assignments: (s.vendor_assignments || []).map((va: any) => ({
+        ...va,
+        vendor: Array.isArray(va.vendor) ? va.vendor[0] : va.vendor,
+      })),
+      documents: s.documents || [],
+    };
+  });
 }
 
 export async function assignClientServiceAction(

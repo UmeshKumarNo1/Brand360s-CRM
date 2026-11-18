@@ -418,3 +418,44 @@ export async function fetchSalespeopleAction() {
 
   return data || [];
 }
+
+/**
+ * Fetch client commercial summary including contract value, verified payments,
+ * and remaining contract balance for real-time validation.
+ */
+export async function fetchClientContractSummaryAction(clientId: string) {
+  if (!clientId) return null;
+  const supabase = await createClient();
+
+  const { data: client, error: clientError } = await supabase
+    .from("clients")
+    .select("id, company_name, client_code, contract_value, balance_receivable")
+    .eq("id", clientId)
+    .single();
+
+  if (clientError || !client) return null;
+
+  const { data: verifiedPayments } = await supabase
+    .from("payments")
+    .select("amount")
+    .eq("client_id", clientId)
+    .eq("status", "Verified");
+
+  const totalVerifiedReceived = (verifiedPayments || []).reduce(
+    (sum, p) => sum + (Number(p.amount) || 0),
+    0
+  );
+
+  const contractValue = Number(client.contract_value) || 0;
+  const remainingContractBalance = Math.max(0, contractValue - totalVerifiedReceived);
+
+  return {
+    clientId: client.id,
+    companyName: client.company_name,
+    clientCode: client.client_code,
+    contractValue,
+    previouslyReceived: totalVerifiedReceived,
+    remainingContractBalance,
+    maximumPermittedPayment: remainingContractBalance,
+  };
+}

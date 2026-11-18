@@ -29,6 +29,7 @@ import { RenewServiceModal } from "@/components/renewals/RenewServiceModal";
 import { RenewalHistoryModal } from "@/components/renewals/RenewalHistoryModal";
 import { UploadServiceDeliverableModal } from "@/components/services/UploadServiceDeliverableModal";
 import { ServiceDocumentsModal } from "@/components/services/ServiceDocumentsModal";
+import { TargetDateCell } from "@/components/services/TargetDateCell";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 
@@ -319,7 +320,7 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                   <th className="py-2.5 px-2 text-center">Documents</th>
                   <th className="py-2.5 px-2 text-center">Renewal Status</th>
                   <th className="py-2.5 px-2 text-center">Vendor / Outsourcing</th>
-                  <th className="py-2.5 px-2 text-center">Expected Date</th>
+                  <th className="py-2.5 px-2 text-center" title="Target delivery date (click to edit working day)">Target Date</th>
                   <th className="py-2.5 px-2 text-center">Actions</th>
                 </tr>
               </thead>
@@ -550,13 +551,25 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                           )}
                         </td>
 
-                        {/* Expected Date (9%) */}
-                        <td className="py-2 px-2 align-middle text-slate-600 font-normal text-[11px] leading-tight">
-                          {s.expected_completion_date ? (
-                            <span>{s.expected_completion_date}</span>
-                          ) : (
-                            <span className="text-slate-400">-</span>
-                          )}
+                        {/* Target Date (9%) - Interactive working days picker on individual client page */}
+                        <td className="py-2 px-2 align-middle text-center whitespace-nowrap">
+                          <TargetDateCell
+                            serviceId={s.id}
+                            clientId={clientId}
+                            initialDate={s.expected_completion_date}
+                            isCompleted={s.service_status === "Completed"}
+                            editable={true}
+                            onDateUpdated={(newDate) => {
+                              setServices((prev) =>
+                                prev.map((item) =>
+                                  item.id === s.id
+                                    ? { ...item, expected_completion_date: newDate }
+                                    : item
+                                )
+                              );
+                              success("Target Date Updated", `Committed date set to ${newDate}.`);
+                            }}
+                          />
                         </td>
 
                         {/* Actions Column (12%) - Compact flex row */}
@@ -689,8 +702,24 @@ export function ClientServicesTab({ clientId, clientName, isAdmin, initialAddSer
                         <span className="text-slate-600">{formatINR(Number(s.govt_fee) || 0)}</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 block text-[10px]">Expected Date</span>
-                        <span className="text-slate-600">{s.expected_completion_date || "-"}</span>
+                        <span className="text-slate-400 block text-[10px] mb-0.5">Target Date</span>
+                        <TargetDateCell
+                          serviceId={s.id}
+                          clientId={clientId}
+                          initialDate={s.expected_completion_date}
+                          isCompleted={s.service_status === "Completed"}
+                          editable={true}
+                          onDateUpdated={(newDate) => {
+                            setServices((prev) =>
+                              prev.map((item) =>
+                                item.id === s.id
+                                  ? { ...item, expected_completion_date: newDate }
+                                  : item
+                              )
+                            );
+                            success("Target Date Updated", `Committed date set to ${newDate}.`);
+                          }}
+                        />
                       </div>
                       <div>
                         <span className="text-slate-400 block text-[10px]">Vendor</span>

@@ -102,13 +102,12 @@ export async function createClientAction(
   // Section 7: Notes
   const notes = (formData.get("notes") as string)?.trim() || null;
 
-  // Optional Commercials (if passed or default)
+  // Commercials are derived strictly from active services
   const services_purchased = (formData.get("services_purchased") as string)?.trim() || "General";
-  const rawContractVal = formData.get("contract_value") as string;
-  const rawPaymentsRec = formData.get("payments_received") as string;
-  const contract_value = rawContractVal !== "" && rawContractVal !== null && !isNaN(Number(rawContractVal)) ? parseFloat(rawContractVal) : 0;
-  const payments_received = rawPaymentsRec !== "" && rawPaymentsRec !== null && !isNaN(Number(rawPaymentsRec)) ? parseFloat(rawPaymentsRec) : 0;
-  const balance_receivable = Math.max(0, contract_value - payments_received);
+  // Creating a new client without services always results in Contract Value = ₹0
+  const contract_value = 0.00;
+  const payments_received = 0.00;
+  const balance_receivable = 0.00;
 
   // Field validation
   const fieldErrors: Record<string, string> = {};
@@ -436,4 +435,45 @@ export async function fetchSalespeopleAction() {
   }
 
   return data || [];
+}
+
+/**
+ * Fetch client commercial summary including contract value, verified payments,
+ * and remaining contract balance for real-time validation.
+ */
+export async function fetchClientContractSummaryAction(clientId: string) {
+  if (!clientId) return null;
+  const supabase = await createClient();
+
+  const { data: client, error: clientError } = await supabase
+    .from("clients")
+    .select("id, company_name, client_code, contract_value, balance_receivable")
+    .eq("id", clientId)
+    .single();
+
+  if (clientError || !client) return null;
+
+  const { data: verifiedPayments } = await supabase
+    .from("payments")
+    .select("amount")
+    .eq("client_id", clientId)
+    .eq("status", "Verified");
+
+  const totalVerifiedReceived = (verifiedPayments || []).reduce(
+    (sum, p) => sum + (Number(p.amount) || 0),
+    0
+  );
+
+  const contractValue = Number(client.contract_value) || 0;
+  const remainingContractBalance = Math.max(0, contractValue - totalVerifiedReceived);
+
+  return {
+    clientId: client.id,
+    companyName: client.company_name,
+    clientCode: client.client_code,
+    contractValue,
+    previouslyReceived: totalVerifiedReceived,
+    remainingContractBalance,
+    maximumPermittedPayment: remainingContractBalance,
+  };
 }

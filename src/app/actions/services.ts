@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { autoGenerateInvoiceForClientAction } from "@/app/actions/invoices";
 import { uploadClientServiceDocumentAction } from "@/app/actions/documents";
+import { syncClientContractValueAction } from "@/app/actions/client-reconciliation";
 
 export interface ServiceActionState {
   error?: string | null;
@@ -104,6 +105,7 @@ export async function toggleCatalogServiceAction(id: string, currentStatus: bool
 export async function fetchClientServicesAction(clientId: string) {
   const supabase = await createClient();
 
+  // 1. Fetch client services
   const { data, error } = await supabase
     .from("client_services")
     .select(`
@@ -144,14 +146,63 @@ export async function fetchClientServicesAction(clientId: string) {
     return [];
   }
 
-  return (data || []).map((s: any) => ({
-    ...s,
-    vendor_assignments: (s.vendor_assignments || []).map((va: any) => ({
-      ...va,
-      vendor: Array.isArray(va.vendor) ? va.vendor[0] : va.vendor,
-    })),
-    documents: s.documents || [],
-  }));
+  // 2. Fetch invoice allocations mapped to client services (or invoice items linked to services)
+  const serviceIds = (data || []).map((s: any) => s.id);
+  const paidByService: Record<string, number> = {};
+  const invoicedByService: Record<string, number> = {};
+
+  if (serviceIds.length > 0) {
+    // Check direct allocations to client_service_id
+    const { data: directAllocs } = await supabase
+      .from("invoice_payment_allocations")
+      .select("client_service_id, allocated_amount")
+      .in("client_service_id", serviceIds);
+
+    (directAllocs || []).forEach((a: any) => {
+      if (a.client_service_id) {
+        paidByService[a.client_service_id] =
+          (paidByService[a.client_service_id] || 0) + (Number(a.allocated_amount) || 0);
+      }
+    });
+
+    // Also fetch invoice items linked to client services
+    const { data: invoiceItems } = await supabase
+      .from("invoice_items")
+      .select("id, client_service_id, total");
+
+    (invoiceItems || []).forEach((item: any) => {
+      if (item.client_service_id && serviceIds.includes(item.client_service_id)) {
+        invoicedByService[item.client_service_id] =
+          (invoicedByService[item.client_service_id] || 0) + (Number(item.total) || 0);
+      }
+    });
+  }
+
+  return (data || []).map((s: any) => {
+    const contractVal = Number(s.total_amount) || (Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0);
+    const amountPaid = paidByService[s.id] || 0;
+    const invoicedAmt = invoicedByService[s.id] || contractVal;
+
+    let paymentStatus: "Paid" | "Partial" | "Unpaid" = "Unpaid";
+    if (contractVal > 0 && amountPaid >= contractVal - 0.009) {
+      paymentStatus = "Paid";
+    } else if (amountPaid > 0.009) {
+      paymentStatus = "Partial";
+    }
+
+    return {
+      ...s,
+      contractValue: contractVal,
+      amountPaid,
+      invoicedAmount: invoicedAmt,
+      paymentStatus,
+      vendor_assignments: (s.vendor_assignments || []).map((va: any) => ({
+        ...va,
+        vendor: Array.isArray(va.vendor) ? va.vendor[0] : va.vendor,
+      })),
+      documents: s.documents || [],
+    };
+  });
 }
 
 export async function assignClientServiceAction(
@@ -271,6 +322,9 @@ export async function assignClientServiceAction(
     }
   }
 
+  // Recalculate and synchronize client contract value & balance receivable
+  await syncClientContractValueAction(clientId);
+
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/clients");
   revalidatePath("/services");
@@ -282,6 +336,23 @@ export async function assignClientServiceAction(
 export async function removeClientServiceAction(serviceId: string, clientId: string): Promise<ServiceActionState> {
   const supabase = await createClient();
 
+  // Financial safety check: check if this service has linked invoice items or payment allocations
+  const { data: linkedAllocations } = await supabase
+    .from("invoice_payment_allocations")
+    .select("id, allocated_amount")
+    .eq("client_service_id", serviceId);
+
+  const totalAllocated = (linkedAllocations || []).reduce(
+    (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+    0
+  );
+
+  if (totalAllocated > 0) {
+    return {
+      error: `Cannot delete service because it has ₹${totalAllocated.toLocaleString("en-IN")} in recorded payment allocations. To preserve financial audit integrity, change the service status to 'Cancelled' instead of deleting it.`,
+    };
+  }
+
   const { error } = await supabase
     .from("client_services")
     .delete()
@@ -290,6 +361,9 @@ export async function removeClientServiceAction(serviceId: string, clientId: str
   if (error) {
     return { error: error.message };
   }
+
+  // Recalculate and synchronize client contract value & balance receivable
+  await syncClientContractValueAction(clientId);
 
   revalidatePath(`/clients/${clientId}`);
   return { success: true };
@@ -341,11 +415,68 @@ export async function updateClientServiceStatusAction(
   }
 
   if (clientId) {
-    revalidatePath(`/clients/${clientId}`);
+    // Recalculate and synchronize client contract value & balance receivable
+  await syncClientContractValueAction(clientId);
+
+  revalidatePath(`/clients/${clientId}`);
   }
   revalidatePath("/clients");
   revalidatePath("/services");
   revalidatePath("/reports");
+  return { success: true };
+}
+
+export async function editClientServiceAction(
+  serviceId: string,
+  clientId: string,
+  data: {
+    serviceName?: string;
+    serviceCategory?: string;
+    serviceFee?: number;
+    govtFee?: number;
+    startDate?: string | null;
+    expectedCompletionDate?: string | null;
+    serviceStatus?: string;
+    assignedEmployeeId?: string | null;
+    notes?: string | null;
+  }
+): Promise<ServiceActionState> {
+  const supabase = await createClient();
+
+  const updateData: any = {
+    updated_at: new Date().toISOString(),
+  };
+
+  if (data.serviceName !== undefined) updateData.service_name = data.serviceName;
+  if (data.serviceCategory !== undefined) updateData.service_category = data.serviceCategory;
+  if (data.serviceFee !== undefined) updateData.service_fee = data.serviceFee;
+  if (data.govtFee !== undefined) updateData.govt_fee = data.govtFee;
+  if (data.serviceFee !== undefined || data.govtFee !== undefined) {
+    const fee = data.serviceFee ?? 0;
+    const govt = data.govtFee ?? 0;
+    updateData.total_amount = fee + govt;
+  }
+  if (data.startDate !== undefined) updateData.start_date = data.startDate;
+  if (data.expectedCompletionDate !== undefined) updateData.expected_completion_date = data.expectedCompletionDate;
+  if (data.serviceStatus !== undefined) updateData.service_status = data.serviceStatus;
+  if (data.assignedEmployeeId !== undefined) updateData.assigned_employee_id = data.assignedEmployeeId;
+  if (data.notes !== undefined) updateData.notes = data.notes;
+
+  const { error } = await supabase
+    .from("client_services")
+    .update(updateData)
+    .eq("id", serviceId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  // Recalculate client contract value
+  await syncClientContractValueAction(clientId);
+
+  revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/clients");
+  revalidatePath("/services");
   return { success: true };
 }
 

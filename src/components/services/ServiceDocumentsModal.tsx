@@ -280,7 +280,7 @@ export function ServiceDocumentsModal({
                 ) : (
                   <>
                     <Plus size={13} />
-                    <span>+ Upload Document</span>
+                    <span>Upload Document</span>
                   </>
                 )}
               </button>

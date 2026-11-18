@@ -110,10 +110,30 @@ export async function updateClientAction(
   const client_since = (formData.get("client_since") as string) || null;
   const notes = (formData.get("notes") as string)?.trim() || null;
   
-  const rawContractVal = formData.get("contract_value") as string;
-  const rawPaymentsRec = formData.get("payments_received") as string;
-  const contract_value = rawContractVal !== "" && rawContractVal !== null && !isNaN(Number(rawContractVal)) ? parseFloat(rawContractVal) : 0;
-  const payments_received = rawPaymentsRec !== "" && rawPaymentsRec !== null && !isNaN(Number(rawPaymentsRec)) ? parseFloat(rawPaymentsRec) : 0;
+  // Recalculate contract value strictly from active services
+  const { data: clientServices } = await supabase
+    .from("client_services")
+    .select("total_amount, service_fee, govt_fee, service_status")
+    .eq("client_id", clientId);
+
+  const activeServices = (clientServices || []).filter((s: any) => s.service_status !== "Cancelled");
+  const contract_value = activeServices.reduce((sum: number, s: any) => {
+    const amt = Number(s.total_amount) || ((Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0));
+    return sum + amt;
+  }, 0);
+
+  // Payments received is strictly verified payments from database
+  const { data: verifiedPayments } = await supabase
+    .from("payments")
+    .select("amount")
+    .eq("client_id", clientId)
+    .eq("status", "Verified");
+
+  const payments_received = (verifiedPayments || []).reduce(
+    (sum: number, p: any) => sum + (Number(p.amount) || 0),
+    0
+  );
+
   const balance_receivable = Math.max(0, contract_value - payments_received);
   const next_payment_due_date = (formData.get("next_payment_due_date") as string) || null;
 

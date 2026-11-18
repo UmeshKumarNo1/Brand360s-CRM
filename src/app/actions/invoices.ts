@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { generateInvoiceNumberAction as generateNextInvoiceNumber } from "@/lib/invoices/invoice-number";
 
 export interface InvoiceActionState {
   error?: string | null;
@@ -257,19 +258,7 @@ export async function fetchInvoiceByIdAction(invoiceId: string): Promise<Invoice
  * Server action to generate an atomic unique invoice number
  */
 export async function generateInvoiceNumberAction(): Promise<string> {
-  const supabase = await createClient();
-
-  const currentYear = new Date().getFullYear();
-  const prefix = `B360-INV-${currentYear}-`;
-
-  // Count existing invoices for this year to create sequential number
-  const { count } = await supabase
-    .from("invoices")
-    .select("id", { count: "exact", head: true });
-
-  const seq = (count || 0) + 1;
-  const seqStr = String(seq).padStart(4, "0");
-  return `${prefix}${seqStr}`;
+  return generateNextInvoiceNumber();
 }
 
 /**

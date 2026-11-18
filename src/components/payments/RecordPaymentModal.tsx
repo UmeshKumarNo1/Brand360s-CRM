@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState, useEffect, useState, useRef } from "react";
-import { CreditCard, X, Loader2, IndianRupee, Calendar, FileText, Plus, Trash2, CheckCircle2, Sparkles } from "lucide-react";
+import { CreditCard, X, Loader2, IndianRupee, Calendar, FileText, Plus, Trash2, CheckCircle2, Sparkles, AlertCircle, ShieldAlert } from "lucide-react";
 import { recordPaymentAction, fetchClientInvoicesForAllocationAction } from "@/app/actions/payments";
-import { fetchClientsAction } from "@/app/actions/clients";
+import { fetchClientsAction, fetchClientContractSummaryAction } from "@/app/actions/clients";
 import { autoGenerateInvoiceForClientAction } from "@/app/actions/invoices";
 import { formatINR } from "@/lib/utils";
 import { useToast } from "@/components/common/ToastProvider";
@@ -50,6 +50,15 @@ export function RecordPaymentModal({
   const [selectedInstallmentId, setSelectedInstallmentId] = useState<string>(defaultInstallmentId || "");
   const [amountValue, setAmountValue] = useState<string>(defaultAmount ? String(defaultAmount) : "");
 
+  // Contract limit commercial summary state
+  const [contractSummary, setContractSummary] = useState<{
+    contractValue: number;
+    previouslyReceived: number;
+    remainingContractBalance: number;
+    maximumPermittedPayment: number;
+  } | null>(null);
+  const [isLoadingContract, setIsLoadingContract] = useState(false);
+
   // Invoices for the selected client
   const [clientInvoices, setClientInvoices] = useState<any[]>([]);
   const [allocationLines, setAllocationLines] = useState<AllocationLine[]>([]);
@@ -57,6 +66,26 @@ export function RecordPaymentModal({
   const [isGeneratingInvoice, setIsGeneratingInvoice] = useState(false);
   const reqIdRef = useRef(0);
   const { success } = useToast();
+
+  // Load client contract summary for live validation
+  useEffect(() => {
+    if (!selectedClientId) {
+      setContractSummary(null);
+      return;
+    }
+
+    setIsLoadingContract(true);
+    fetchClientContractSummaryAction(selectedClientId)
+      .then((summary) => {
+        setContractSummary(summary);
+      })
+      .catch((err) => {
+        console.error("Error loading client contract summary:", err);
+      })
+      .finally(() => {
+        setIsLoadingContract(false);
+      });
+  }, [selectedClientId, isOpen]);
 
   const loadClientInvoices = (cId: string) => {
     if (!cId) {
@@ -187,6 +216,19 @@ export function RecordPaymentModal({
   const paymentAmountNum = parseFloat(amountValue) || 0;
   const remainingUnallocated = Math.max(0, paymentAmountNum - totalAllocating);
 
+  // Contract limit live calculation
+  const maxPermitted = contractSummary ? contractSummary.maximumPermittedPayment : Infinity;
+  const isExceedingContract =
+    contractSummary !== null &&
+    paymentAmountNum > 0 &&
+    paymentAmountNum > maxPermitted + 0.009;
+
+  const isFormBlocked =
+    isPending ||
+    isExceedingContract ||
+    (contractSummary !== null && maxPermitted <= 0) ||
+    (totalAllocating > paymentAmountNum && paymentAmountNum > 0);
+
   if (!isOpen) return null;
 
   return (
@@ -256,19 +298,70 @@ export function RecordPaymentModal({
             )}
           </div>
 
+          {/* Client Contract Financial Summary Bar */}
+          {selectedClientId && (
+            <div className="p-3 bg-gradient-to-r from-slate-50 to-sky-50/60 border border-slate-200 rounded-xl space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Client Contract Status</span>
+                {isLoadingContract && <Loader2 size={11} className="animate-spin text-[#077EA1]" />}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
+                <div className="bg-white p-2 rounded-lg border border-slate-200/70">
+                  <span className="text-[9px] text-slate-400 font-semibold block uppercase">Contract Value</span>
+                  <span className="font-bold text-slate-800 text-xs font-sans font-number">
+                    {contractSummary ? formatINR(contractSummary.contractValue) : "—"}
+                  </span>
+                </div>
+                <div className="bg-white p-2 rounded-lg border border-slate-200/70">
+                  <span className="text-[9px] text-slate-400 font-semibold block uppercase">Previously Received</span>
+                  <span className="font-bold text-emerald-700 text-xs font-sans font-number">
+                    {contractSummary ? formatINR(contractSummary.previouslyReceived) : "—"}
+                  </span>
+                </div>
+                <div className="bg-white p-2 rounded-lg border border-slate-200/70">
+                  <span className="text-[9px] text-slate-400 font-semibold block uppercase">Remaining Contract</span>
+                  <span className="font-bold text-blue-700 text-xs font-sans font-number">
+                    {contractSummary ? formatINR(contractSummary.remainingContractBalance) : "—"}
+                  </span>
+                </div>
+                <div className="bg-white p-2 rounded-lg border border-slate-200/70">
+                  <span className="text-[9px] text-slate-400 font-semibold block uppercase">Max Permitted</span>
+                  <span className={`font-bold text-xs font-sans font-number ${
+                    contractSummary && contractSummary.maximumPermittedPayment > 0 ? "text-slate-900" : "text-rose-600"
+                  }`}>
+                    {contractSummary ? formatINR(contractSummary.maximumPermittedPayment) : "—"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Amount and Payment Date */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Amount (₹) *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-semibold text-slate-700">Amount (₹) *</label>
+                {contractSummary && (
+                  <span className="text-[10px] text-slate-500">
+                    Max: <strong className="text-slate-800 font-sans font-number">{formatINR(contractSummary.maximumPermittedPayment)}</strong>
+                  </span>
+                )}
+              </div>
               <input
                 name="amount"
                 required
                 type="number"
                 step="any"
                 min="0.01"
+                max={contractSummary ? contractSummary.maximumPermittedPayment : undefined}
                 value={amountValue}
                 onChange={(e) => setAmountValue(e.target.value)}
                 placeholder="25000"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                  isExceedingContract
+                    ? "border-rose-500 bg-rose-50/40 text-rose-900 focus:border-rose-600 ring-1 ring-rose-300"
+                    : "border-slate-200 focus:border-[#0481A2]"
+                }`}
               />
             </div>
 
@@ -283,6 +376,35 @@ export function RecordPaymentModal({
               />
             </div>
           </div>
+
+          {/* Contract Overpayment Inline Warning Banner */}
+          {isExceedingContract && contractSummary && (
+            <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl flex items-start gap-2.5 text-rose-800 text-xs">
+              <ShieldAlert size={18} className="shrink-0 text-rose-600 mt-0.5" />
+              <div>
+                <p className="font-bold text-rose-900">Contract Overpayment Prevented</p>
+                <p className="mt-0.5 leading-relaxed">
+                  Payment amount (₹{paymentAmountNum.toLocaleString("en-IN")}) exceeds the remaining contract balance (₹{contractSummary.remainingContractBalance.toLocaleString("en-IN")}).
+                  Maximum permitted payment is <strong>₹{contractSummary.maximumPermittedPayment.toLocaleString("en-IN")}</strong>.
+                  Please update the contract value or add the additional service before recording this payment.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Zero Contract Balance Block Banner */}
+          {contractSummary && contractSummary.maximumPermittedPayment <= 0 && (
+            <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2.5 text-amber-800 text-xs">
+              <AlertCircle size={18} className="shrink-0 text-amber-600 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-900">Contract Fully Paid</p>
+                <p className="mt-0.5 leading-relaxed">
+                  This client has already fulfilled their contract value of ₹{contractSummary.contractValue.toLocaleString("en-IN")}.
+                  To record additional payments, an Admin must first revise the contract or add a new service.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* NEW SECTION: Invoice Allocation */}
           {selectedClientId && (
@@ -531,8 +653,8 @@ export function RecordPaymentModal({
             </button>
             <button
               type="submit"
-              disabled={isPending || (totalAllocating > paymentAmountNum && paymentAmountNum > 0)}
-              className="px-4 py-1.5 font-semibold text-white bg-[#0481A2] hover:bg-[#036c88] rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-70 cursor-pointer"
+              disabled={isFormBlocked}
+              className="px-4 py-1.5 font-semibold text-white bg-[#0481A2] hover:bg-[#036c88] rounded-lg shadow-xs transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {isPending ? (
                 <>

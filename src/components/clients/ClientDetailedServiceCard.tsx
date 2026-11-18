@@ -87,7 +87,7 @@ export function ClientDetailedServiceCard({
       {/* 1. Collapsible Service Header matching Reference Image 2 */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}
-        className="px-5 py-3.5 bg-gradient-to-r from-slate-50/70 via-white to-sky-50/30 border-b border-slate-100 flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-50 transition-colors select-none"
+        className="px-6 py-4.5 bg-gradient-to-r from-slate-50/70 via-white to-sky-50/30 border-b border-slate-100 flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-50 transition-colors select-none"
       >
         <div className="flex items-center gap-3 min-w-0">
           {/* Expand / Collapse Icon */}
@@ -161,11 +161,11 @@ export function ClientDetailedServiceCard({
 
       {/* 2. Expanded Body Section */}
       {isExpanded && (
-        <div className="p-6 space-y-6">
+        <div className="p-7 space-y-7">
           {/* Top 3-Column Layout: Commercial Details, Fulfillment Progress, Payment Summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* A. Service & Commercial Details (4 Cols) */}
-            <div className="lg:col-span-4 bg-slate-50/60 border border-slate-200/80 rounded-2xl p-4.5 space-y-3 text-xs">
+            <div className="lg:col-span-4 bg-slate-50/60 border border-slate-200/80 rounded-2xl p-6 shadow-2xs space-y-3 text-xs">
               <div className="flex items-center gap-2 pb-2 border-b border-slate-200/80">
                 <Briefcase size={14} className="text-[#0481A2]" />
                 <h4 className="font-bold text-slate-900">Service &amp; Commercial Details</h4>
@@ -211,7 +211,7 @@ export function ClientDetailedServiceCard({
             </div>
 
             {/* B. Fulfillment Progress (5 Cols) */}
-            <div className="lg:col-span-5 bg-slate-50/60 border border-slate-200/80 rounded-2xl p-4.5 flex flex-col justify-between">
+            <div className="lg:col-span-5 bg-slate-50/60 border border-slate-200/80 rounded-2xl p-6 shadow-2xs flex flex-col justify-between">
               <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
                 <div className="flex items-center gap-2">
                   <TrendingUp size={14} className="text-[#0481A2]" />
@@ -286,7 +286,7 @@ export function ClientDetailedServiceCard({
             </div>
 
             {/* C. Payment Summary (3 Cols) */}
-            <div className="lg:col-span-3 bg-slate-50/60 border border-slate-200/80 rounded-2xl p-4.5 flex flex-col justify-between">
+            <div className="lg:col-span-3 bg-slate-50/60 border border-slate-200/80 rounded-2xl p-6 shadow-2xs flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-2 pb-2 border-b border-slate-200/80">
                   <CreditCard size={14} className="text-[#0481A2]" />
@@ -332,9 +332,9 @@ export function ClientDetailedServiceCard({
           </div>
 
           {/* Middle Row: Invoice & Payment History, Documents, Next Action */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
             {/* D. Invoice & Payment History (5 Cols) */}
-            <div className="md:col-span-5 bg-white border border-slate-200/80 rounded-2xl p-4.5 space-y-3">
+            <div className="md:col-span-5 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xs space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <FileText size={14} className="text-[#0481A2]" />
@@ -424,7 +424,7 @@ export function ClientDetailedServiceCard({
             </div>
 
             {/* E. Documents (4 Cols) */}
-            <div className="md:col-span-4 bg-white border border-slate-200/80 rounded-2xl p-4.5 space-y-3">
+            <div className="md:col-span-4 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xs space-y-3">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <FileText size={14} className="text-[#0481A2]" />
@@ -490,7 +490,7 @@ export function ClientDetailedServiceCard({
             </div>
 
             {/* F. Next Action (3 Cols) */}
-            <div className="md:col-span-3 bg-white border border-slate-200/80 rounded-2xl p-4.5 flex flex-col justify-between">
+            <div className="md:col-span-3 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xs flex flex-col justify-between">
               <div>
                 <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
                   <Clock size={14} className="text-[#0481A2]" />
@@ -519,7 +519,7 @@ export function ClientDetailedServiceCard({
           </div>
 
           {/* G. Service Activity Timeline */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4.5 space-y-3">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <Clock size={14} className="text-[#0481A2]" />

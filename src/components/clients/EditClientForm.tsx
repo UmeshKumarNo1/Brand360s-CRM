@@ -466,38 +466,43 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Total Contract Value (₹) *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-medium text-slate-700">Total Contract Value (₹)</label>
+                <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium border border-slate-200">
+                  Auto-calculated from services
+                </span>
+              </div>
               <input
                 name="contract_value"
-                required
                 type="number"
-                min="0"
-                step="any"
-                defaultValue={client.contract_value}
-                className={`w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:border-[#0481A2] ${
-                  state?.fieldErrors?.contract_value ? "border-red-300 bg-red-50/30" : "border-slate-200"
-                }`}
+                disabled
+                readOnly
+                value={client.contract_value}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 text-slate-600 font-semibold cursor-not-allowed"
               />
-              {state?.fieldErrors?.contract_value && (
-                <p className="text-[11px] text-red-600 mt-1">{state.fieldErrors.contract_value}</p>
-              )}
+              <p className="text-[11px] text-slate-400 mt-1">
+                Sum of all active services ({client.services_purchased || "No active services"}). Managed via the Services tab.
+              </p>
             </div>
 
             <div>
-              <label className="block font-medium text-slate-700 mb-1">Payments Received (₹)</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-medium text-slate-700">Payments Received (₹)</label>
+                <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded font-medium border border-emerald-200">
+                  Verified Collections
+                </span>
+              </div>
               <input
                 name="payments_received"
                 type="number"
-                min="0"
-                step="any"
-                defaultValue={client.payments_received}
-                className={`w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:border-[#0481A2] ${
-                  state?.fieldErrors?.payments_received ? "border-red-300 bg-red-50/30" : "border-slate-200"
-                }`}
+                disabled
+                readOnly
+                value={client.payments_received}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50 text-slate-600 font-semibold cursor-not-allowed"
               />
-              {state?.fieldErrors?.payments_received && (
-                <p className="text-[11px] text-red-600 mt-1">{state.fieldErrors.payments_received}</p>
-              )}
+              <p className="text-[11px] text-slate-400 mt-1">
+                Calculated automatically from verified payment transactions.
+              </p>
             </div>
 
             <div>

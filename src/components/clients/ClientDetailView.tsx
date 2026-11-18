@@ -178,10 +178,16 @@ export function ClientDetailView({
     : 0;
 
   // Aggregated Header Metrics for Services Stack
+  // Single source of truth:
+  // - Contract Value = Sum of active service contract values
+  // - Invoiced = Sum of issued invoices across services
+  // - Collected = Verified payments collected
+  // - Invoice Outstanding = Invoiced - Collected (or Sum of unpaid balances of issued invoices)
+  // - Yet to Invoice = Contract Value - Invoiced
   const totalContract = detailedServices.reduce((sum, s) => sum + (Number(s.contractValue) || 0), 0);
   const totalInvoiced = detailedServices.reduce((sum, s) => sum + (Number(s.invoicedAmount) || 0), 0);
   const totalCollected = detailedServices.reduce((sum, s) => sum + (Number(s.collectedAmount) || 0), 0);
-  const totalOutstanding = Math.max(0, totalContract - totalCollected);
+  const totalOutstanding = Math.max(0, totalInvoiced - totalCollected);
 
   return (
     <div className="relative space-y-6 font-sans">
@@ -296,7 +302,7 @@ export function ClientDetailView({
           <div>
             <span className="text-xs text-slate-500 font-medium">Contract Value</span>
             <p className="text-2xl font-bold text-slate-900 mt-0.5 font-sans font-number">
-              {formatINR(client.contractValue)}
+              {formatINR(totalContract > 0 ? totalContract : client.contractValue)}
             </p>
           </div>
           {/* Decorative double waves */}
@@ -351,7 +357,7 @@ export function ClientDetailView({
           <div>
             <span className="text-xs text-slate-500 font-medium">Balance Receivable</span>
             <p className="text-2xl font-bold text-slate-900 mt-0.5 font-sans font-number">
-              {formatINR(client.balanceReceivable)}
+              {formatINR(totalContract > 0 ? Math.max(0, totalContract - client.paymentsReceived) : client.balanceReceivable)}
             </p>
           </div>
           <svg

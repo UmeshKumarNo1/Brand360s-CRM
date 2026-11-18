@@ -102,13 +102,12 @@ export async function createClientAction(
   // Section 7: Notes
   const notes = (formData.get("notes") as string)?.trim() || null;
 
-  // Optional Commercials (if passed or default)
+  // Commercials are derived strictly from active services
   const services_purchased = (formData.get("services_purchased") as string)?.trim() || "General";
-  const rawContractVal = formData.get("contract_value") as string;
-  const rawPaymentsRec = formData.get("payments_received") as string;
-  const contract_value = rawContractVal !== "" && rawContractVal !== null && !isNaN(Number(rawContractVal)) ? parseFloat(rawContractVal) : 0;
-  const payments_received = rawPaymentsRec !== "" && rawPaymentsRec !== null && !isNaN(Number(rawPaymentsRec)) ? parseFloat(rawPaymentsRec) : 0;
-  const balance_receivable = Math.max(0, contract_value - payments_received);
+  // Creating a new client without services always results in Contract Value = ₹0
+  const contract_value = 0.00;
+  const payments_received = 0.00;
+  const balance_receivable = 0.00;
 
   // Field validation
   const fieldErrors: Record<string, string> = {};

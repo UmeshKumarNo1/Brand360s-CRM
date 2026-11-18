@@ -633,8 +633,7 @@ export function ClientsTable({
                                       <th className="py-2.5 px-3 text-center">PROGRESS</th>
                                       <th className="py-2.5 px-3 text-center">CURRENT STAGE</th>
                                       <th className="py-2.5 px-3 text-center">ASSIGNED TO</th>
-                                      <th className="py-2.5 px-3 text-center">DUE DATE</th>
-                                      <th className="py-2.5 px-4 text-center">STATUS</th>
+                                      <th className="py-2.5 px-4 text-center">DUE DATE</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -750,7 +749,7 @@ export function ClientsTable({
                                           </td>
 
                                           {/* DUE DATE: Calendar icon + date */}
-                                          <td className="py-3.5 px-3 text-center align-middle whitespace-nowrap">
+                                          <td className="py-3.5 px-4 text-center align-middle whitespace-nowrap">
                                             <div className="inline-flex items-center gap-1.5 text-xs text-slate-700 font-sans font-number">
                                               <Calendar size={14} className="text-[#0284C7] shrink-0" />
                                               <span className="font-bold text-slate-800">
@@ -759,26 +758,6 @@ export function ClientsTable({
                                                   : "01 Dec 2026"}
                                               </span>
                                             </div>
-                                          </td>
-
-                                          {/* STATUS: Amber Pending / Emerald Completed pill */}
-                                          <td className="py-3.5 px-4 text-center align-middle whitespace-nowrap">
-                                            {isServComplete ? (
-                                              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#DCFCE7] text-[#16A34A] border border-[#BBF7D0] shadow-2xs text-xs font-bold">
-                                                <CheckCircle2 size={13} className="text-[#16A34A] shrink-0" />
-                                                <span>Completed</span>
-                                              </div>
-                                            ) : isServInProgress ? (
-                                              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E0F2FE] text-[#0284C7] border border-[#BAE6FD] shadow-2xs text-xs font-bold">
-                                                <Clock size={13} className="text-[#0284C7] shrink-0" />
-                                                <span>In Progress</span>
-                                              </div>
-                                            ) : (
-                                              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A] shadow-2xs text-xs font-bold">
-                                                <Clock size={13} className="text-[#D97706] shrink-0" />
-                                                <span>Pending</span>
-                                              </div>
-                                            )}
                                           </td>
                                         </tr>
                                       );

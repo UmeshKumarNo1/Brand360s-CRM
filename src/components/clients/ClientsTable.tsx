@@ -119,35 +119,49 @@ function FulfillmentStepper({
   else if (isInProgress) activeIndex = 2;
   else activeIndex = 0; // Pending / Onboarding
 
-  return (
-    <div className="flex items-center gap-1 sm:gap-1.5 min-w-[270px] max-w-[320px] py-1">
-      {stages.map((stageName, sIdx) => {
-        const isStepDone = sIdx < activeIndex || (sIdx === activeIndex && isCompleted);
-        const isStepActive = sIdx === activeIndex && !isCompleted;
-        const isStepPending = sIdx > activeIndex;
+  const linePercent = isCompleted ? 100 : (activeIndex / 4) * 100;
 
-        return (
-          <div key={sIdx} className="flex items-center flex-1 min-w-0 last:flex-none">
-            {/* Step Node */}
-            <div className="flex flex-col items-center">
+  return (
+    <div className="relative w-[300px] py-1 select-none">
+      {/* 1. Continuous Background Track Line connecting circle centers */}
+      <div className="absolute top-[10px] left-[26px] right-[26px] h-[2px] bg-slate-200 z-0">
+        {/* Filled Portion of Line */}
+        <div
+          className="h-full bg-[#0481A2] transition-all duration-300"
+          style={{ width: `${linePercent}%` }}
+        />
+      </div>
+
+      {/* 2. Nodes and Labels */}
+      <div className="relative z-10 flex items-start justify-between w-full">
+        {stages.map((stageName, sIdx) => {
+          const isStepDone = sIdx < activeIndex || (sIdx === activeIndex && isCompleted);
+          const isStepActive = sIdx === activeIndex && !isCompleted;
+          const isStepPending = sIdx > activeIndex;
+
+          return (
+            <div key={sIdx} className="flex flex-col items-center w-[52px] shrink-0">
+              {/* Circle: 20px x 20px sitting directly on the line */}
               <div
                 className={cn(
-                  "w-4.5 h-4.5 rounded-full flex items-center justify-center transition-all shrink-0",
+                  "w-5 h-5 rounded-full bg-white flex items-center justify-center shrink-0 transition-all",
                   isStepDone && "bg-[#0481A2] text-white shadow-2xs",
-                  isStepActive && "border-2 border-[#0481A2] bg-white text-[#0481A2]",
-                  isStepPending && "border-2 border-slate-200 bg-white"
+                  isStepActive && "border-2 border-[#0481A2] bg-white",
+                  isStepPending && "border-2 border-slate-300 bg-white"
                 )}
                 title={`${stageName} (${isStepDone ? "Completed" : isStepActive ? "Active" : "Pending"})`}
               >
                 {isStepDone ? (
-                  <Check size={10} strokeWidth={3} />
+                  <Check size={11} strokeWidth={3} className="text-white" />
                 ) : isStepActive ? (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#0481A2]" />
+                  <span className="w-2 h-2 rounded-full bg-[#0481A2]" />
                 ) : null}
               </div>
+
+              {/* Label below node */}
               <span
                 className={cn(
-                  "text-[9px] mt-1 whitespace-nowrap leading-tight text-center max-w-[50px] truncate",
+                  "text-[9.5px] mt-1.5 leading-tight text-center truncate max-w-full font-medium",
                   isStepActive && "text-[#0481A2] font-bold",
                   isStepDone && "text-slate-600 font-semibold",
                   isStepPending && "text-slate-400 font-medium"
@@ -157,19 +171,9 @@ function FulfillmentStepper({
                 {stageName}
               </span>
             </div>
-
-            {/* Connecting Line */}
-            {sIdx < stages.length - 1 && (
-              <div
-                className={cn(
-                  "h-0.5 flex-1 mx-1 -mt-3.5 transition-colors",
-                  isStepDone ? "bg-[#0481A2]" : "bg-slate-200"
-                )}
-              />
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

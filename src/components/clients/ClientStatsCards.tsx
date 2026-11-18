@@ -55,7 +55,7 @@ export function ClientStatsCards({
       iconColor: "text-white",
     },
     {
-      label: "Total Contract Value (Excl. GST)",
+      label: "Total Contract Value",
       value: totalContractValue,
       sublabel: "Excl. GST",
       icon: FileText,

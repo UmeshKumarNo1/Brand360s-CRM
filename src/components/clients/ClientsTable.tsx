@@ -409,11 +409,6 @@ function TargetDateCell({ service, clientId }: TargetDateCellProps) {
       >
         <Calendar size={12} className={cn("shrink-0", meta.iconClass)} />
         <span>{meta.text}</span>
-        {meta.subtext && meta.color !== "none" && (
-          <span className="text-[10px] font-medium opacity-80">
-            ({meta.subtext})
-          </span>
-        )}
         {!isCompleted && (
           <Edit3
             size={10}

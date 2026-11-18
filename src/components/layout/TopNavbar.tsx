@@ -14,7 +14,7 @@ export function TopNavbar({
   onMobileMenuToggle,
 }: TopNavbarProps) {
   return (
-    <header className="lg:hidden h-14 px-4 flex items-center justify-between sticky top-0 z-20 bg-white/90 backdrop-blur-sm border-b border-slate-200 shadow-2xs">
+    <header className="lg:hidden h-14 px-4 flex items-center justify-between sticky top-0 z-20 bg-transparent">
       {/* Mobile menu toggle */}
       <button
         onClick={onMobileMenuToggle}

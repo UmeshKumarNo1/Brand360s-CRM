@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Plus, ScanSearch } from "lucide-react";
+import { NotificationBellDropdown } from "@/components/notifications/NotificationBellDropdown";
 
 interface ClientsHeaderProps {
   isAdmin?: boolean;
@@ -19,6 +20,9 @@ export function ClientsHeader({ isAdmin, onOpenScanDuplicates }: ClientsHeaderPr
       </div>
 
       <div className="flex items-center gap-2.5 flex-wrap">
+        {/* Notification Bell kept before the Scan Duplicates box */}
+        <NotificationBellDropdown />
+
         {isAdmin && onOpenScanDuplicates && (
           <button
             type="button"

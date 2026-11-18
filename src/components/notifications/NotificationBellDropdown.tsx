@@ -26,7 +26,11 @@ import {
 import { NotificationItem, NotificationType } from "@/lib/notifications/notification-types";
 import { createClient } from "@/lib/supabase/client";
 
-export function NotificationBellDropdown() {
+interface NotificationBellDropdownProps {
+  triggerClassName?: string;
+}
+
+export function NotificationBellDropdown({ triggerClassName }: NotificationBellDropdownProps = {}) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "alert" | "update">("all");
@@ -146,13 +150,16 @@ export function NotificationBellDropdown() {
       {/* Bell Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2.5 text-slate-600 hover:text-[#243E76] hover:bg-white rounded-full transition-colors relative cursor-pointer"
+        className={
+          triggerClassName ||
+          "p-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl shadow-2xs flex items-center justify-center transition-all duration-150 relative cursor-pointer"
+        }
         title="Notifications"
         aria-label="View notifications"
       >
-        <Bell size={19} />
+        <Bell size={18} className="text-slate-600" />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white shadow-2xs animate-in zoom-in duration-200">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white shadow-2xs animate-in zoom-in duration-200">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}

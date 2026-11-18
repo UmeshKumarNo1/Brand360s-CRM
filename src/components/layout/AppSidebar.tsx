@@ -13,10 +13,12 @@ import {
   ChevronLeft,
   ChevronRight,
   UserCheck,
-  Settings
+  Settings,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { logoutAction } from "@/app/actions/auth";
 
 interface AppSidebarProps {
   isCollapsed?: boolean;
@@ -35,6 +37,27 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const pathname = usePathname();
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    }
+    if (showProfileMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showProfileMenu]);
+
+  const displayRole = 
+    userRole?.toLowerCase() === "admin" || userRole === "Administrator" 
+      ? "Administrator" 
+      : (userRole || "Employee");
   const isCollapsed = externalIsCollapsed !== undefined ? externalIsCollapsed : internalIsCollapsed;
   const setIsCollapsed = (val: boolean) => {
     if (externalSetIsCollapsed) {
@@ -180,26 +203,86 @@ export function AppSidebar({
 
       {/* Pinned Profile Footer with Solid Navy Background */}
       <div 
+        ref={profileMenuRef}
         className={cn(
-          "p-3 border-t border-[#1E3567]/60 relative z-10 mt-auto shrink-0 flex items-center transition-all duration-300",
-          isCollapsed ? "justify-center px-1" : "justify-start px-3"
+          "p-2.5 sm:p-3 border-t border-[#1E3567]/60 relative z-10 mt-auto shrink-0 flex items-center transition-all duration-300",
+          isCollapsed ? "justify-center px-1" : "justify-between px-3"
         )}
         style={{ backgroundColor: "#16284F" }}
       >
+        {/* Profile Popover Menu */}
+        {showProfileMenu && (
+          <div
+            className={cn(
+              "absolute bottom-full mb-2 bg-[#1A2E5A] border border-[#243E76] rounded-2xl shadow-2xl p-2 z-50 text-xs animate-in fade-in zoom-in-95 duration-150",
+              isCollapsed ? "left-2 w-52" : "left-2 right-2"
+            )}
+          >
+            <div className="px-3 py-2 border-b border-[#243E76]/80 text-white">
+              <p className="font-bold text-sm truncate">{userFullName}</p>
+              {userEmail && <p className="text-slate-300 text-[11px] truncate mt-0.5">{userEmail}</p>}
+              <span className="inline-block mt-1.5 px-2 py-0.5 bg-[#0481A2]/30 text-[#38BDF8] rounded-md text-[10px] font-semibold border border-[#0481A2]/40">
+                {displayRole}
+              </span>
+            </div>
+            {userRole === "admin" && (
+              <Link
+                href="/settings"
+                onClick={() => setShowProfileMenu(false)}
+                className="flex items-center gap-2 px-3 py-2 text-slate-200 hover:bg-[#243E76] rounded-xl transition-colors mt-1 font-medium"
+              >
+                <Settings size={14} className="text-[#38BDF8]" />
+                <span>Account Settings</span>
+              </Link>
+            )}
+            <button
+              type="button"
+              onClick={async () => {
+                await logoutAction();
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-red-400 hover:bg-red-500/15 rounded-xl text-left font-medium cursor-pointer transition-colors mt-0.5"
+            >
+              <LogOut size={14} />
+              <span>Sign out</span>
+            </button>
+          </div>
+        )}
+
+        {/* User Card trigger */}
         <div 
-          className="flex items-center gap-2.5 cursor-pointer"
-          title={isCollapsed ? `${userFullName} (${userRole})` : undefined}
+          onClick={() => setShowProfileMenu(!showProfileMenu)}
+          className={cn(
+            "flex items-center gap-2.5 cursor-pointer rounded-xl hover:bg-[#1E3567]/60 p-1 transition-colors min-w-0 flex-1",
+            isCollapsed && "justify-center p-1.5"
+          )}
+          title={isCollapsed ? `${userFullName} (${displayRole})` : "View Profile & Settings"}
         >
-          <div className="w-8 h-8 rounded-full bg-[#243E76] text-white text-xs font-bold flex items-center justify-center border border-[#3B5998] shrink-0 shadow-xs">
+          <div className="w-8 h-8 rounded-full bg-[#0481A2] text-white text-xs font-bold flex items-center justify-center border border-[#38BDF8]/40 shrink-0 shadow-xs">
             {initials}
           </div>
           {!isCollapsed && (
-            <div className="text-xs truncate min-w-0">
-              <p className="font-semibold text-white truncate">{userFullName}</p>
-              <p className="text-slate-400 text-[11px] truncate capitalize">{userRole}</p>
+            <div className="text-xs truncate min-w-0 flex-1">
+              <p className="font-semibold text-white truncate leading-tight">{userFullName}</p>
+              <p className="text-slate-400 text-[11px] truncate mt-0.5">{displayRole}</p>
             </div>
           )}
         </div>
+
+        {/* Quick Sign out button when expanded */}
+        {!isCollapsed && (
+          <button
+            type="button"
+            onClick={async (e) => {
+              e.stopPropagation();
+              await logoutAction();
+            }}
+            className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-[#1E3567]/80 rounded-lg transition-colors cursor-pointer shrink-0 ml-1"
+            title="Sign out"
+            aria-label="Sign out"
+          >
+            <LogOut size={16} />
+          </button>
+        )}
       </div>
     </aside>
   );

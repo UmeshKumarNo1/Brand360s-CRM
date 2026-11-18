@@ -391,13 +391,32 @@ export async function fetchClientsAction() {
     .from("clients")
     .select(`
       *,
-      assigned_profile:profiles!assigned_salesperson(full_name, email)
+      assigned_profile:profiles!assigned_salesperson(full_name, email),
+      services:client_services(
+        id,
+        service_name,
+        service_category,
+        service_fee,
+        govt_fee,
+        total_amount,
+        start_date,
+        expected_completion_date,
+        service_status,
+        assigned_profile:profiles!assigned_employee_id(full_name)
+      )
     `)
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Error fetching clients:", error);
-    return [];
+    console.error("Error fetching clients with services, falling back to basic query:", error);
+    const { data: fallbackData } = await supabase
+      .from("clients")
+      .select(`
+        *,
+        assigned_profile:profiles!assigned_salesperson(full_name, email)
+      `)
+      .order("created_at", { ascending: false });
+    return fallbackData || [];
   }
 
   return data;

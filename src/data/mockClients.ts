@@ -1,3 +1,20 @@
+export interface ClientServiceItem {
+  id: string;
+  service_name: string;
+  service_category?: string;
+  service_fee: number;
+  govt_fee: number;
+  total_amount: number;
+  service_status: string; // 'Pending' | 'In Progress' | 'Processing' | 'Completed' | 'Cancelled' | 'Filing'
+  start_date?: string | null;
+  expected_completion_date?: string | null;
+  assigned_employee_name?: string | null;
+  stage?: string;
+  progressPercent?: number;
+  paymentStatus?: 'Paid' | 'Partial' | 'Unpaid';
+  amountPaid?: number;
+}
+
 export interface ClientRecord {
   id: string;
   no: number;
@@ -18,6 +35,14 @@ export interface ClientRecord {
   nextPaymentDueDate: string;
   paymentStatus: 'Paid in full' | 'Overdue' | 'Upcoming' | 'Partially Paid';
   clientStatus?: 'Active' | 'Pending Onboarding' | 'On Hold' | 'Completed' | 'Inactive' | 'Archived';
+  gstin?: string;
+  gstNumber?: string;
+  services?: ClientServiceItem[];
+  servicesCompletedCount?: number;
+  servicesTotalCount?: number;
+  servicesProgressPercent?: number;
+  nextActionTitle?: string;
+  nextActionDueDate?: string;
 }
 
 export const MOCK_CLIENTS: ClientRecord[] = [

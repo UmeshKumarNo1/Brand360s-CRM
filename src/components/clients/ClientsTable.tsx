@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import {
-  ChevronDown,
   ArrowUpRight,
   Check,
   CheckCircle2,
@@ -159,38 +157,13 @@ export function ClientsTable({
   onRestoreClient,
   onReassignClient,
 }: ClientsTableProps) {
-  // Default first client to expanded so user immediately sees the rich UI, or keep state
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
-    return clients.length > 0 ? new Set([clients[0].id]) : new Set();
-  });
-
-  const toggleExpand = (id: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
-  const toggleExpandAll = () => {
-    if (expandedIds.size === clients.length) {
-      setExpandedIds(new Set());
-    } else {
-      setExpandedIds(new Set(clients.map((c) => c.id)));
-    }
-  };
-
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden w-full max-w-full">
       <div className="overflow-x-auto w-full custom-scrollbar">
         <table className="w-full text-left border-collapse text-xs sm:text-[13px] min-w-[1080px]">
           {/* Column Proportions */}
           <colgroup>
-            {/* 1. No. & Toggle */}
+            {/* 1. No. */}
             <col style={{ width: "4%" }} />
             {/* 2. Client / Company */}
             <col style={{ width: "17%" }} />
@@ -218,14 +191,7 @@ export function ClientsTable({
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide align-middle">
               <th className="py-3 px-2 text-center font-semibold">
-                <button
-                  type="button"
-                  onClick={toggleExpandAll}
-                  className="hover:text-sky-200 transition-colors cursor-pointer"
-                  title={expandedIds.size === clients.length ? "Collapse all" : "Expand all"}
-                >
-                  No.
-                </button>
+                No.
               </th>
               <th className="py-3 px-2.5 sm:px-3 text-left font-semibold leading-tight">
                 Client / Company
@@ -270,7 +236,6 @@ export function ClientsTable({
             ) : (
               clients.map((client) => {
                 const isArchived = client.clientStatus === "Archived";
-                const isExpanded = expandedIds.has(client.id);
                 const services = client.services || [];
                 const completedServicesCount =
                   client.servicesCompletedCount ??
@@ -289,30 +254,12 @@ export function ClientsTable({
                     <tr
                       className={cn(
                         "hover:bg-slate-50/80 transition-colors duration-150 border-b border-slate-100",
-                        isArchived && "opacity-75 bg-slate-50/30",
-                        isExpanded && "bg-sky-50/30"
+                        isArchived && "opacity-75 bg-slate-50/30"
                       )}
                     >
-                      {/* 1. No. & Expand Chevron Button */}
+                      {/* 1. No. */}
                       <td className="py-3 px-2 text-center font-bold text-slate-800 font-sans font-number align-middle">
-                        <div className="flex items-center justify-center gap-1">
-                          <span className="w-4 text-center">{client.no}</span>
-                          <button
-                            type="button"
-                            onClick={() => toggleExpand(client.id)}
-                            className="w-5 h-5 rounded-full hover:bg-slate-200/80 flex items-center justify-center transition-all cursor-pointer text-slate-500 hover:text-slate-800"
-                            title={isExpanded ? "Collapse services" : "Expand services"}
-                            aria-expanded={isExpanded}
-                          >
-                            <ChevronDown
-                              size={14}
-                              className={cn(
-                                "transition-transform duration-200",
-                                isExpanded ? "rotate-0 text-[#0481A2]" : "-rotate-90"
-                              )}
-                            />
-                          </button>
-                        </div>
+                        {client.no}
                       </td>
 
                       {/* 2. Client / Company Name & GSTIN */}
@@ -498,9 +445,8 @@ export function ClientsTable({
                       </td>
                     </tr>
 
-                    {/* Expanded Child Services Portfolio (Minimal Clean UI) */}
-                    {isExpanded && (
-                      <tr className="bg-slate-50/50 border-b border-slate-200 transition-all">
+                    {/* Child Services Portfolio (Always Opened, Minimal Clean UI) */}
+                    <tr className="bg-slate-50/50 border-b border-slate-200 transition-all">
                         <td colSpan={11} className="py-2.5 px-3 sm:px-4">
                           <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
                             {/* 1. Minimal Light Child Header */}
@@ -717,7 +663,6 @@ export function ClientsTable({
                           </div>
                         </td>
                       </tr>
-                    )}
                   </tr>
                 );
               })

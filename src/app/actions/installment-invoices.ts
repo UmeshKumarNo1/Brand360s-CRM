@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { recordAuditLog } from "@/lib/audit/audit-logger";
+import { generateInvoiceNumberAction } from "@/lib/invoices/invoice-number";
 
 /**
  * FEATURE 015: Generate an official Tax Invoice directly from an Installment Milestone
@@ -105,14 +106,8 @@ export async function generateInvoiceFromInstallmentAction(params: {
   const sgstAmount = taxType === "CGST + SGST" ? Math.round((taxAmount / 2) * 100) / 100 : 0;
   const igstAmount = taxType === "IGST" ? taxAmount : 0;
 
-  // 5. Generate sequential invoice number
-  const currentYear = new Date().getFullYear();
-  const { count } = await supabase
-    .from("invoices")
-    .select("id", { count: "exact", head: true });
-
-  const seq = (count || 0) + 1;
-  const invoiceNumber = `B360-INV-${currentYear}-${String(seq).padStart(4, "0")}`;
+  // 5. Generate sequential unique invoice number atomically
+  const invoiceNumber = await generateInvoiceNumberAction();
 
   const todayStr = new Date().toISOString().split("T")[0];
   const dueDate = installment.due_date || todayStr;

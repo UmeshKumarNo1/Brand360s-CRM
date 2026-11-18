@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Search, LogOut, Settings as SettingsIcon, Menu } from "lucide-react";
+import { LogOut, Settings as SettingsIcon, Menu } from "lucide-react";
 import { logoutAction } from "@/app/actions/auth";
 import { NotificationBellDropdown } from "@/components/notifications/NotificationBellDropdown";
 
@@ -27,31 +27,19 @@ export function TopNavbar({
 
   return (
     <header className="h-[76px] px-6 sm:px-8 flex items-center justify-between sticky top-0 z-20 bg-transparent">
-      {/* Search Input Bar */}
-      <div className="flex items-center gap-3 flex-1 max-w-lg">
+      {/* Left controls: Mobile menu toggle */}
+      <div className="flex items-center gap-3">
         <button
           onClick={onMobileMenuToggle}
           className="lg:hidden p-2 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100"
+          aria-label="Toggle mobile menu"
         >
           <Menu size={20} />
         </button>
-
-        {/* Global Search Pill Bar matching design */}
-        <div className="relative w-full max-w-md">
-          <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search clients, invoices, services..."
-            className="w-full pl-10 pr-12 py-2.5 text-sm bg-white border border-[#E2E8F0] rounded-full focus:outline-none focus:border-[#0481A2] focus:ring-2 focus:ring-[#0481A2]/20 transition-all text-slate-800 placeholder:text-slate-400 shadow-2xs"
-          />
-          <kbd className="absolute right-3.5 top-1/2 -translate-y-1/2 hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 text-[11px] font-medium text-slate-500 bg-slate-50 border border-slate-200 rounded-md">
-            ⌘ K
-          </kbd>
-        </div>
       </div>
 
       {/* Right controls: Notifications & User profile */}
-      <div className="flex items-center gap-3 sm:gap-5">
+      <div className="flex items-center gap-3 sm:gap-5 ml-auto">
         {/* Dynamic Notification Bell Dropdown */}
         <NotificationBellDropdown />
 

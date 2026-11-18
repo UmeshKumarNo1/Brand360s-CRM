@@ -194,31 +194,28 @@ export function NotificationBellDropdown({ triggerClassName }: NotificationBellD
           <div className="flex border-b border-slate-100 bg-slate-50/40 px-3 pt-1.5 gap-1 text-[11px] font-semibold">
             <button
               onClick={() => setActiveTab("all")}
-              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${
-                activeTab === "all"
+              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${activeTab === "all"
                   ? "border-[#0481A2] text-[#0481A2]"
                   : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
+                }`}
             >
               All
             </button>
             <button
               onClick={() => setActiveTab("alert")}
-              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${
-                activeTab === "alert"
+              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${activeTab === "alert"
                   ? "border-red-500 text-red-600"
                   : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
+                }`}
             >
               Alerts
             </button>
             <button
               onClick={() => setActiveTab("update")}
-              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${
-                activeTab === "update"
+              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${activeTab === "update"
                   ? "border-[#243E76] text-[#243E76]"
                   : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
+                }`}
             >
               Updates
             </button>
@@ -244,17 +241,15 @@ export function NotificationBellDropdown({ triggerClassName }: NotificationBellD
                 <div
                   key={notif.id}
                   onClick={() => handleNotificationClick(notif)}
-                  className={`p-3.5 flex items-start gap-3 hover:bg-slate-50 transition-colors cursor-pointer relative ${
-                    !notif.is_read ? "bg-sky-50/30" : ""
-                  }`}
+                  className={`p-3.5 flex items-start gap-3 hover:bg-slate-50 transition-colors cursor-pointer relative ${!notif.is_read ? "bg-sky-50/30" : ""
+                    }`}
                 >
                   {/* Icon */}
                   <div
-                    className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center ${
-                      notif.category === "alert"
+                    className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center ${notif.category === "alert"
                         ? "bg-rose-50 text-rose-600"
                         : "bg-blue-50 text-[#0481A2]"
-                    } shadow-2xs mt-0.5`}
+                      } shadow-2xs mt-0.5`}
                   >
                     {getNotificationIcon(notif.type)}
                   </div>

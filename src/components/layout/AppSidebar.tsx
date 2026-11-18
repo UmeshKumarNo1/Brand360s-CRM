@@ -3,13 +3,13 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { 
-  LayoutDashboard, 
-  Users, 
-  CreditCard, 
-  RefreshCw, 
-  Calendar, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Users,
+  CreditCard,
+  RefreshCw,
+  Calendar,
+  BarChart3,
   ChevronLeft,
   ChevronRight,
   UserCheck,
@@ -28,10 +28,10 @@ interface AppSidebarProps {
   userEmail?: string;
 }
 
-export function AppSidebar({ 
+export function AppSidebar({
   isCollapsed: externalIsCollapsed,
   setIsCollapsed: externalSetIsCollapsed,
-  userRole = "admin", 
+  userRole = "admin",
   userFullName = "Uki0070411",
   userEmail,
 }: AppSidebarProps) {
@@ -54,9 +54,9 @@ export function AppSidebar({
     };
   }, [showProfileMenu]);
 
-  const displayRole = 
-    userRole?.toLowerCase() === "admin" || userRole === "Administrator" 
-      ? "Administrator" 
+  const displayRole =
+    userRole?.toLowerCase() === "admin" || userRole === "Administrator"
+      ? "Administrator"
       : (userRole || "Employee");
   const isCollapsed = externalIsCollapsed !== undefined ? externalIsCollapsed : internalIsCollapsed;
   const setIsCollapsed = (val: boolean) => {
@@ -83,12 +83,12 @@ export function AppSidebar({
     { label: "Settings", href: "/settings", icon: Settings },
   ];
 
-  const initials = userFullName 
-    ? userFullName.slice(0, 2).toUpperCase() 
+  const initials = userFullName
+    ? userFullName.slice(0, 2).toUpperCase()
     : (userEmail ? userEmail.slice(0, 2).toUpperCase() : "AD");
 
   return (
-    <aside 
+    <aside
       className={cn(
         "relative flex flex-col justify-between transition-all duration-300 select-none shrink-0 shadow-xl overflow-hidden h-full min-h-screen",
         "bg-[#16284F] border-r border-[#1E3567]/80",
@@ -101,8 +101,8 @@ export function AppSidebar({
         "flex items-center h-16 border-b border-[#1E3567]/50 relative z-10 shrink-0 bg-[#16284F] transition-all duration-300",
         isCollapsed ? "flex-row items-center justify-between px-3 h-16" : "justify-between px-4 sm:px-5"
       )}>
-        <Link 
-          href="/dashboard" 
+        <Link
+          href="/dashboard"
           className="flex items-center justify-center shrink-0"
           title={isCollapsed ? "Brand 360s Dashboard" : undefined}
         >
@@ -157,7 +157,7 @@ export function AppSidebar({
               href={item.href}
               className={cn(
                 "flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 relative",
-                isActive 
+                isActive
                   ? "bg-[#0481A2] text-white shadow-md font-semibold"
                   : "text-slate-300 hover:bg-[#1E3567]/60 hover:text-white"
               )}
@@ -186,8 +186,8 @@ export function AppSidebar({
                   href={item.href}
                   className={cn(
                     "flex items-center gap-3.5 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150",
-                    isActive 
-                      ? "bg-[#0481A2] text-white shadow-md font-semibold" 
+                    isActive
+                      ? "bg-[#0481A2] text-white shadow-md font-semibold"
                       : "text-slate-300 hover:bg-[#1E3567]/60 hover:text-white"
                   )}
                   title={isCollapsed ? item.label : undefined}
@@ -202,7 +202,7 @@ export function AppSidebar({
       </div>
 
       {/* Pinned Profile Footer with Solid Navy Background */}
-      <div 
+      <div
         ref={profileMenuRef}
         className={cn(
           "p-2.5 sm:p-3 border-t border-[#1E3567]/60 relative z-10 mt-auto shrink-0 flex items-center transition-all duration-300",
@@ -249,7 +249,7 @@ export function AppSidebar({
         )}
 
         {/* User Card trigger */}
-        <div 
+        <div
           onClick={() => setShowProfileMenu(!showProfileMenu)}
           className={cn(
             "flex items-center gap-2.5 cursor-pointer rounded-xl hover:bg-[#1E3567]/60 p-1 transition-colors min-w-0 flex-1",

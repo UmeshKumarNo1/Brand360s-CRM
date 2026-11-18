@@ -203,13 +203,13 @@ function parseDateSafely(dateStr?: string | null): Date | null {
 }
 
 /**
- * Calculates proximity and visual theme for promised due dates:
+ * Calculates proximity and visual theme for target delivery dates:
  * - Initially Green: > 3 days left
  * - Orange: 3 days before (1 to 3 days left)
  * - Red: On that day (0 days left) or overdue (< 0)
  * - Completed: Emerald green badge
  */
-function getPromisedDateMeta(dateStr?: string | null, isCompleted?: boolean) {
+function getTargetDateMeta(dateStr?: string | null, isCompleted?: boolean) {
   if (isCompleted) {
     return {
       color: "green" as const,
@@ -227,9 +227,9 @@ function getPromisedDateMeta(dateStr?: string | null, isCompleted?: boolean) {
       color: "none" as const,
       badgeClass: "bg-slate-50 text-slate-500 border border-dashed border-slate-300 hover:border-slate-400 hover:bg-slate-100/70",
       iconClass: "text-slate-400",
-      text: "Fix Date",
+      text: "Set Target Date",
       subtext: "Not set",
-      title: "No promised date set by salesperson. Click to fix.",
+      title: "No target date set yet. Click to fix.",
     };
   }
 
@@ -247,7 +247,7 @@ function getPromisedDateMeta(dateStr?: string | null, isCompleted?: boolean) {
       iconClass: "text-emerald-600",
       text: formatDate(dateStr),
       subtext: `${diffDays}d left`,
-      title: `Promised date: ${formatDate(dateStr)} (${diffDays} days remaining - On Track)`,
+      title: `Target Date: ${formatDate(dateStr)} (${diffDays} days remaining - On Track)`,
     };
   } else if (diffDays >= 1) {
     // Orange: 3 days before (1 to 3 days remaining)
@@ -257,7 +257,7 @@ function getPromisedDateMeta(dateStr?: string | null, isCompleted?: boolean) {
       iconClass: "text-amber-600",
       text: formatDate(dateStr),
       subtext: diffDays === 1 ? "1d left" : `${diffDays}d left`,
-      title: `Promised date: ${formatDate(dateStr)} (${diffDays} day${diffDays > 1 ? "s" : ""} left - Attention needed)`,
+      title: `Target Date: ${formatDate(dateStr)} (${diffDays} day${diffDays > 1 ? "s" : ""} left - Attention needed)`,
     };
   } else if (diffDays === 0) {
     // Red: On that day
@@ -267,7 +267,7 @@ function getPromisedDateMeta(dateStr?: string | null, isCompleted?: boolean) {
       iconClass: "text-rose-600",
       text: formatDate(dateStr),
       subtext: "Today",
-      title: `Promised date is TODAY (${formatDate(dateStr)}) - Deliverable due!`,
+      title: `Target Date is TODAY (${formatDate(dateStr)}) - Deliverable due!`,
     };
   } else {
     // Red: Overdue
@@ -278,17 +278,17 @@ function getPromisedDateMeta(dateStr?: string | null, isCompleted?: boolean) {
       iconClass: "text-rose-600",
       text: formatDate(dateStr),
       subtext: `${overdue}d overdue`,
-      title: `Promised date was ${formatDate(dateStr)} (${overdue} days overdue)`,
+      title: `Target Date was ${formatDate(dateStr)} (${overdue} days overdue)`,
     };
   }
 }
 
-interface PromisedDueDateCellProps {
+interface TargetDateCellProps {
   service: ClientServiceItem;
   clientId: string;
 }
 
-function PromisedDueDateCell({ service, clientId }: PromisedDueDateCellProps) {
+function TargetDateCell({ service, clientId }: TargetDateCellProps) {
   const [currentDate, setCurrentDate] = useState<string | null>(
     service.expected_completion_date || null
   );
@@ -304,7 +304,7 @@ function PromisedDueDateCell({ service, clientId }: PromisedDueDateCellProps) {
   }, [service.expected_completion_date]);
 
   const isCompleted = service.service_status === "Completed";
-  const meta = getPromisedDateMeta(currentDate, isCompleted);
+  const meta = getTargetDateMeta(currentDate, isCompleted);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -383,7 +383,7 @@ function PromisedDueDateCell({ service, clientId }: PromisedDueDateCellProps) {
         try {
           await updateClientServiceDueDateAction(service.id, iso, clientId);
         } catch (err) {
-          console.error("Failed to update promised due date:", err);
+          console.error("Failed to update target delivery date:", err);
         }
       }
       setSaveSuccess(true);
@@ -400,7 +400,7 @@ function PromisedDueDateCell({ service, clientId }: PromisedDueDateCellProps) {
         type="button"
         onClick={handleOpen}
         disabled={isCompleted}
-        title={isCompleted ? "Service is completed" : `${meta.title} — Click to fix promised date`}
+        title={isCompleted ? "Service is completed" : `${meta.title} — Click to update target date`}
         className={cn(
           "group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold font-sans font-number transition-all duration-150 shadow-2xs",
           isCompleted ? "cursor-default" : "cursor-pointer hover:shadow-xs",
@@ -422,7 +422,7 @@ function PromisedDueDateCell({ service, clientId }: PromisedDueDateCellProps) {
         )}
       </button>
 
-      {/* Popover to Fix Promised Date (Working Days Only) */}
+      {/* Popover to Fix Target Date (Working Days Only) */}
       {isOpen && (
         <div
           ref={popoverRef}
@@ -431,8 +431,8 @@ function PromisedDueDateCell({ service, clientId }: PromisedDueDateCellProps) {
           {/* Header */}
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <div>
-              <p className="font-bold text-slate-800 text-xs">Fix Promised Date</p>
-              <p className="text-[10px] text-slate-400 font-medium">Salesperson committed delivery</p>
+              <p className="font-bold text-slate-800 text-xs">Set Target Date</p>
+              <p className="text-[10px] text-slate-400 font-medium">Committed delivery timeline</p>
             </div>
             <span className="text-[9.5px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
               Mon – Fri only
@@ -903,8 +903,8 @@ export function ClientsTable({
                                       <th className="py-2 px-3 text-center">PROGRESS</th>
                                       <th className="py-2 px-3 text-center">CURRENT STAGE</th>
                                       <th className="py-2 px-3 text-center">ASSIGNED TO</th>
-                                      <th className="py-2 px-3.5 text-center" title="Promised delivery date committed by salesperson (working days only)">
-                                        PROMISED DATE
+                                      <th className="py-2 px-3.5 text-center" title="Target delivery date for service fulfillment (working days only)">
+                                        TARGET DATE
                                       </th>
                                     </tr>
                                   </thead>
@@ -1024,9 +1024,9 @@ export function ClientsTable({
                                             </div>
                                           </td>
 
-                                          {/* PROMISED DATE: Green (>3d) -> Orange (3d before) -> Red (On that day / Overdue) with working-day fix picker */}
+                                          {/* TARGET DATE: Green (>3d) -> Orange (3d before) -> Red (On that day / Overdue) with working-day fix picker */}
                                           <td className="py-2.5 px-3.5 text-center align-middle whitespace-nowrap">
-                                            <PromisedDueDateCell
+                                            <TargetDateCell
                                               service={service}
                                               clientId={client.id}
                                             />

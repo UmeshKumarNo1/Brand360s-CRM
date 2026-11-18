@@ -167,7 +167,7 @@ export async function assignClientServiceAction(
   const govtFee = parseFloat(formData.get("govt_fee") as string) || 0;
   const startDate = (formData.get("start_date") as string) || null;
   const rawExpectedCompletion = (formData.get("expected_completion_date") as string) || null;
-  // Enforce working day only for promised completion date
+  // Enforce working day only for target delivery date
   const expectedCompletionDate = snapToWorkingDayString(rawExpectedCompletion);
   const serviceStatus = (formData.get("service_status") as string) || "Pending";
   const assignedEmployeeId = (formData.get("assigned_employee_id") as string) || null;
@@ -375,7 +375,7 @@ function snapToWorkingDayString(dateStr: string | null): string | null {
 }
 
 /**
- * Updates the promised completion date committed by the salesperson.
+ * Updates the target delivery date committed for the service.
  * Strictly enforces working days only (snaps weekends to Monday).
  */
 export async function updateClientServiceDueDateAction(
@@ -403,7 +403,7 @@ export async function updateClientServiceDueDateAction(
     .eq("id", serviceId);
 
   if (error) {
-    console.error("Error updating client service promised due date:", error);
+    console.error("Error updating client service target delivery date:", error);
     return { error: error.message };
   }
 

@@ -391,7 +391,7 @@ export function AssignServiceModal({
 
             <div>
               <label className="block font-semibold text-slate-700 mb-1 flex items-center justify-between">
-                <span>Promised Due Date</span>
+                <span>Target Delivery Date</span>
                 <span className="text-[10px] text-emerald-600 font-semibold">Working Days Only</span>
               </label>
               <input
@@ -407,7 +407,7 @@ export function AssignServiceModal({
                 </p>
               ) : (
                 <p className="text-[10px] text-slate-400 mt-1 leading-tight">
-                  Promised by salesperson (Mon–Fri only).
+                  Committed service delivery timeline (Mon–Fri only).
                 </p>
               )}
             </div>

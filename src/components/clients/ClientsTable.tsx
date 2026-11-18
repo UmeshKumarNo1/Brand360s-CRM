@@ -560,11 +560,11 @@ export function ClientsTable({
                       <tr className="bg-[#F8FAFC] border-b-2 border-slate-200 transition-all">
                         <td colSpan={11} className="p-3 sm:p-5">
                           <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                            {/* 1. Dark Navy Child Header Banner matching reference image */}
-                            <div className="px-4 py-3 bg-[#0F2347] flex flex-col md:flex-row md:items-center justify-between gap-3 text-white">
+                            {/* 1. Navy Child Header Banner matching brand palette */}
+                            <div className="px-4 py-3 bg-[#243E76] flex flex-col md:flex-row md:items-center justify-between gap-3 text-white">
                               {/* Left: Icon & Title */}
                               <div className="flex items-center gap-2.5">
-                                <div className="w-7 h-7 rounded-lg bg-[#0284C7] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                                <div className="w-7 h-7 rounded-lg bg-[#0481A2] text-white flex items-center justify-center shrink-0 shadow-2xs">
                                   <LayoutGrid size={15} />
                                 </div>
                                 <span className="font-bold text-white text-xs sm:text-sm tracking-wide">
@@ -572,32 +572,32 @@ export function ClientsTable({
                                 </span>
                               </div>
 
-                              {/* Right: Colored Bullet Metrics matching reference image */}
+                              {/* Right: Colored Bullet Metrics matching brand palette */}
                               <div className="flex items-center gap-4 sm:gap-6 text-xs flex-wrap font-medium">
                                 <div className="flex items-center gap-1.5">
-                                  <span className="w-2.5 h-2.5 rounded-full bg-[#0284C7] shrink-0" />
-                                  <span className="text-slate-300">Contract:</span>
+                                  <span className="w-2.5 h-2.5 rounded-full bg-[#0481A2] shrink-0" />
+                                  <span className="text-sky-100">Contract:</span>
                                   <span className="font-bold text-white font-sans font-number">
                                     {formatINR(client.contractValue)}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  <span className="w-2.5 h-2.5 rounded-full bg-[#A855F7] shrink-0" />
-                                  <span className="text-slate-300">Invoiced:</span>
+                                  <span className="w-2.5 h-2.5 rounded-full bg-[#38BDF8] shrink-0" />
+                                  <span className="text-sky-100">Invoiced:</span>
                                   <span className="font-bold text-white font-sans font-number">
                                     {formatINR(client.contractValue)}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] shrink-0" />
-                                  <span className="text-slate-300">Collected:</span>
+                                  <span className="w-2.5 h-2.5 rounded-full bg-[#16A34A] shrink-0" />
+                                  <span className="text-sky-100">Collected:</span>
                                   <span className="font-bold text-white font-sans font-number">
                                     {formatINR(client.paymentsReceived)}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-1.5">
-                                  <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] shrink-0" />
-                                  <span className="text-slate-300">Outstanding:</span>
+                                  <span className="w-2.5 h-2.5 rounded-full bg-[#D97706] shrink-0" />
+                                  <span className="text-sky-100">Outstanding:</span>
                                   <span className="font-bold text-white font-sans font-number">
                                     {formatINR(client.balanceReceivable)}
                                   </span>
@@ -649,10 +649,10 @@ export function ClientsTable({
                                           key={service.id || sIdx}
                                           className="hover:bg-slate-50/60 transition-colors"
                                         >
-                                          {/* SERVICE: Light blue squircle with FileText icon + Name & Category */}
+                                          {/* SERVICE: Soft teal squircle with FileText icon + Name & Category */}
                                           <td className="py-3.5 px-4 align-middle">
                                             <div className="flex items-center gap-3">
-                                              <div className="w-9 h-9 rounded-xl bg-[#E0F2FE] border border-[#BAE6FD] text-[#0284C7] flex items-center justify-center shrink-0 shadow-2xs">
+                                              <div className="w-9 h-9 rounded-xl bg-[#E0F3F7] border border-sky-200 text-[#0481A2] flex items-center justify-center shrink-0 shadow-2xs">
                                                 <FileText size={17} />
                                               </div>
                                               <div className="min-w-0">
@@ -720,17 +720,17 @@ export function ClientsTable({
                                             </div>
                                           </td>
 
-                                          {/* CURRENT STAGE: Soft cyan/teal rounded pill with Clock icon */}
+                                          {/* CURRENT STAGE: Soft teal rounded pill with Clock icon matching brand palette */}
                                           <td className="py-3.5 px-3 text-center align-middle whitespace-nowrap">
                                             {(() => {
                                               const { title, sub } = formatCurrentStage(service.stage, isServComplete);
                                               return (
-                                                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E0F7FA] text-[#00695C] border border-[#B2EBF2] shadow-2xs text-left">
-                                                  <Clock size={13} className="text-[#00695C] shrink-0" />
+                                                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E0F3F7] text-[#0481A2] border border-sky-200 shadow-2xs text-left">
+                                                  <Clock size={13} className="text-[#0481A2] shrink-0" />
                                                   <div className="leading-tight">
                                                     <p className="text-[11px] font-bold">{title}</p>
                                                     {sub && (
-                                                      <p className="text-[9px] font-medium text-[#00796B]/80">{sub}</p>
+                                                      <p className="text-[9px] font-medium text-[#0481A2]/80">{sub}</p>
                                                     )}
                                                   </div>
                                                 </div>
@@ -741,7 +741,7 @@ export function ClientsTable({
                                           {/* ASSIGNED TO: Soft gray pill with User icon */}
                                           <td className="py-3.5 px-3 text-center align-middle whitespace-nowrap">
                                             <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F1F5F9] border border-slate-200/90 shadow-2xs text-xs">
-                                              <User size={13} className="text-[#0284C7] shrink-0" />
+                                              <User size={13} className="text-[#0481A2] shrink-0" />
                                               <span className="font-semibold text-slate-700 text-xs">
                                                 {service.assigned_employee_name || "Unassigned"}
                                               </span>
@@ -751,7 +751,7 @@ export function ClientsTable({
                                           {/* DUE DATE: Calendar icon + date */}
                                           <td className="py-3.5 px-4 text-center align-middle whitespace-nowrap">
                                             <div className="inline-flex items-center gap-1.5 text-xs text-slate-700 font-sans font-number">
-                                              <Calendar size={14} className="text-[#0284C7] shrink-0" />
+                                              <Calendar size={14} className="text-[#0481A2] shrink-0" />
                                               <span className="font-bold text-slate-800">
                                                 {service.expected_completion_date
                                                   ? formatDate(service.expected_completion_date)

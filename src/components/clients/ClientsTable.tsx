@@ -55,20 +55,6 @@ function formatCurrentStage(stage?: string, isComplete?: boolean) {
   return { title: stage.trim(), sub: null };
 }
 
-function getSalespersonAvatarColor(name: string) {
-  const colors = [
-    "bg-purple-100 text-purple-700 border-purple-200",
-    "bg-sky-100 text-sky-700 border-sky-200",
-    "bg-teal-100 text-teal-700 border-teal-200",
-    "bg-amber-100 text-amber-700 border-amber-200",
-    "bg-rose-100 text-rose-700 border-rose-200",
-    "bg-indigo-100 text-indigo-700 border-indigo-200",
-  ];
-  let sum = 0;
-  for (let i = 0; i < name.length; i++) sum += name.charCodeAt(i);
-  return colors[sum % colors.length];
-}
-
 /** Minimal Progress Pill Badge */
 function ProgressBadge({ percent }: { percent: number }) {
   const validPercent = Math.min(100, Math.max(0, percent));
@@ -297,15 +283,6 @@ export function ClientsTable({
                     ? Math.round((completedServicesCount / totalServicesCount) * 100)
                     : 0);
 
-                const spInitial = client.salesperson
-                  ? client.salesperson
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .slice(0, 2)
-                    .toUpperCase()
-                  : "SP";
-
                 return (
                   <tr key={client.id} className="contents">
                     {/* Master Row */}
@@ -376,24 +353,14 @@ export function ClientsTable({
                         </div>
                       </td>
 
-                      {/* 3. Salesperson with Circle Avatar */}
+                      {/* 3. Salesperson */}
                       <td className="py-3 px-2 sm:px-3 align-middle">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div
-                            className={cn(
-                              "w-7 h-7 rounded-full border text-[11px] font-bold flex items-center justify-center shrink-0 shadow-2xs",
-                              getSalespersonAvatarColor(client.salesperson)
-                            )}
-                          >
-                            {spInitial}
-                          </div>
-                          <span
-                            className="text-xs font-semibold text-slate-800 truncate"
-                            title={client.salesperson}
-                          >
-                            {client.salesperson}
-                          </span>
-                        </div>
+                        <span
+                          className="text-xs font-semibold text-slate-800 truncate block"
+                          title={client.salesperson}
+                        >
+                          {client.salesperson}
+                        </span>
                       </td>
 
                       {/* 4. Contract Value */}

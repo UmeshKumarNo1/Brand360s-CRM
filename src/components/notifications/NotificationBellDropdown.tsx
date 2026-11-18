@@ -26,7 +26,11 @@ import {
 import { NotificationItem, NotificationType } from "@/lib/notifications/notification-types";
 import { createClient } from "@/lib/supabase/client";
 
-export function NotificationBellDropdown() {
+interface NotificationBellDropdownProps {
+  triggerClassName?: string;
+}
+
+export function NotificationBellDropdown({ triggerClassName }: NotificationBellDropdownProps = {}) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "alert" | "update">("all");
@@ -146,13 +150,16 @@ export function NotificationBellDropdown() {
       {/* Bell Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2.5 text-slate-600 hover:text-[#243E76] hover:bg-white rounded-full transition-colors relative cursor-pointer"
+        className={
+          triggerClassName ||
+          "p-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl shadow-2xs flex items-center justify-center transition-all duration-150 relative cursor-pointer"
+        }
         title="Notifications"
         aria-label="View notifications"
       >
-        <Bell size={19} />
+        <Bell size={18} className="text-slate-600" />
         {unreadCount > 0 && (
-          <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white shadow-2xs animate-in zoom-in duration-200">
+          <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white shadow-2xs animate-in zoom-in duration-200">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
@@ -187,31 +194,28 @@ export function NotificationBellDropdown() {
           <div className="flex border-b border-slate-100 bg-slate-50/40 px-3 pt-1.5 gap-1 text-[11px] font-semibold">
             <button
               onClick={() => setActiveTab("all")}
-              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${
-                activeTab === "all"
+              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${activeTab === "all"
                   ? "border-[#0481A2] text-[#0481A2]"
                   : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
+                }`}
             >
               All
             </button>
             <button
               onClick={() => setActiveTab("alert")}
-              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${
-                activeTab === "alert"
+              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${activeTab === "alert"
                   ? "border-red-500 text-red-600"
                   : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
+                }`}
             >
               Alerts
             </button>
             <button
               onClick={() => setActiveTab("update")}
-              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${
-                activeTab === "update"
+              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${activeTab === "update"
                   ? "border-[#243E76] text-[#243E76]"
                   : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
+                }`}
             >
               Updates
             </button>
@@ -237,17 +241,15 @@ export function NotificationBellDropdown() {
                 <div
                   key={notif.id}
                   onClick={() => handleNotificationClick(notif)}
-                  className={`p-3.5 flex items-start gap-3 hover:bg-slate-50 transition-colors cursor-pointer relative ${
-                    !notif.is_read ? "bg-sky-50/30" : ""
-                  }`}
+                  className={`p-3.5 flex items-start gap-3 hover:bg-slate-50 transition-colors cursor-pointer relative ${!notif.is_read ? "bg-sky-50/30" : ""
+                    }`}
                 >
                   {/* Icon */}
                   <div
-                    className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center ${
-                      notif.category === "alert"
+                    className={`w-7 h-7 rounded-lg shrink-0 flex items-center justify-center ${notif.category === "alert"
                         ? "bg-rose-50 text-rose-600"
                         : "bg-blue-50 text-[#0481A2]"
-                    } shadow-2xs mt-0.5`}
+                      } shadow-2xs mt-0.5`}
                   >
                     {getNotificationIcon(notif.type)}
                   </div>

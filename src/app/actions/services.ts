@@ -26,6 +26,27 @@ export async function fetchServicesCatalogAction() {
   return data || [];
 }
 
+export async function fetchActiveServicesCountAction(): Promise<number> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("client_services")
+      .select("id, service_status");
+
+    if (error || !data) {
+      console.error("Error fetching active services count:", error);
+      return 0;
+    }
+
+    return data.filter(
+      (s: any) => s.service_status !== "Completed" && s.service_status !== "Cancelled"
+    ).length;
+  } catch (err) {
+    console.error("Exception in fetchActiveServicesCountAction:", err);
+    return 0;
+  }
+}
+
 export async function createCatalogServiceAction(
   prevState: ServiceActionState | null,
   formData: FormData

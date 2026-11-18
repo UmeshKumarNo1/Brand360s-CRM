@@ -7,9 +7,10 @@ import { ClientStatsCards } from "@/components/clients/ClientStatsCards";
 import { ClientFilters } from "@/components/clients/ClientFilters";
 import { ClientsTable } from "@/components/clients/ClientsTable";
 import { ClientPagination } from "@/components/clients/ClientPagination";
-import { ClientRecord, MOCK_CLIENTS } from "@/data/mockClients";
+import { ClientRecord, ClientServiceItem, MOCK_CLIENTS } from "@/data/mockClients";
 import { fetchClientsAction, fetchSalespeopleAction } from "@/app/actions/clients";
 import { fetchFollowupsAction } from "@/app/actions/followups";
+import { fetchActiveServicesCountAction } from "@/app/actions/services";
 import {
   deleteClientAction,
   archiveClientAction,
@@ -61,6 +62,7 @@ export default function ClientsPage() {
   const [selectedClientStatus, setSelectedClientStatus] = useState("All");
   const [salespeopleList, setSalespeopleList] = useState<{ id: string; full_name: string }[]>([]);
   const [pendingFollowupsCount, setPendingFollowupsCount] = useState<number>(0);
+  const [activeServicesCount, setActiveServicesCount] = useState<number>(0);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -83,13 +85,18 @@ export default function ClientsPage() {
     setErrorMessage(null);
 
     try {
-      const [records, spList, followups] = await Promise.all([
+      const [records, spList, followups, servicesCount] = await Promise.all([
         fetchClientsAction(),
         fetchSalespeopleAction(),
         fetchFollowupsAction(),
+        fetchActiveServicesCountAction(),
       ]);
 
       if (currentReqId === requestIdRef.current) {
+        if (typeof servicesCount === "number") {
+          setActiveServicesCount(servicesCount);
+        }
+
         if (spList && Array.isArray(spList)) {
           setSalespeopleList(spList.map((s: any) => ({ id: s.id, full_name: s.full_name })));
         }
@@ -100,33 +107,165 @@ export default function ClientsPage() {
         }
 
         if (records && records.length > 0) {
-          const mapped: ClientRecord[] = records.map((r: any, idx: number) => ({
-            id: r.id,
-            no: idx + 1,
-            companyName: r.company_name,
-            tradeName: r.trade_name || undefined,
-            clientCode: r.client_code || undefined,
-            contactPerson: r.contact_person || undefined,
-            email: r.email || undefined,
-            phone: r.phone || undefined,
-            dateOfCreation: r.created_at
-              ? new Date(r.created_at).toLocaleDateString("en-IN", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })
-              : "-",
-            createdAt: r.created_at || "-",
-            salesperson: r.assigned_profile?.full_name || "Unassigned",
-            servicesPurchased: r.services_purchased || "Company Registration",
-            contractValue: Number(r.contract_value) || 0,
-            paymentsReceived: Number(r.payments_received) || 0,
-            balanceReceivable: Number(r.balance_receivable) || 0,
-            nextPaymentDueAmount: Number(r.next_payment_due_amount) || 0,
-            nextPaymentDueDate: r.next_payment_due_date || "-",
-            paymentStatus: r.payment_status || "Upcoming",
-            clientStatus: r.client_status || "Active",
-          }));
+          const mapped: ClientRecord[] = records.map((r: any, idx: number) => {
+            // Process services for expandable row
+            const dbServices: any[] = r.services || r.client_services || [];
+            let servicesList: ClientServiceItem[] = [];
+
+            if (dbServices.length > 0) {
+              servicesList = dbServices.map((s: any) => {
+                const totalAmt =
+                  Number(s.total_amount) ||
+                  (Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0);
+                const status = s.service_status || "Pending";
+                let progress = 20;
+                let stageText = "Onboarding";
+                let payStatus: "Paid" | "Partial" | "Unpaid" = "Unpaid";
+                let amtPaid = 0;
+
+                if (status === "Completed") {
+                  progress = 100;
+                  stageText = "Completed";
+                  payStatus = "Paid";
+                  amtPaid = totalAmt;
+                } else if (status === "In Progress" || status === "Processing") {
+                  progress = 50;
+                  stageText = "Preparation (Work in progress)";
+                  payStatus = totalAmt > 0 ? "Partial" : "Unpaid";
+                  amtPaid = Math.round(totalAmt * 0.5);
+                } else if (status === "Filing") {
+                  progress = 75;
+                  stageText = "Filing (In review)";
+                  payStatus = "Partial";
+                  amtPaid = Math.round(totalAmt * 0.75);
+                } else {
+                  progress = 20;
+                  stageText = "Onboarding (Pending)";
+                  payStatus = "Unpaid";
+                  amtPaid = 0;
+                }
+
+                return {
+                  id: s.id,
+                  service_name: s.service_name || "General Service",
+                  service_category: s.service_category || "General",
+                  service_fee: Number(s.service_fee) || 0,
+                  govt_fee: Number(s.govt_fee) || 0,
+                  total_amount: totalAmt,
+                  service_status: status,
+                  start_date: s.start_date || null,
+                  expected_completion_date: s.expected_completion_date || null,
+                  assigned_employee_name: s.assigned_profile?.full_name || null,
+                  stage: stageText,
+                  progressPercent: progress,
+                  paymentStatus: payStatus,
+                  amountPaid: amtPaid,
+                };
+              });
+            } else if (r.services_purchased) {
+              // Graceful fallback for legacy records
+              const names = r.services_purchased
+                .split(",")
+                .map((s: string) => s.trim())
+                .filter(Boolean);
+              const isClientCompleted = r.client_status === "Completed";
+              const perServiceVal =
+                names.length > 0
+                  ? Math.round((Number(r.contract_value) || 0) / names.length)
+                  : 0;
+
+              servicesList = names.map((name: string, sIdx: number) => ({
+                id: `synth-${r.id}-${sIdx}`,
+                service_name: name,
+                service_category: "General",
+                service_fee: perServiceVal,
+                govt_fee: 0,
+                total_amount: perServiceVal,
+                service_status: isClientCompleted ? "Completed" : "In Progress",
+                expected_completion_date:
+                  r.next_payment_due_date && r.next_payment_due_date !== "-"
+                    ? r.next_payment_due_date
+                    : null,
+                assigned_employee_name: r.assigned_profile?.full_name || null,
+                stage: isClientCompleted
+                  ? "Completed"
+                  : "Preparation (Work in progress)",
+                progressPercent: isClientCompleted ? 100 : 50,
+                paymentStatus: isClientCompleted
+                  ? "Paid"
+                  : Number(r.payments_received) > 0
+                  ? "Partial"
+                  : "Unpaid",
+                amountPaid: isClientCompleted ? perServiceVal : 0,
+              }));
+            }
+
+            const completedCount = servicesList.filter(
+              (s) => s.service_status === "Completed"
+            ).length;
+            const totalCount = servicesList.length;
+            const avgProgress =
+              totalCount > 0
+                ? Math.round((completedCount / totalCount) * 100)
+                : r.client_status === "Completed"
+                ? 100
+                : 0;
+
+            // Next follow-up lookup
+            const clientFollowups = Array.isArray(followups)
+              ? followups.filter(
+                  (f: any) =>
+                    (f.clientId === r.id || f.client_id === r.id) &&
+                    f.status === "Pending"
+                )
+              : [];
+            const nextFollowup = clientFollowups[0];
+            const nextActionTitle = nextFollowup
+              ? nextFollowup.title || nextFollowup.followUpType || "Follow-up required"
+              : undefined;
+            const nextActionDueDate = nextFollowup?.dueDate || undefined;
+
+            return {
+              id: r.id,
+              no: idx + 1,
+              companyName: r.company_name,
+              tradeName: r.trade_name || undefined,
+              clientCode: r.client_code || undefined,
+              contactPerson: r.contact_person || undefined,
+              email: r.email || undefined,
+              phone: r.phone || undefined,
+              dateOfCreation: r.created_at
+                ? new Date(r.created_at).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "-",
+              createdAt: r.created_at || "-",
+              salesperson: r.assigned_profile?.full_name || "Unassigned",
+              servicesPurchased:
+                r.services_purchased ||
+                (servicesList.map((s) => s.service_name).join(", ") ||
+                  "Company Registration"),
+              contractValue: Number(r.contract_value) || 0,
+              paymentsReceived: Number(r.payments_received) || 0,
+              balanceReceivable: Number(r.balance_receivable) || 0,
+              nextPaymentDueAmount: Number(r.next_payment_due_amount) || 0,
+              nextPaymentDueDate: r.next_payment_due_date || "-",
+              paymentStatus: r.payment_status || "Upcoming",
+              clientStatus: r.client_status || "Active",
+              gstin:
+                r.gst_number && r.gst_number !== "Not GST-registered"
+                  ? r.gst_number
+                  : undefined,
+              services: servicesList,
+              servicesCompletedCount: completedCount,
+              servicesTotalCount: totalCount,
+              servicesProgressPercent: avgProgress,
+              nextActionTitle,
+              nextActionDueDate,
+            };
+          });
           setDbClients(mapped);
         } else {
           setDbClients([]);
@@ -341,13 +480,33 @@ export default function ClientsPage() {
   const activeOperationalCount = dbClients.filter((c) => c.clientStatus === "Active").length;
   const archivedCount = dbClients.filter((c) => c.clientStatus === "Archived").length;
 
-  const totalRevenueNumber = dbClients
+  const totalContractValueNumber = dbClients
+    .filter((c) => c.clientStatus !== "Archived")
+    .reduce((acc, c) => acc + (c.contractValue || 0), 0);
+
+  const amountCollectedNumber = dbClients
     .filter((c) => c.clientStatus !== "Archived")
     .reduce((acc, c) => acc + (c.paymentsReceived || 0), 0);
 
   const totalOutstandingNumber = dbClients
     .filter((c) => c.clientStatus !== "Archived")
     .reduce((acc, c) => acc + (c.balanceReceivable || 0), 0);
+
+  const formatCompactINR = (amount: number) => {
+    if (amount >= 10000000) {
+      const val = amount / 10000000;
+      return `₹${val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)}Cr`;
+    }
+    if (amount >= 100000) {
+      const val = amount / 100000;
+      return `₹${val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)}L`;
+    }
+    if (amount >= 1000) {
+      const val = amount / 1000;
+      return `₹${val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)}k`;
+    }
+    return `₹${amount.toLocaleString("en-IN")}`;
+  };
 
   return (
     <div className="space-y-6 w-full">
@@ -359,13 +518,15 @@ export default function ClientsPage() {
       <ClientStatsCards
         totalClients={totalNonArchived}
         activeClients={activeOperationalCount}
+        activeServices={activeServicesCount}
+        totalContractValue={formatCompactINR(totalContractValueNumber)}
+        amountCollected={formatCompactINR(amountCollectedNumber)}
+        totalOutstanding={formatCompactINR(totalOutstandingNumber)}
         pendingFollowups={pendingFollowupsCount}
-        totalRevenue={`₹${(totalRevenueNumber / 100000).toFixed(1)}L`}
-        totalOutstanding={`₹${(totalOutstandingNumber / 100000).toFixed(1)}L`}
       />
 
       {/* Tabs: Active vs Archived Portfolio */}
-      <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-2">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button
             onClick={() => {
@@ -373,11 +534,10 @@ export default function ClientsPage() {
               setCurrentPage(1);
               setSelectedIds([]);
             }}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-              clientTab === "active"
-                ? "bg-[#243E76] text-white shadow-2xs"
-                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-            }`}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${clientTab === "active"
+              ? "bg-[#243E76] text-white shadow-2xs"
+              : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+              }`}
           >
             Active Clients ({totalNonArchived})
           </button>
@@ -388,11 +548,10 @@ export default function ClientsPage() {
                 setCurrentPage(1);
                 setSelectedIds([]);
               }}
-              className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
-                clientTab === "archived"
-                  ? "bg-amber-600 text-white shadow-2xs"
-                  : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
-              }`}
+              className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${clientTab === "archived"
+                ? "bg-amber-600 text-white shadow-2xs"
+                : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+                }`}
             >
               <Archive size={13} />
               <span>Archived Clients ({archivedCount})</span>
@@ -527,7 +686,7 @@ export default function ClientsPage() {
           consequences={
             depCheck && !depCheck.canDelete
               ? depCheck.reason ||
-                "This client has invoices or payments recorded. To preserve financial history, deletion is blocked. Please archive the client instead."
+              "This client has invoices or payments recorded. To preserve financial history, deletion is blocked. Please archive the client instead."
               : "Permanently deleting this client will remove their record from the CRM. This action cannot be undone."
           }
           isArchivingOnly={depCheck ? !depCheck.canDelete : false}

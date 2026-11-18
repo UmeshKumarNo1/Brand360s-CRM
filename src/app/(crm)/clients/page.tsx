@@ -10,6 +10,7 @@ import { ClientPagination } from "@/components/clients/ClientPagination";
 import { ClientRecord, MOCK_CLIENTS } from "@/data/mockClients";
 import { fetchClientsAction, fetchSalespeopleAction } from "@/app/actions/clients";
 import { fetchFollowupsAction } from "@/app/actions/followups";
+import { fetchActiveServicesCountAction } from "@/app/actions/services";
 import {
   deleteClientAction,
   archiveClientAction,
@@ -61,6 +62,7 @@ export default function ClientsPage() {
   const [selectedClientStatus, setSelectedClientStatus] = useState("All");
   const [salespeopleList, setSalespeopleList] = useState<{ id: string; full_name: string }[]>([]);
   const [pendingFollowupsCount, setPendingFollowupsCount] = useState<number>(0);
+  const [activeServicesCount, setActiveServicesCount] = useState<number>(0);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -83,13 +85,18 @@ export default function ClientsPage() {
     setErrorMessage(null);
 
     try {
-      const [records, spList, followups] = await Promise.all([
+      const [records, spList, followups, servicesCount] = await Promise.all([
         fetchClientsAction(),
         fetchSalespeopleAction(),
         fetchFollowupsAction(),
+        fetchActiveServicesCountAction(),
       ]);
 
       if (currentReqId === requestIdRef.current) {
+        if (typeof servicesCount === "number") {
+          setActiveServicesCount(servicesCount);
+        }
+
         if (spList && Array.isArray(spList)) {
           setSalespeopleList(spList.map((s: any) => ({ id: s.id, full_name: s.full_name })));
         }
@@ -341,13 +348,33 @@ export default function ClientsPage() {
   const activeOperationalCount = dbClients.filter((c) => c.clientStatus === "Active").length;
   const archivedCount = dbClients.filter((c) => c.clientStatus === "Archived").length;
 
-  const totalRevenueNumber = dbClients
+  const totalContractValueNumber = dbClients
+    .filter((c) => c.clientStatus !== "Archived")
+    .reduce((acc, c) => acc + (c.contractValue || 0), 0);
+
+  const amountCollectedNumber = dbClients
     .filter((c) => c.clientStatus !== "Archived")
     .reduce((acc, c) => acc + (c.paymentsReceived || 0), 0);
 
   const totalOutstandingNumber = dbClients
     .filter((c) => c.clientStatus !== "Archived")
     .reduce((acc, c) => acc + (c.balanceReceivable || 0), 0);
+
+  const formatCompactINR = (amount: number) => {
+    if (amount >= 10000000) {
+      const val = amount / 10000000;
+      return `₹${val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)}Cr`;
+    }
+    if (amount >= 100000) {
+      const val = amount / 100000;
+      return `₹${val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)}L`;
+    }
+    if (amount >= 1000) {
+      const val = amount / 1000;
+      return `₹${val % 1 === 0 ? val.toFixed(0) : val.toFixed(1)}k`;
+    }
+    return `₹${amount.toLocaleString("en-IN")}`;
+  };
 
   return (
     <div className="space-y-6 w-full">
@@ -359,9 +386,11 @@ export default function ClientsPage() {
       <ClientStatsCards
         totalClients={totalNonArchived}
         activeClients={activeOperationalCount}
+        activeServices={activeServicesCount}
+        totalContractValue={formatCompactINR(totalContractValueNumber)}
+        amountCollected={formatCompactINR(amountCollectedNumber)}
+        totalOutstanding={formatCompactINR(totalOutstandingNumber)}
         pendingFollowups={pendingFollowupsCount}
-        totalRevenue={`₹${(totalRevenueNumber / 100000).toFixed(1)}L`}
-        totalOutstanding={`₹${(totalOutstandingNumber / 100000).toFixed(1)}L`}
       />
 
       {/* Tabs: Active vs Archived Portfolio */}

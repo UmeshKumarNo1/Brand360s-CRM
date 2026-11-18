@@ -217,7 +217,9 @@ export async function assignClientServiceAction(
   const serviceFee = parseFloat(formData.get("service_fee") as string) || 0;
   const govtFee = parseFloat(formData.get("govt_fee") as string) || 0;
   const startDate = (formData.get("start_date") as string) || null;
-  const expectedCompletionDate = (formData.get("expected_completion_date") as string) || null;
+  const rawExpectedCompletion = (formData.get("expected_completion_date") as string) || null;
+  // Enforce working day only for target delivery date
+  const expectedCompletionDate = snapToWorkingDayString(rawExpectedCompletion);
   const serviceStatus = (formData.get("service_status") as string) || "Pending";
   const assignedEmployeeId = (formData.get("assigned_employee_id") as string) || null;
   const notes = (formData.get("notes") as string) || null;
@@ -475,5 +477,74 @@ export async function editClientServiceAction(
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/clients");
   revalidatePath("/services");
+  return { success: true };
+}
+
+/**
+ * Snaps any date to the next working day (Monday - Friday).
+ * Saturday (+2 days) -> Monday
+ * Sunday (+1 day) -> Monday
+ */
+function snapToWorkingDayString(dateStr: string | null): string | null {
+  if (!dateStr) return null;
+  const clean = dateStr.includes("T") ? dateStr.split("T")[0] : dateStr.trim();
+  const parts = clean.split("-").map(Number);
+  if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    const day = d.getDay();
+    if (day === 6) {
+      d.setDate(d.getDate() + 2); // Saturday -> Monday
+    } else if (day === 0) {
+      d.setDate(d.getDate() + 1); // Sunday -> Monday
+    }
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const dt = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${dt}`;
+  }
+  return clean;
+}
+
+/**
+ * Updates the target delivery date committed for the service.
+ * Strictly enforces working days only (snaps weekends to Monday).
+ */
+export async function updateClientServiceDueDateAction(
+  serviceId: string,
+  newDueDate: string | null,
+  clientId?: string
+): Promise<ServiceActionState> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Authentication required." };
+
+  if (!serviceId) {
+    return { error: "Service ID is required." };
+  }
+
+  const workingDueDate = snapToWorkingDayString(newDueDate);
+
+  const { error } = await supabase
+    .from("client_services")
+    .update({
+      expected_completion_date: workingDueDate,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", serviceId);
+
+  if (error) {
+    console.error("Error updating client service target delivery date:", error);
+    return { error: error.message };
+  }
+
+  if (clientId) {
+    revalidatePath(`/clients/${clientId}`);
+  }
+  revalidatePath("/clients");
+  revalidatePath("/services");
+  revalidatePath("/reports");
+  return { success: true };
+}
   return { success: true };
 }

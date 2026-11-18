@@ -15,8 +15,9 @@ import {
   FileText,
   Plus,
 } from "lucide-react";
-import { ClientRecord } from "@/data/mockClients";
+import { ClientRecord, ClientServiceItem } from "@/data/mockClients";
 import { formatINR, cn } from "@/lib/utils";
+import { TargetDateCell } from "@/components/services/TargetDateCell";
 
 interface ClientsTableProps {
   clients: ClientRecord[];
@@ -523,7 +524,9 @@ export function ClientsTable({
                                       <th className="py-2 px-3 text-center">PROGRESS</th>
                                       <th className="py-2 px-3 text-center">CURRENT STAGE</th>
                                       <th className="py-2 px-3 text-center">ASSIGNED TO</th>
-                                      <th className="py-2 px-3.5 text-center">DUE DATE</th>
+                                      <th className="py-2 px-3.5 text-center" title="Target delivery date for service fulfillment (working days only)">
+                                        TARGET DATE
+                                      </th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -642,16 +645,13 @@ export function ClientsTable({
                                             </div>
                                           </td>
 
-                                          {/* DUE DATE: Clean text with calendar icon */}
+                                          {/* TARGET DATE: Clean read-only status badge with dynamic green (>3d), orange (1-3d), red (today/overdue) */}
                                           <td className="py-2.5 px-3.5 text-center align-middle whitespace-nowrap">
-                                            <div className="inline-flex items-center gap-1.5 text-xs text-slate-600 font-sans font-number">
-                                              <Calendar size={13} className="text-slate-400 shrink-0" />
-                                              <span className="font-medium text-slate-700">
-                                                {service.expected_completion_date
-                                                  ? formatDate(service.expected_completion_date)
-                                                  : "-"}
-                                              </span>
-                                            </div>
+                                            <TargetDateCell
+                                              initialDate={service.expected_completion_date}
+                                              isCompleted={service.service_status === "Completed"}
+                                              editable={false}
+                                            />
                                           </td>
                                         </tr>
                                       );

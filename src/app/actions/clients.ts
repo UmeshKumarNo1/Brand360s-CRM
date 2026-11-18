@@ -128,7 +128,7 @@ export async function createClientAction(
       if (!phoneCheck.isValid) {
         fieldErrors.phone = phoneCheck.error || "Invalid phone number.";
       }
-    } catch {}
+    } catch { }
   }
 
   if (email) {
@@ -173,7 +173,7 @@ export async function createClientAction(
       if (!altCheck.isValid) {
         fieldErrors.alternate_phone = altCheck.error || "Invalid alternate phone number.";
       }
-    } catch {}
+    } catch { }
   }
 
   if (isNaN(contract_value) || contract_value < 0) {

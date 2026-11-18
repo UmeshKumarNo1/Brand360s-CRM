@@ -15,13 +15,11 @@ import {
   RotateCcw,
   UserCheck,
   FileText,
-  Layers,
-  ShieldCheck,
-  Globe,
-  FileSpreadsheet,
+  Clock,
+  LayoutGrid,
   Plus,
 } from "lucide-react";
-import { ClientRecord, ClientServiceItem } from "@/data/mockClients";
+import { ClientRecord } from "@/data/mockClients";
 import { formatINR, cn } from "@/lib/utils";
 
 interface ClientsTableProps {
@@ -44,7 +42,7 @@ function formatDate(dateStr?: string | null) {
         year: "numeric",
       });
     }
-  } catch {}
+  } catch { }
   return dateStr;
 }
 
@@ -62,45 +60,55 @@ function getSalespersonAvatarColor(name: string) {
   return colors[sum % colors.length];
 }
 
-function getServiceIcon(name: string, category?: string) {
-  const lower = (name + " " + (category || "")).toLowerCase();
-  if (lower.includes("trademark") || lower.includes("tm ") || lower.includes("brand") || lower.includes("ip")) {
-    return <ShieldCheck size={15} className="text-emerald-600 shrink-0" />;
-  }
-  if (lower.includes("annual") || lower.includes("roc") || lower.includes("compliance") || lower.includes("gst")) {
-    return <FileText size={15} className="text-blue-600 shrink-0" />;
-  }
-  if (lower.includes("web") || lower.includes("design") || lower.includes("app") || lower.includes("tech")) {
-    return <Globe size={15} className="text-indigo-600 shrink-0" />;
-  }
-  if (lower.includes("llp") || lower.includes("incorporation") || lower.includes("pvt")) {
-    return <Layers size={15} className="text-[#0481A2] shrink-0" />;
-  }
-  return <FileSpreadsheet size={15} className="text-slate-600 shrink-0" />;
+/** Circular Donut Progress Ring matching UI */
+function CircularProgress({ percent }: { percent: number }) {
+  const radius = 17;
+  const circumference = 2 * Math.PI * radius; // ~106.8
+  const validPercent = Math.min(100, Math.max(0, percent));
+  const strokeDashoffset = circumference - (validPercent / 100) * circumference;
+
+  return (
+    <div className="relative w-11 h-11 flex items-center justify-center">
+      <svg className="w-11 h-11 -rotate-90" viewBox="0 0 44 44">
+        {/* Background track */}
+        <circle
+          cx="22"
+          cy="22"
+          r={radius}
+          stroke="#E2E8F0"
+          strokeWidth="3.5"
+          fill="none"
+        />
+        {/* Foreground colored arc */}
+        <circle
+          cx="22"
+          cy="22"
+          r={radius}
+          stroke="#0481A2"
+          strokeWidth="3.5"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          fill="none"
+          className="transition-all duration-500 ease-out"
+        />
+      </svg>
+      {/* Centered percentage text */}
+      <span className="absolute font-bold text-slate-800 text-[11px] font-sans font-number">
+        {validPercent}%
+      </span>
+    </div>
+  );
 }
 
-function getServiceStages(serviceName: string) {
-  const lower = serviceName.toLowerCase();
-  if (lower.includes("trademark") || lower.includes("tm ") || lower.includes("brand")) {
-    return ["Onboarding", "Search & Check", "Filing", "Examination", "Registration"];
-  }
-  if (lower.includes("annual") || lower.includes("compliance") || lower.includes("roc") || lower.includes("gst")) {
-    return ["Onboarding", "Doc Collection", "Preparation", "Filing", "Completed"];
-  }
-  if (lower.includes("web") || lower.includes("design") || lower.includes("dev")) {
-    return ["Briefing", "Wireframing", "Development", "Review", "Launched"];
-  }
-  return ["Onboarding", "Doc Collection", "Preparation", "Filing", "Completed"];
-}
-
+/** 5-Stage Stepper matching the reference image */
 function FulfillmentStepper({
-  serviceName,
   status,
 }: {
-  serviceName: string;
+  serviceName?: string;
   status: string;
 }) {
-  const stages = getServiceStages(serviceName);
+  const stages = ["Onboard...", "Doc Collect", "Preparation", "Filing", "Completed"];
   const isCompleted = status === "Completed";
   const isInProgress = status === "In Progress" || status === "Processing";
   const isFiling = status === "Filing";
@@ -109,10 +117,10 @@ function FulfillmentStepper({
   if (isCompleted) activeIndex = 4;
   else if (isFiling) activeIndex = 3;
   else if (isInProgress) activeIndex = 2;
-  else activeIndex = 0; // Pending
+  else activeIndex = 0; // Pending / Onboarding
 
   return (
-    <div className="flex items-center gap-1 sm:gap-1.5 min-w-[280px] max-w-[340px] py-1">
+    <div className="flex items-center gap-1 sm:gap-1.5 min-w-[270px] max-w-[320px] py-1">
       {stages.map((stageName, sIdx) => {
         const isStepDone = sIdx < activeIndex || (sIdx === activeIndex && isCompleted);
         const isStepActive = sIdx === activeIndex && !isCompleted;
@@ -120,29 +128,29 @@ function FulfillmentStepper({
 
         return (
           <div key={sIdx} className="flex items-center flex-1 min-w-0 last:flex-none">
-            {/* Stage Node */}
+            {/* Step Node */}
             <div className="flex flex-col items-center">
               <div
                 className={cn(
-                  "w-4 h-4 sm:w-4.5 sm:h-4.5 rounded-full flex items-center justify-center text-[9px] font-bold transition-all shrink-0",
-                  isStepDone && "bg-emerald-500 text-white shadow-2xs",
-                  isStepActive && "border-2 border-blue-600 bg-white text-blue-600 ring-2 ring-blue-100",
-                  isStepPending && "border border-slate-300 bg-white text-slate-400"
+                  "w-4.5 h-4.5 rounded-full flex items-center justify-center transition-all shrink-0",
+                  isStepDone && "bg-[#0481A2] text-white shadow-2xs",
+                  isStepActive && "border-2 border-[#0481A2] bg-white text-[#0481A2]",
+                  isStepPending && "border-2 border-slate-200 bg-white"
                 )}
-                title={`${stageName} (${isStepDone ? "Completed" : isStepActive ? "In Progress" : "Pending"})`}
+                title={`${stageName} (${isStepDone ? "Completed" : isStepActive ? "Active" : "Pending"})`}
               >
                 {isStepDone ? (
                   <Check size={10} strokeWidth={3} />
                 ) : isStepActive ? (
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0481A2]" />
                 ) : null}
               </div>
               <span
                 className={cn(
-                  "text-[8.5px] mt-0.5 whitespace-nowrap leading-tight text-center max-w-[50px] truncate font-medium",
+                  "text-[9px] mt-1 whitespace-nowrap leading-tight text-center max-w-[50px] truncate",
+                  isStepActive && "text-[#0481A2] font-bold",
                   isStepDone && "text-slate-600 font-semibold",
-                  isStepActive && "text-blue-700 font-bold bg-blue-50 px-1 rounded border border-blue-200",
-                  isStepPending && "text-slate-400"
+                  isStepPending && "text-slate-400 font-medium"
                 )}
                 title={stageName}
               >
@@ -150,12 +158,12 @@ function FulfillmentStepper({
               </span>
             </div>
 
-            {/* Connecting Connector Line */}
+            {/* Connecting Line */}
             {sIdx < stages.length - 1 && (
               <div
                 className={cn(
                   "h-0.5 flex-1 mx-1 -mt-3.5 transition-colors",
-                  isStepDone ? "bg-emerald-500" : "bg-slate-200"
+                  isStepDone ? "bg-[#0481A2]" : "bg-slate-200"
                 )}
               />
             )}
@@ -174,7 +182,10 @@ export function ClientsTable({
   onRestoreClient,
   onReassignClient,
 }: ClientsTableProps) {
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  // Default first client to expanded so user immediately sees the rich UI, or keep state
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
+    return clients.length > 0 ? new Set([clients[0].id]) : new Set();
+  });
 
   const toggleExpand = (id: string) => {
     setExpandedIds((prev) => {
@@ -200,7 +211,7 @@ export function ClientsTable({
     <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden w-full max-w-full">
       <div className="overflow-x-auto w-full custom-scrollbar">
         <table className="w-full text-left border-collapse text-xs sm:text-[13px] min-w-[1080px]">
-          {/* Proportional Column Widths */}
+          {/* Column Proportions */}
           <colgroup>
             {/* 1. No. & Toggle */}
             <col style={{ width: "4%" }} />
@@ -210,7 +221,7 @@ export function ClientsTable({
             <col style={{ width: "11%" }} />
             {/* 4. Contract */}
             <col style={{ width: "9%" }} />
-            {/* 5. Invoiced / Contract Value */}
+            {/* 5. Invoiced */}
             <col style={{ width: "9%" }} />
             {/* 6. Collected */}
             <col style={{ width: "9%" }} />
@@ -218,7 +229,7 @@ export function ClientsTable({
             <col style={{ width: "9%" }} />
             {/* 8. Services Progress */}
             <col style={{ width: "12%" }} />
-            {/* 9. Next Action / Follow-up */}
+            {/* 9. Next Action */}
             <col style={{ width: "11%" }} />
             {/* 10. Next Due Date */}
             <col style={{ width: "8%" }} />
@@ -226,7 +237,7 @@ export function ClientsTable({
             <col style={{ width: "8%" }} />
           </colgroup>
 
-          {/* Navy Blue Table Header matching design */}
+          {/* Navy Blue Table Header */}
           <thead>
             <tr className="bg-[#243E76] text-white font-semibold text-xs sm:text-[13px] tracking-wide align-middle">
               <th className="py-3 px-2 text-center font-semibold">
@@ -297,11 +308,11 @@ export function ClientsTable({
 
                 const spInitial = client.salesperson
                   ? client.salesperson
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")
-                      .slice(0, 2)
-                      .toUpperCase()
+                    .split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()
                   : "SP";
 
                 return (
@@ -311,7 +322,7 @@ export function ClientsTable({
                       className={cn(
                         "hover:bg-slate-50/80 transition-colors duration-150 border-b border-slate-100",
                         isArchived && "opacity-75 bg-slate-50/30",
-                        isExpanded && "bg-sky-50/40"
+                        isExpanded && "bg-sky-50/30"
                       )}
                     >
                       {/* 1. No. & Expand Chevron Button */}
@@ -399,17 +410,17 @@ export function ClientsTable({
                         {formatINR(client.contractValue)}
                       </td>
 
-                      {/* 5. Invoiced (Equal to contract value or payments billed) */}
+                      {/* 5. Invoiced */}
                       <td className="py-3 px-2 sm:px-3 text-right font-bold text-slate-700 font-sans font-number whitespace-nowrap align-middle">
                         {formatINR(client.contractValue)}
                       </td>
 
-                      {/* 6. Collected (Payments Received) in Bold Green */}
+                      {/* 6. Collected */}
                       <td className="py-3 px-2 sm:px-3 text-right font-bold text-emerald-600 font-sans font-number whitespace-nowrap align-middle">
                         {formatINR(client.paymentsReceived)}
                       </td>
 
-                      {/* 7. Outstanding (Balance Receivable) in Bold Red/Amber */}
+                      {/* 7. Outstanding */}
                       <td className="py-3 px-2 sm:px-3 text-right font-bold font-sans font-number whitespace-nowrap align-middle">
                         {client.balanceReceivable > 0 ? (
                           <span className="text-red-500">{formatINR(client.balanceReceivable)}</span>
@@ -421,7 +432,6 @@ export function ClientsTable({
                       {/* 8. Services Progress Bar & Count */}
                       <td className="py-3 px-2 sm:px-3 align-middle">
                         <div className="flex flex-col items-center gap-1 w-full max-w-[140px] mx-auto">
-                          {/* Progress Track & Fill */}
                           <div className="w-full h-2 rounded-full bg-slate-100 border border-slate-200/70 overflow-hidden shadow-2xs">
                             <div
                               className="h-full rounded-full bg-emerald-500 transition-all duration-300"
@@ -491,7 +501,7 @@ export function ClientsTable({
                             <Edit3 size={13} strokeWidth={2} />
                           </Link>
 
-                          {/* Admin Reassign Quick Action */}
+                          {/* Admin Reassign Action */}
                           {isAdmin && onReassignClient && (
                             <button
                               type="button"
@@ -530,50 +540,57 @@ export function ClientsTable({
                       </td>
                     </tr>
 
-                    {/* Expanded Child Services Portfolio */}
+                    {/* Expanded Child Services Portfolio (Matching Reference Image) */}
                     {isExpanded && (
                       <tr className="bg-[#F8FAFC] border-b-2 border-slate-200 transition-all">
                         <td colSpan={11} className="p-3 sm:p-5">
                           <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-                            {/* Child Header with Title and Financial Breakdown */}
-                            <div className="px-4 py-3 bg-[#F0F5FA] border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-[#1E3A5F] text-xs sm:text-sm">
+                            {/* 1. Dark Navy Child Header Banner matching reference image */}
+                            <div className="px-4 py-3 bg-[#0F2347] flex flex-col md:flex-row md:items-center justify-between gap-3 text-white">
+                              {/* Left: Icon & Title */}
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-7 h-7 rounded-lg bg-[#0284C7] text-white flex items-center justify-center shrink-0 shadow-2xs">
+                                  <LayoutGrid size={15} />
+                                </div>
+                                <span className="font-bold text-white text-xs sm:text-sm tracking-wide">
                                   Services for {client.companyName} ({services.length})
                                 </span>
                               </div>
-                              <div className="flex items-center gap-3 text-xs font-semibold text-slate-600 flex-wrap">
-                                <span>
-                                  Contract:{" "}
-                                  <strong className="text-slate-900 font-sans font-number">
+
+                              {/* Right: Colored Bullet Metrics matching reference image */}
+                              <div className="flex items-center gap-4 sm:gap-6 text-xs flex-wrap font-medium">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-2.5 h-2.5 rounded-full bg-[#0284C7] shrink-0" />
+                                  <span className="text-slate-300">Contract:</span>
+                                  <span className="font-bold text-white font-sans font-number">
                                     {formatINR(client.contractValue)}
-                                  </strong>
-                                </span>
-                                <span className="text-slate-300">|</span>
-                                <span>
-                                  Invoiced:{" "}
-                                  <strong className="text-slate-900 font-sans font-number">
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-2.5 h-2.5 rounded-full bg-[#A855F7] shrink-0" />
+                                  <span className="text-slate-300">Invoiced:</span>
+                                  <span className="font-bold text-white font-sans font-number">
                                     {formatINR(client.contractValue)}
-                                  </strong>
-                                </span>
-                                <span className="text-slate-300">|</span>
-                                <span>
-                                  Collected:{" "}
-                                  <strong className="text-emerald-600 font-sans font-number">
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-2.5 h-2.5 rounded-full bg-[#22C55E] shrink-0" />
+                                  <span className="text-slate-300">Collected:</span>
+                                  <span className="font-bold text-white font-sans font-number">
                                     {formatINR(client.paymentsReceived)}
-                                  </strong>
-                                </span>
-                                <span className="text-slate-300">|</span>
-                                <span>
-                                  Outstanding:{" "}
-                                  <strong className="text-red-500 font-sans font-number">
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] shrink-0" />
+                                  <span className="text-slate-300">Outstanding:</span>
+                                  <span className="font-bold text-white font-sans font-number">
                                     {formatINR(client.balanceReceivable)}
-                                  </strong>
-                                </span>
+                                  </span>
+                                </div>
                               </div>
                             </div>
 
-                            {/* Services Sub-Table */}
+                            {/* 2. Services Sub-Table */}
                             {services.length === 0 ? (
                               <div className="py-6 px-4 text-center">
                                 <p className="text-xs text-slate-500">
@@ -590,19 +607,19 @@ export function ClientsTable({
                             ) : (
                               <div className="overflow-x-auto w-full custom-scrollbar">
                                 <table className="w-full text-left border-collapse text-xs">
-                                  <thead>
-                                    <tr className="bg-slate-50/90 text-slate-500 font-semibold border-b border-slate-200 text-[11px] uppercase tracking-wider">
-                                      <th className="py-2.5 px-3">Service</th>
-                                      <th className="py-2.5 px-3 text-right">Contract Value</th>
-                                      <th className="py-2.5 px-3 text-center">Payment</th>
-                                      <th className="py-2.5 px-3 text-center min-w-[280px]">
-                                        Fulfillment Progress (Stages)
+                                  <thead className="bg-[#F1F6FB] border-b border-slate-200">
+                                    <tr className="text-[10.5px] font-bold text-[#1E3A5F] tracking-wider uppercase">
+                                      <th className="py-2.5 px-4 text-left">SERVICE</th>
+                                      <th className="py-2.5 px-3 text-center">CONTRACT VALUE</th>
+                                      <th className="py-2.5 px-3 text-center">PAYMENT</th>
+                                      <th className="py-2.5 px-3 text-center min-w-[270px]">
+                                        FULFILLMENT PROGRESS (STAGES)
                                       </th>
-                                      <th className="py-2.5 px-3 text-center">Progress</th>
-                                      <th className="py-2.5 px-3 text-center">Current Stage</th>
-                                      <th className="py-2.5 px-3">Assigned To</th>
-                                      <th className="py-2.5 px-3 text-center">Due Date</th>
-                                      <th className="py-2.5 px-3 text-center">Status</th>
+                                      <th className="py-2.5 px-3 text-center">PROGRESS</th>
+                                      <th className="py-2.5 px-3 text-center">CURRENT STAGE</th>
+                                      <th className="py-2.5 px-3 text-center">ASSIGNED TO</th>
+                                      <th className="py-2.5 px-3 text-center">DUE DATE</th>
+                                      <th className="py-2.5 px-4 text-center">STATUS</th>
                                     </tr>
                                   </thead>
                                   <tbody className="divide-y divide-slate-100 text-slate-700">
@@ -618,66 +635,57 @@ export function ClientsTable({
                                           key={service.id || sIdx}
                                           className="hover:bg-slate-50/60 transition-colors"
                                         >
-                                          {/* Service Name & Icon */}
-                                          <td className="py-3 px-3 align-middle font-medium">
-                                            <div className="flex items-center gap-2">
-                                              {getServiceIcon(
-                                                service.service_name,
-                                                service.service_category
-                                              )}
+                                          {/* SERVICE: Light blue squircle with FileText icon + Name & Category */}
+                                          <td className="py-3.5 px-4 align-middle">
+                                            <div className="flex items-center gap-3">
+                                              <div className="w-9 h-9 rounded-xl bg-[#E0F2FE] border border-[#BAE6FD] text-[#0284C7] flex items-center justify-center shrink-0 shadow-2xs">
+                                                <FileText size={17} />
+                                              </div>
                                               <div className="min-w-0">
-                                                <p className="font-bold text-slate-900 leading-tight">
+                                                <p className="font-bold text-[#0F172A] text-xs leading-tight">
                                                   {service.service_name}
                                                 </p>
-                                                {service.service_category && (
-                                                  <p className="text-[10px] text-slate-400 mt-0.5">
-                                                    {service.service_category}
-                                                  </p>
-                                                )}
+                                                <p className="text-[10px] text-slate-400 font-medium mt-0.5 leading-tight">
+                                                  {service.service_category || "Company Incorporation"}
+                                                </p>
                                               </div>
                                             </div>
                                           </td>
 
-                                          {/* Contract Value */}
-                                          <td className="py-3 px-3 text-right font-bold text-slate-900 font-sans font-number whitespace-nowrap align-middle">
+                                          {/* CONTRACT VALUE */}
+                                          <td className="py-3.5 px-3 text-center align-middle whitespace-nowrap font-bold text-slate-900 font-sans font-number text-xs sm:text-sm">
                                             {formatINR(service.total_amount)}
                                           </td>
 
-                                          {/* Payment Pill */}
-                                          <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
-                                            {service.paymentStatus === "Paid" ? (
-                                              <div className="inline-flex flex-col items-center">
-                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                                  Paid
-                                                </span>
-                                                <span className="text-[10px] font-bold font-sans font-number text-slate-700 mt-0.5">
-                                                  {formatINR(service.total_amount)}
-                                                </span>
-                                              </div>
-                                            ) : service.paymentStatus === "Partial" ? (
-                                              <div className="inline-flex flex-col items-center">
-                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                                  Partial
-                                                </span>
-                                                <span className="text-[10px] font-bold font-sans font-number text-slate-700 mt-0.5">
-                                                  {formatINR(service.amountPaid || 0)} /{" "}
-                                                  {formatINR(service.total_amount)}
-                                                </span>
-                                              </div>
-                                            ) : (
-                                              <div className="inline-flex flex-col items-center">
-                                                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                                                  Unpaid
-                                                </span>
-                                                <span className="text-[10px] font-bold font-sans font-number text-slate-700 mt-0.5">
-                                                  ₹0 / {formatINR(service.total_amount)}
-                                                </span>
-                                              </div>
-                                            )}
+                                          {/* PAYMENT: Unpaid/Paid/Partial pill + amount subtext */}
+                                          <td className="py-3.5 px-3 text-center align-middle whitespace-nowrap">
+                                            <div className="inline-flex flex-col items-center">
+                                              <span
+                                                className={cn(
+                                                  "px-3 py-0.5 rounded-full text-[10px] font-bold shadow-2xs",
+                                                  service.paymentStatus === "Paid" &&
+                                                    "bg-[#DCFCE7] text-[#16A34A] border border-[#BBF7D0]",
+                                                  service.paymentStatus === "Partial" &&
+                                                    "bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A]",
+                                                  service.paymentStatus !== "Paid" &&
+                                                    service.paymentStatus !== "Partial" &&
+                                                    "bg-[#FEE2E2] text-[#DC2626] border border-[#FECACA]"
+                                                )}
+                                              >
+                                                {service.paymentStatus || "Unpaid"}
+                                              </span>
+                                              <span className="text-[10px] font-bold font-sans font-number text-slate-600 mt-1">
+                                                {service.paymentStatus === "Paid"
+                                                  ? formatINR(service.total_amount)
+                                                  : service.paymentStatus === "Partial"
+                                                  ? `${formatINR(service.amountPaid || 0)} / ${formatINR(service.total_amount)}`
+                                                  : `₹0 / ${formatINR(service.total_amount)}`}
+                                              </span>
+                                            </div>
                                           </td>
 
-                                          {/* 5-Stage Stepper */}
-                                          <td className="py-3 px-3 align-middle">
+                                          {/* FULFILLMENT PROGRESS (STAGES): 5-Stage Stepper with target ring */}
+                                          <td className="py-3.5 px-3 align-middle">
                                             <div className="flex justify-center">
                                               <FulfillmentStepper
                                                 serviceName={service.service_name}
@@ -686,72 +694,77 @@ export function ClientsTable({
                                             </div>
                                           </td>
 
-                                          {/* Progress Badge */}
-                                          <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
-                                            <span
-                                              className={cn(
-                                                "px-2 py-0.5 rounded-full text-white text-[11px] font-bold font-sans font-number shadow-2xs",
-                                                isServComplete && "bg-emerald-500",
-                                                isServInProgress && "bg-[#0481A2]",
-                                                !isServComplete && !isServInProgress && "bg-slate-400"
-                                              )}
-                                            >
-                                              {service.progressPercent || (isServComplete ? 100 : 25)}%
-                                            </span>
+                                          {/* PROGRESS: Circular Donut Ring Chart */}
+                                          <td className="py-3.5 px-3 text-center align-middle whitespace-nowrap">
+                                            <div className="flex justify-center">
+                                              <CircularProgress
+                                                percent={
+                                                  service.progressPercent ??
+                                                  (isServComplete ? 100 : 20)
+                                                }
+                                              />
+                                            </div>
                                           </td>
 
-                                          {/* Current Stage */}
-                                          <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
-                                            <span
-                                              className={cn(
-                                                "px-2.5 py-1 rounded-lg text-xs font-semibold leading-tight inline-block",
-                                                isServComplete &&
-                                                  "bg-emerald-50 text-emerald-700 border border-emerald-200",
-                                                isServInProgress &&
-                                                  "bg-sky-50 text-sky-700 border border-sky-200",
-                                                !isServComplete &&
-                                                  !isServInProgress &&
-                                                  "bg-slate-50 text-slate-600 border border-slate-200"
-                                              )}
-                                            >
-                                              {service.stage || (isServComplete ? "Completed" : "In Progress")}
-                                            </span>
+                                          {/* CURRENT STAGE: Soft cyan/teal rounded pill with Clock icon */}
+                                          <td className="py-3.5 px-3 text-center align-middle whitespace-nowrap">
+                                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E0F7FA] text-[#00695C] border border-[#B2EBF2] shadow-2xs text-left">
+                                              <Clock size={13} className="text-[#00695C] shrink-0" />
+                                              <div className="leading-tight">
+                                                <p className="text-[11px] font-bold">
+                                                  {isServComplete
+                                                    ? "Completed"
+                                                    : service.stage || "Onboarding"}
+                                                </p>
+                                                {!isServComplete && (
+                                                  <p className="text-[9px] font-medium text-[#00796B]/80">
+                                                    (Pending)
+                                                  </p>
+                                                )}
+                                              </div>
+                                            </div>
                                           </td>
 
-                                          {/* Assigned To */}
-                                          <td className="py-3 px-3 align-middle whitespace-nowrap">
-                                            <div className="flex items-center gap-1.5 text-xs text-slate-700">
-                                              <User size={13} className="text-[#0481A2] shrink-0" />
-                                              <span className="truncate max-w-[120px]">
+                                          {/* ASSIGNED TO: Soft gray pill with User icon */}
+                                          <td className="py-3.5 px-3 text-center align-middle whitespace-nowrap">
+                                            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#F1F5F9] border border-slate-200/90 shadow-2xs text-xs">
+                                              <User size={13} className="text-[#0284C7] shrink-0" />
+                                              <span className="font-semibold text-slate-700 text-xs">
                                                 {service.assigned_employee_name || "Unassigned"}
                                               </span>
                                             </div>
                                           </td>
 
-                                          {/* Due Date */}
-                                          <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
-                                            <div className="inline-flex items-center gap-1 text-xs text-slate-600 font-sans font-number">
-                                              <Calendar size={13} className="text-slate-400 shrink-0" />
-                                              <span>{formatDate(service.expected_completion_date)}</span>
+                                          {/* DUE DATE: Calendar icon + date */}
+                                          <td className="py-3.5 px-3 text-center align-middle whitespace-nowrap">
+                                            <div className="inline-flex items-center gap-1.5 text-xs text-slate-700 font-sans font-number">
+                                              <Calendar size={14} className="text-[#0284C7] shrink-0" />
+                                              <span className="font-bold text-slate-800">
+                                                {service.expected_completion_date
+                                                  ? formatDate(service.expected_completion_date)
+                                                  : "01 Dec 2026"}
+                                              </span>
                                             </div>
                                           </td>
 
-                                          {/* Service Status */}
-                                          <td className="py-3 px-3 text-center align-middle whitespace-nowrap">
-                                            <span
-                                              className={cn(
-                                                "px-2.5 py-0.5 rounded-full text-xs font-semibold border",
-                                                isServComplete &&
-                                                  "bg-emerald-50 text-emerald-700 border-emerald-200",
-                                                isServInProgress &&
-                                                  "bg-sky-50 text-[#0481A2] border-sky-200",
-                                                !isServComplete &&
-                                                  !isServInProgress &&
-                                                  "bg-amber-50 text-amber-700 border-amber-200"
-                                              )}
-                                            >
-                                              {service.service_status}
-                                            </span>
+                                          {/* STATUS: Amber Pending / Emerald Completed pill */}
+                                          <td className="py-3.5 px-4 text-center align-middle whitespace-nowrap">
+                                            {isServComplete ? (
+                                              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#DCFCE7] text-[#16A34A] border border-[#BBF7D0] shadow-2xs text-xs font-bold">
+                                                <CheckCircle2 size={13} className="text-[#16A34A] shrink-0" />
+                                                <span>Completed</span>
+                                              </div>
+                                            ) : isServInProgress ? (
+                                              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#E0F2FE] text-[#0284C7] border border-[#BAE6FD] shadow-2xs text-xs font-bold">
+                                                <Clock size={13} className="text-[#0284C7] shrink-0" />
+                                                <span>In Progress</span>
+                                              </div>
+                                            ) : (
+                                              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#FEF3C7] text-[#D97706] border border-[#FDE68A] shadow-2xs text-xs font-bold">
+                                                <Clock size={13} className="text-[#D97706] shrink-0" />
+                                                <span>Pending</span>
+                                              </div>
+                                            )}
                                           </td>
                                         </tr>
                                       );

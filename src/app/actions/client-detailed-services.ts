@@ -23,6 +23,7 @@ export interface DetailedServiceData {
   collectedAmount: number;
   outstandingAmount: number;
   paymentProgress: number;
+  paymentStatus: "Paid" | "Partially Paid" | "Unpaid" | "Overdue";
   // Invoices & Payments linked to this service
   invoices: {
     id: string;
@@ -242,6 +243,40 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       status: "Received",
     }));
 
+    // Calculate service-level payment status based on associated invoices and payments
+    // Rules:
+    // - PAID: Total outstanding invoice balance = 0 and invoiced/contract total > 0.
+    // - PARTIALLY PAID: Amount paid > 0 but outstanding balance remains.
+    // - UNPAID: No payment has been allocated.
+    // - OVERDUE: When an unpaid/partially paid invoice has passed its due date.
+    let servicePaymentStatus: "Paid" | "Partially Paid" | "Unpaid" | "Overdue" = "Unpaid";
+    const nowStr = new Date().toISOString().split("T")[0];
+
+    const serviceTotalBillable = invoicedTotal > 0 ? invoicedTotal : contractVal;
+    const effectiveOutstanding = invoicedTotal > 0
+      ? matchingInvoices.reduce((sum, inv) => sum + (Number(inv.balanceDue) || 0), 0)
+      : outstanding;
+
+    const hasOverdueInvoice = matchingInvoices.some(
+      (inv) => inv.balanceDue > 0 && inv.dueDate && inv.dueDate < nowStr && inv.status !== "Paid"
+    );
+
+    if (serviceAllocatedAmount >= serviceTotalBillable - 0.01 && serviceTotalBillable > 0) {
+      servicePaymentStatus = "Paid";
+    } else if (serviceAllocatedAmount > 0.01) {
+      if (hasOverdueInvoice) {
+        servicePaymentStatus = "Overdue";
+      } else {
+        servicePaymentStatus = "Partially Paid";
+      }
+    } else {
+      if (hasOverdueInvoice) {
+        servicePaymentStatus = "Overdue";
+      } else {
+        servicePaymentStatus = "Unpaid";
+      }
+    }
+
     // Next Action
     const isCompleted = cs.service_status === "Completed";
     let nextAction = {
@@ -330,8 +365,9 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       contractValue: contractVal,
       invoicedAmount: invoicedTotal,
       collectedAmount: serviceAllocatedAmount,
-      outstandingAmount: outstanding,
+      outstandingAmount: effectiveOutstanding,
       paymentProgress,
+      paymentStatus: servicePaymentStatus,
       invoices: matchingInvoices,
       payments: matchingPayments,
       documents: docs,

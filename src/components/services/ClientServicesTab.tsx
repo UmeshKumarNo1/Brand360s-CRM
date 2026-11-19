@@ -293,9 +293,17 @@ export function ClientServicesTab({
                               <ServiceIcon size={14} />
                             </div>
                             <div className="min-w-0">
-                              <span className="font-bold text-slate-900 block leading-tight text-xs truncate" title={s.service_name}>
-                                {s.service_name}
-                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setDocumentsModalService(s)}
+                                className="font-bold text-slate-900 block leading-tight text-xs truncate hover:text-[#077EA1] hover:underline cursor-pointer group text-left"
+                                title={`View details for ${s.service_name}`}
+                              >
+                                <span className="inline-flex items-center gap-1">
+                                  <span>{s.service_name}</span>
+                                  <ExternalLink size={11} className="text-slate-400 group-hover:text-[#077EA1] shrink-0" />
+                                </span>
+                              </button>
                               <span className="text-[10px] text-slate-400 block truncate leading-tight mt-0.5" title={s.service_category || "General"}>
                                 ({s.service_category || "General"})
                               </span>

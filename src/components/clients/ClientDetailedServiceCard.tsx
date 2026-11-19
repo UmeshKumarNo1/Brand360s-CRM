@@ -23,6 +23,7 @@ import {
   TrendingUp,
   Tag,
   User,
+  ExternalLink,
 } from "lucide-react";
 import { formatINR, cn } from "@/lib/utils";
 import { DetailedServiceData } from "@/app/actions/client-detailed-services";
@@ -108,9 +109,18 @@ export function ClientDetailedServiceCard({
           {/* Title & Service Sequence Number */}
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="font-bold text-slate-900 text-sm tracking-tight truncate" title={service.serviceName}>
-                {service.serviceName}
-              </h3>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onManageService?.(service);
+                }}
+                className="font-bold text-slate-900 text-sm tracking-tight truncate hover:text-[#0481A2] hover:underline cursor-pointer inline-flex items-center gap-1.5 group text-left"
+                title={`Open ${service.serviceName} service details`}
+              >
+                <span>{service.serviceName}</span>
+                <ExternalLink size={13} className="text-slate-400 group-hover:text-[#0481A2] shrink-0" />
+              </button>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-[#0481A2] border border-sky-200 shrink-0">
                 Service {index + 1} of {totalServices}
               </span>
@@ -141,11 +151,37 @@ export function ClientDetailedServiceCard({
             <span className="font-bold text-rose-600 text-sm font-sans font-number">{formatINR(service.outstandingAmount)}</span>
           </div>
 
-          {/* Status Pill */}
-          <span className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-2xs", statusBadge)}>
-            <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", isCompleted ? "bg-emerald-600" : "bg-amber-500")} />
-            <span>{service.serviceStatus}</span>
-          </span>
+          {/* Status Pills */}
+          <div className="flex items-center gap-2">
+            {/* Payment Status Pill */}
+            {service.paymentStatus === "Paid" ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0" />
+                <span>PAID</span>
+              </span>
+            ) : service.paymentStatus === "Partially Paid" ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                <span>PARTIALLY PAID</span>
+              </span>
+            ) : service.paymentStatus === "Overdue" ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-600 shrink-0" />
+                <span>OVERDUE</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-50 text-slate-600 border border-slate-200 shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                <span>UNPAID</span>
+              </span>
+            )}
+
+            {/* Service Fulfillment Status Pill */}
+            <span className={cn("inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border shadow-2xs", statusBadge)}>
+              <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", isCompleted ? "bg-emerald-600" : "bg-amber-500")} />
+              <span>{service.serviceStatus}</span>
+            </span>
+          </div>
 
           <button
             type="button"

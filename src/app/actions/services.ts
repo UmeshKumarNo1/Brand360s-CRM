@@ -205,7 +205,8 @@ export async function fetchClientServicesAction(clientId: string) {
     const invoicedAmt = invoicedByService[s.id] || contractVal;
 
     let paymentStatus: "Paid" | "Partial" | "Unpaid" = "Unpaid";
-    if (contractVal > 0 && amountPaid >= contractVal - 0.009) {
+    const billableTarget = invoicedAmt > 0 ? invoicedAmt : contractVal;
+    if (billableTarget > 0 && amountPaid >= billableTarget - 0.009) {
       paymentStatus = "Paid";
     } else if (amountPaid > 0.009) {
       paymentStatus = "Partial";

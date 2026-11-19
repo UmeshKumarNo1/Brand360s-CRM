@@ -10,28 +10,34 @@ import { fetchClientsAction } from "@/app/actions/clients";
 import { fetchRenewalsAction } from "@/app/actions/renewals";
 import { fetchFollowupsAction } from "@/app/actions/followups";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const [profile, rawClients, renewals, followups] = await Promise.all([
-    getCurrentUserProfileAction(),
-    fetchClientsAction(),
-    fetchRenewalsAction(),
-    fetchFollowupsAction(),
+    getCurrentUserProfileAction().catch(() => null),
+    fetchClientsAction().catch(() => []),
+    fetchRenewalsAction().catch(() => []),
+    fetchFollowupsAction().catch(() => []),
   ]);
 
   const userName = profile?.full_name || profile?.email?.split("@")[0] || "User";
   const userRole = profile?.role === "admin" ? "Administrator" : "Employee";
 
-  // Calculate actual statistics from user's visible clients (enforced by RLS)
-  const totalClients = rawClients.length;
-  const totalContract = rawClients.reduce((sum, c) => sum + (Number(c.contract_value) || 0), 0);
-  const totalReceived = rawClients.reduce((sum, c) => sum + (Number(c.payments_received) || 0), 0);
-  const totalOutstanding = rawClients.reduce((sum, c) => sum + (Number(c.balance_receivable) || 0), 0);
-  const overdueCount = rawClients.filter((c) => c.payment_status === "Overdue").length;
+  const safeClients = Array.isArray(rawClients) ? rawClients : [];
+  const safeRenewals = Array.isArray(renewals) ? renewals : [];
+  const safeFollowups = Array.isArray(followups) ? followups : [];
 
-  const renewalsDueCount = renewals.filter((r) => r.status === "Due Soon" || r.status === "Overdue").length;
+  // Calculate actual statistics from user's visible clients (enforced by RLS)
+  const totalClients = safeClients.length;
+  const totalContract = safeClients.reduce((sum, c) => sum + (Number(c.contract_value) || 0), 0);
+  const totalReceived = safeClients.reduce((sum, c) => sum + (Number(c.payments_received) || 0), 0);
+  const totalOutstanding = safeClients.reduce((sum, c) => sum + (Number(c.balance_receivable) || 0), 0);
+  const overdueCount = safeClients.filter((c) => c.payment_status === "Overdue").length;
+
+  const renewalsDueCount = safeRenewals.filter((r) => r.status === "Due Soon" || r.status === "Overdue").length;
 
   const todayStr = new Date().toISOString().split("T")[0];
-  const followupsTodayCount = followups.filter((f) => f.dueDate === todayStr && f.status !== "Completed").length;
+  const followupsTodayCount = safeFollowups.filter((f) => f.dueDate === todayStr && f.status !== "Completed").length;
 
   return (
     <div className="space-y-5">
@@ -61,7 +67,7 @@ export default async function DashboardPage() {
       {/* 2-column lower section */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <div className="lg:col-span-7">
-          <RecentClientsTable clients={rawClients.slice(0, 5)} />
+          <RecentClientsTable clients={safeClients.slice(0, 5)} />
         </div>
         <div className="lg:col-span-5">
           <TasksAlerts 

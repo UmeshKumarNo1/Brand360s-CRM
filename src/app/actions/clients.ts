@@ -1,8 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { revalidatePath } from "next/cache";
 import { validatePhoneNumber, parseInitialPhone } from "@/lib/validation/phone";
+import { COUNTRY_NAME_TO_CODE } from "@/lib/data/countries";
 import { checkClientDuplicatesAction } from "./duplicate-detection";
 import { DuplicateMatch } from "@/lib/validation/duplicate-detector";
 import { autoGenerateInvoiceForClientAction } from "@/app/actions/invoices";
@@ -122,7 +124,8 @@ export async function createClientAction(
     fieldErrors.phone = "Primary Mobile Number is required.";
   } else {
     try {
-      const parsed = parseInitialPhone(phone);
+      const defaultCountry = COUNTRY_NAME_TO_CODE[country] || "IN";
+      const parsed = parseInitialPhone(phone, defaultCountry);
       const phoneCheck = validatePhoneNumber(parsed.nationalNumber, parsed.country, true);
       if (!phoneCheck.isValid) {
         fieldErrors.phone = phoneCheck.error || "Invalid phone number.";
@@ -167,7 +170,8 @@ export async function createClientAction(
 
   if (alternate_phone) {
     try {
-      const parsedAlt = parseInitialPhone(alternate_phone);
+      const defaultCountry = COUNTRY_NAME_TO_CODE[country] || "IN";
+      const parsedAlt = parseInitialPhone(alternate_phone, defaultCountry);
       const altCheck = validatePhoneNumber(parsedAlt.nationalNumber, parsedAlt.country, false);
       if (!altCheck.isValid) {
         fieldErrors.alternate_phone = altCheck.error || "Invalid alternate phone number.";
@@ -384,57 +388,79 @@ export async function createClientAction(
 }
 
 export async function fetchClientsAction() {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("clients")
-    .select(`
-      *,
-      assigned_profile:profiles!assigned_salesperson(full_name, email),
-      services:client_services(
-        id,
-        service_name,
-        service_category,
-        service_fee,
-        govt_fee,
-        total_amount,
-        start_date,
-        expected_completion_date,
-        service_status,
-        assigned_profile:profiles!assigned_employee_id(full_name)
-      )
-    `)
-    .order("created_at", { ascending: false });
-
-  if (error) {
-    console.error("Error fetching clients with services, falling back to basic query:", error);
-    const { data: fallbackData } = await supabase
-      .from("clients")
-      .select(`
-        *,
-        assigned_profile:profiles!assigned_salesperson(full_name, email)
-      `)
-      .order("created_at", { ascending: false });
-    return fallbackData || [];
-  }
-
-  return data;
-}
-
-export async function fetchSalespeopleAction() {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, role, is_active")
-    .order("full_name");
-
-  if (error) {
-    console.error("Error fetching salespeople:", error);
+  if (!isSupabaseConfigured()) {
     return [];
   }
 
-  return data || [];
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("clients")
+      .select(`
+        *,
+        assigned_profile:profiles!assigned_salesperson(full_name, email),
+        services:client_services(
+          id,
+          service_name,
+          service_category,
+          service_fee,
+          govt_fee,
+          total_amount,
+          start_date,
+          expected_completion_date,
+          service_status,
+          assigned_profile:profiles!assigned_employee_id(full_name)
+        )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching clients with services, falling back to basic query:", error);
+      const { data: fallbackData } = await supabase
+        .from("clients")
+        .select(`
+          *,
+          assigned_profile:profiles!assigned_salesperson(full_name, email)
+        `)
+        .order("created_at", { ascending: false });
+      return fallbackData || [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.warn("fetchClientsAction notice:", err);
+    return [];
+  }
+}
+
+export async function fetchSalespeopleAction() {
+  if (!isSupabaseConfigured()) {
+    return [
+      { id: "00000000-0000-0000-0000-000000000001", full_name: "Admin User", email: "admin@brand360s.com", role: "admin", is_active: true },
+      { id: "00000000-0000-0000-0000-000000000002", full_name: "Employee1", email: "sales1@brand360s.com", role: "employee", is_active: true },
+      { id: "00000000-0000-0000-0000-000000000003", full_name: "Employee2", email: "sales2@brand360s.com", role: "employee", is_active: true },
+    ];
+  }
+
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, role, is_active")
+      .order("full_name");
+
+    if (error) {
+      console.error("Error fetching salespeople:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.warn("fetchSalespeopleAction notice:", err);
+    return [];
+  }
 }
 
 /**

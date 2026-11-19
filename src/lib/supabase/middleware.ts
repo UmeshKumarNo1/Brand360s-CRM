@@ -6,46 +6,87 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+  const supabaseKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    "placeholder_anon_key";
 
-  if (!supabaseUrl || !supabaseKey) {
-    return supabaseResponse;
+  let user: any = null;
+  let userRole = "employee";
+  let isActive = true;
+
+  try {
+    const supabase = createServerClient(
+      supabaseUrl,
+      supabaseKey,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+            supabaseResponse = NextResponse.next({
+              request,
+            });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
+
+    const {
+      data: { user: authUser },
+    } = await supabase.auth.getUser();
+
+    user = authUser;
+
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, is_active")
+        .eq("id", user.id)
+        .single();
+
+      if (profile) {
+        userRole = profile.role;
+        isActive = profile.is_active;
+      }
+    }
+  } catch {
+    // If Supabase fetch fails, fallback to demo session
   }
 
-  const supabase = createServerClient(
-    supabaseUrl,
-    supabaseKey,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
+  // If no Supabase user, check demo session cookie
+  if (!user) {
+    const demoCookie = request.cookies.get("brand360s_demo_user");
+    if (demoCookie?.value) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(demoCookie.value));
+        if (parsed?.id) {
+          user = { id: parsed.id, email: parsed.email };
+          userRole = parsed.role || "admin";
+          isActive = parsed.is_active !== false;
+        }
+      } catch {
+        // invalid cookie json
+      }
     }
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  }
 
   const path = request.nextUrl.pathname;
 
   // Public auth routes
-  const isAuthRoute = path.startsWith("/login") || 
-                      path.startsWith("/forgot-password") || 
-                      path.startsWith("/reset-password") || 
-                      path.startsWith("/auth") ||
-                      path.startsWith("/supabase-test");
+  const isAuthRoute =
+    path.startsWith("/login") ||
+    path.startsWith("/forgot-password") ||
+    path.startsWith("/reset-password") ||
+    path.startsWith("/auth") ||
+    path.startsWith("/supabase-test");
 
   // 1. If user is authenticated and attempts to visit login or auth pages, redirect to /dashboard
   if (user && (path === "/login" || path === "/forgot-password")) {
@@ -64,24 +105,18 @@ export async function updateSession(request: NextRequest) {
 
   // 3. Deactivated user check & Admin-only routes check
   if (user && !isAuthRoute) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role, is_active")
-      .eq("id", user.id)
-      .single();
-
-    // Prevent deactivated employee from accessing the CRM
-    if (profile && profile.is_active === false) {
-      await supabase.auth.signOut();
+    if (isActive === false) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       url.searchParams.set("error", "account-deactivated");
-      return NextResponse.redirect(url);
+      const res = NextResponse.redirect(url);
+      res.cookies.delete("brand360s_demo_user");
+      return res;
     }
 
     // Protect Admin-only routes (/employees, /settings)
     if (path.startsWith("/employees") || path.startsWith("/settings")) {
-      if (profile?.role !== "admin") {
+      if (userRole !== "admin") {
         const url = request.nextUrl.clone();
         url.pathname = "/dashboard";
         return NextResponse.redirect(url);

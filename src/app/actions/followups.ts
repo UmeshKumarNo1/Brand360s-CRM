@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { revalidatePath } from "next/cache";
 import { recordAuditLog } from "@/lib/audit/audit-logger";
 
@@ -70,6 +71,10 @@ function normalizePriority(rawPriority?: string | null): string {
   return "Medium";
 }
 export async function fetchFollowupsAction() {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase

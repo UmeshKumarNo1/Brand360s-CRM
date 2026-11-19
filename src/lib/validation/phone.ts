@@ -1,5 +1,7 @@
 import { parsePhoneNumberFromString, CountryCode, getCountryCallingCode } from "libphonenumber-js";
 
+export type { CountryCode };
+
 export interface CountryOption {
   code: CountryCode;
   name: string;

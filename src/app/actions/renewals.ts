@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { revalidatePath } from "next/cache";
 
 export interface RenewalItem {
@@ -60,6 +61,10 @@ export interface RenewalActionState {
  * Fetch all renewals derived from active client services with RLS & salesperson mapping
  */
 export async function fetchRenewalsAction(): Promise<RenewalItem[]> {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
   const supabase = await createClient();
 
   // 1. Fetch current user & role

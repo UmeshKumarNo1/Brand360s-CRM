@@ -30,6 +30,9 @@ import { PhoneInput } from "@/components/clients/PhoneInput";
 import { DuplicateWarningModal } from "@/components/clients/DuplicateWarningModal";
 import { DuplicateMatch } from "@/lib/validation/duplicate-detector";
 import { validateGstin, validatePincode, validateEmailFormat } from "@/lib/validation/client-validation";
+import { parseInitialPhone, validatePhoneNumber, CountryCode } from "@/lib/validation/phone";
+import { ALL_COUNTRIES, COUNTRY_NAME_TO_CODE } from "@/lib/data/countries";
+import { lookupPincodeAction } from "@/app/actions/pincode";
 
 interface AdditionalContact {
   id: string;
@@ -117,8 +120,32 @@ export default function NewClientPage() {
   // 7. Notes
   const [notes, setNotes] = useState("");
 
-  // Submit Intent: "save" or "save_and_add_service"
-  const [submitIntent, setSubmitIntent] = useState<"save" | "save_and_add_service">("save_and_add_service");
+  // Submit Intent: "save" (default) or "save_and_add_service"
+  const [submitIntent, setSubmitIntent] = useState<"save" | "save_and_add_service">("save");
+  const submitIntentRef = useRef<"save" | "save_and_add_service">("save");
+  const [stepError, setStepError] = useState<string | null>(null);
+  const [isLookingUpPincode, setIsLookingUpPincode] = useState(false);
+
+  // Handle PIN Code change and auto-fill City, State, Country
+  const handlePincodeChange = async (val: string) => {
+    setPincode(val);
+    const clean = val.replace(/\D/g, "");
+    if (clean.length === 6) {
+      setIsLookingUpPincode(true);
+      try {
+        const res = await lookupPincodeAction(clean);
+        if (res.success) {
+          if (res.city) setCity(res.city);
+          if (res.state) setStateName(res.state);
+          if (res.country) setCountry(res.country);
+        }
+      } catch (err) {
+        // ignore
+      } finally {
+        setIsLookingUpPincode(false);
+      }
+    }
+  };
 
   // Load Salespeople
   useEffect(() => {
@@ -143,7 +170,7 @@ export default function NewClientPage() {
 
     if (state.success && state.clientId) {
       success("Client saved", "Client registration completed successfully.");
-      if (submitIntent === "save_and_add_service") {
+      if (submitIntentRef.current === "save_and_add_service") {
         router.push(`/clients/${state.clientId}?addService=true`);
       } else {
         router.push(`/clients/${state.clientId}`);
@@ -209,84 +236,162 @@ export default function NewClientPage() {
   const validateStep = (step: number): boolean => {
     if (step === 1) {
       if (!companyName.trim()) {
-        toastError("Company Legal Name required", "Please enter the Company Legal Name before continuing.");
+        const errMsg = "Please enter the Company Legal Name before continuing.";
+        setStepError(errMsg);
+        toastError("Company Legal Name required", errMsg);
         return false;
       }
       if (!address.trim()) {
-        toastError("Address required", "Please enter the Registered Address.");
+        const errMsg = "Please enter the Registered Address.";
+        setStepError(errMsg);
+        toastError("Address required", errMsg);
         return false;
       }
       if (!city.trim()) {
-        toastError("City required", "Please enter City.");
+        const errMsg = "Please enter City.";
+        setStepError(errMsg);
+        toastError("City required", errMsg);
         return false;
       }
       if (!pincode.trim()) {
-        toastError("PIN Code required", "Please enter PIN Code.");
+        const errMsg = "Please enter PIN Code.";
+        setStepError(errMsg);
+        toastError("PIN Code required", errMsg);
         return false;
       }
-      if (!validatePincode(pincode)) {
-        toastError("Invalid PIN Code", "Please enter a valid 6-digit Indian PIN code.");
+      const pinCheck = validatePincode(pincode);
+      if (!pinCheck.isValid) {
+        const errMsg = pinCheck.error || "Please enter a valid 6-digit Indian PIN code.";
+        setStepError(errMsg);
+        toastError("Invalid PIN Code", errMsg);
         return false;
       }
     }
     if (step === 2) {
       if (!contactPerson.trim()) {
-        toastError("Full Name required", "Please enter the primary contact Full Name.");
+        const errMsg = "Please enter the primary contact Full Name.";
+        setStepError(errMsg);
+        toastError("Full Name required", errMsg);
         return false;
       }
       if (!phone.trim()) {
-        toastError("Mobile Number required", "Please enter the Mobile Number.");
+        const errMsg = "Please enter the Mobile Number.";
+        setStepError(errMsg);
+        toastError("Mobile Number required", errMsg);
         return false;
       }
-      if (email.trim() && !validateEmailFormat(email)) {
-        toastError("Invalid Email Format", "Please enter a valid email address or leave it empty.");
+      const defaultCountry: CountryCode = COUNTRY_NAME_TO_CODE[country] || "IN";
+      const parsed = parseInitialPhone(phone, defaultCountry);
+      const phoneCheck = validatePhoneNumber(parsed.nationalNumber, parsed.country, true);
+      if (!phoneCheck.isValid) {
+        const errMsg = phoneCheck.error || "Invalid mobile number.";
+        setStepError(errMsg);
+        toastError("Invalid Mobile Number", errMsg);
         return false;
+      }
+      if (alternatePhone.trim()) {
+        const parsedAlt = parseInitialPhone(alternatePhone, defaultCountry);
+        const altCheck = validatePhoneNumber(parsedAlt.nationalNumber, parsedAlt.country, false);
+        if (!altCheck.isValid) {
+          const errMsg = altCheck.error || "Invalid alternate mobile number.";
+          setStepError(errMsg);
+          toastError("Invalid Alternate Phone", errMsg);
+          return false;
+        }
+      }
+      if (email.trim()) {
+        const emailCheck = validateEmailFormat(email);
+        if (!emailCheck.isValid) {
+          const errMsg = emailCheck.error || "Please enter a valid email address or leave it empty.";
+          setStepError(errMsg);
+          toastError("Invalid Email Format", errMsg);
+          return false;
+        }
       }
     }
     if (step === 3) {
       for (let i = 0; i < additionalContacts.length; i++) {
         const contact = additionalContacts[i];
-        if (contact.email && contact.email.trim() && !validateEmailFormat(contact.email)) {
-          toastError(`Invalid Email in Contact #${i + 1}`, "Please enter a valid email format.");
-          return false;
+        if (contact.email && contact.email.trim()) {
+          const emailCheck = validateEmailFormat(contact.email);
+          if (!emailCheck.isValid) {
+            const errMsg = `Contact #${i + 1}: ${emailCheck.error || "Please enter a valid email format."}`;
+            setStepError(errMsg);
+            toastError(`Invalid Email in Contact #${i + 1}`, errMsg);
+            return false;
+          }
+        }
+        if (contact.phone && contact.phone.trim()) {
+          const parsedContact = parseInitialPhone(contact.phone, "IN");
+          const phoneCheck = validatePhoneNumber(parsedContact.nationalNumber, parsedContact.country, false);
+          if (!phoneCheck.isValid) {
+            const errMsg = `Contact #${i + 1}: ${phoneCheck.error || "Invalid phone number."}`;
+            setStepError(errMsg);
+            toastError(`Invalid Phone in Contact #${i + 1}`, errMsg);
+            return false;
+          }
         }
       }
     }
     if (step === 4) {
       if (!isNotGstRegistered && gstin.trim()) {
-        if (!validateGstin(gstin)) {
-          toastError("Invalid GSTIN", "Please enter a valid 15-character GSTIN format (e.g. 29AAAAA0000A1Z5) or check 'Not GST-registered'.");
+        const gstCheck = validateGstin(gstin);
+        if (!gstCheck.isValid) {
+          const errMsg = gstCheck.error || "Please enter a valid 15-character GSTIN format (e.g. 29AAAAA0000A1Z5) or check 'Not GST-registered'.";
+          setStepError(errMsg);
+          toastError("Invalid GSTIN", errMsg);
           return false;
         }
       }
-      if (billingEmail.trim() && !validateEmailFormat(billingEmail)) {
-        toastError("Invalid Billing Email", "Please enter a valid billing email address.");
-        return false;
+      if (billingEmail.trim()) {
+        const billingCheck = validateEmailFormat(billingEmail);
+        if (!billingCheck.isValid) {
+          const errMsg = billingCheck.error || "Please enter a valid billing email address.";
+          setStepError(errMsg);
+          toastError("Invalid Billing Email", errMsg);
+          return false;
+        }
       }
     }
     if (step === 5) {
       if (!assignedSalesperson) {
-        toastError("Salesperson Required", "Please select the salesperson who brought in the client.");
+        const errMsg = "Please select the salesperson who brought in the client.";
+        setStepError(errMsg);
+        toastError("Salesperson Required", errMsg);
         return false;
       }
     }
+    setStepError(null);
     return true;
   };
 
   const handleNextStep = () => {
     if (validateStep(currentStep)) {
+      setStepError(null);
       setCurrentStep((prev) => Math.min(prev + 1, 7));
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
   const handlePrevStep = () => {
+    setStepError(null);
     setCurrentStep((prev) => Math.max(prev - 1, 1));
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Progress Gauge calculations
-  const progressPercentage = Math.round((currentStep / 7) * 100);
+  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    for (let s = 1; s <= 7; s++) {
+      if (!validateStep(s)) {
+        e.preventDefault();
+        setCurrentStep(s);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+    }
+  };
+
+  // Progress Gauge calculations: Starts at 0% on Step 1, scales to 100% on Step 7
+  const progressPercentage = Math.round(((currentStep - 1) / 6) * 100);
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (circumference * progressPercentage) / 100;
@@ -322,21 +427,21 @@ export default function NewClientPage() {
         </div>
       </div>
 
-      {state?.error && (
+      {(stepError || state?.error) && (
         <div className={`p-3.5 border rounded-xl text-xs font-semibold flex items-center gap-2 shadow-2xs ${
-          state.isBlockedByActiveEmail
+          state?.isBlockedByActiveEmail
             ? "bg-red-50 border-red-200 text-red-700"
-            : state.hasDuplicates
+            : state?.hasDuplicates
             ? "bg-amber-50 border-amber-200 text-amber-800"
             : "bg-red-50 border-red-200 text-red-700"
         }`}>
-          {state.isBlockedByActiveEmail ? (
+          {state?.isBlockedByActiveEmail ? (
             <ShieldAlert size={16} className="text-red-500 shrink-0" />
           ) : (
-            <AlertTriangle size={16} className={state.hasDuplicates ? "text-amber-600 shrink-0" : "text-red-500 shrink-0"} />
+            <AlertTriangle size={16} className={state?.hasDuplicates ? "text-amber-600 shrink-0" : "text-red-500 shrink-0"} />
           )}
-          <span>{state.error}</span>
-          {state.hasDuplicates && (
+          <span>{stepError || state?.error}</span>
+          {state?.hasDuplicates && (
             <button
               type="button"
               onClick={() => setDuplicateModalOpen(true)}
@@ -349,7 +454,19 @@ export default function NewClientPage() {
       )}
 
       {/* Main Grid: Form Card on Left, Progress Sidebar on Right */}
-      <form ref={formRef} action={formAction}>
+      <form
+        ref={formRef}
+        action={formAction}
+        onSubmit={handleFormSubmit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") {
+            e.preventDefault();
+            if (currentStep < 7) {
+              handleNextStep();
+            }
+          }
+        }}
+      >
         {/* Hidden inputs to guarantee all state values submit regardless of active step */}
         <input
           type="hidden"
@@ -468,14 +585,22 @@ export default function NewClientPage() {
                       </select>
                     </div>
                     <div>
-                      <label className="block font-semibold text-slate-700 mb-1.5">
-                        PIN Code <span className="text-red-500">*</span>
-                      </label>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block font-semibold text-slate-700">
+                          PIN Code <span className="text-red-500">*</span>
+                        </label>
+                        {isLookingUpPincode && (
+                          <span className="text-[10px] text-[#0481A2] font-medium flex items-center gap-1">
+                            <Loader2 size={11} className="animate-spin" />
+                            <span>Auto-filling...</span>
+                          </span>
+                        )}
+                      </div>
                       <input
                         name="pincode"
                         type="text"
                         value={pincode}
-                        onChange={(e) => setPincode(e.target.value)}
+                        onChange={(e) => handlePincodeChange(e.target.value)}
                         placeholder="560001"
                         maxLength={10}
                         className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] font-number transition-colors"
@@ -492,12 +617,11 @@ export default function NewClientPage() {
                       onChange={(e) => setCountry(e.target.value)}
                       className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] transition-colors"
                     >
-                      <option value="India">🇮🇳 India</option>
-                      <option value="United States">🇺🇸 United States</option>
-                      <option value="United Arab Emirates">🇦🇪 United Arab Emirates</option>
-                      <option value="Singapore">🇸🇬 Singapore</option>
-                      <option value="United Kingdom">🇬🇧 United Kingdom</option>
-                      <option value="Other">🌐 Other</option>
+                      {ALL_COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.name}>
+                          {c.flag} {c.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -574,30 +698,30 @@ export default function NewClientPage() {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1.5">
-                      Mobile Number <span className="text-red-500">*</span>
-                    </label>
-                    <input
+                    <PhoneInput
+                      label="Mobile Number"
                       name="phone"
-                      type="tel"
+                      required
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+91 98765 43210"
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] font-number transition-colors"
+                      onChange={(val) => {
+                        setPhone(val);
+                        if (stepError) setStepError(null);
+                      }}
+                      defaultCountry={COUNTRY_NAME_TO_CODE[country] || "IN"}
                     />
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1.5">
-                      Alternate Mobile Number
-                    </label>
-                    <input
+                    <PhoneInput
+                      label="Alternate Mobile Number"
                       name="alternate_phone"
-                      type="tel"
+                      required={false}
                       value={alternatePhone}
-                      onChange={(e) => setAlternatePhone(e.target.value)}
-                      placeholder="+91 98765 00000"
-                      className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] font-number transition-colors"
+                      onChange={(val) => {
+                        setAlternatePhone(val);
+                        if (stepError) setStepError(null);
+                      }}
+                      defaultCountry={COUNTRY_NAME_TO_CODE[country] || "IN"}
                     />
                   </div>
 
@@ -1020,19 +1144,24 @@ export default function NewClientPage() {
                 </div>
 
                 <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                  <button
-                    type="submit"
-                    disabled={isPending || isSubmittingOverride}
-                    onClick={() => setSubmitIntent("save")}
-                    className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white border border-[#243E76] text-[#243E76] hover:bg-[#243E76]/10 font-semibold text-xs sm:text-sm rounded-xl shadow-2xs transition-colors cursor-pointer disabled:opacity-60"
-                  >
-                    {isPending && submitIntent === "save" ? (
-                      <Loader2 size={15} className="animate-spin" />
-                    ) : (
-                      <Save size={15} />
-                    )}
-                    <span>Save Client</span>
-                  </button>
+                  {currentStep === 7 && (
+                    <button
+                      type="submit"
+                      disabled={isPending || isSubmittingOverride}
+                      onClick={() => {
+                        submitIntentRef.current = "save";
+                        setSubmitIntent("save");
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white border border-[#243E76] text-[#243E76] hover:bg-[#243E76]/10 font-semibold text-xs sm:text-sm rounded-xl shadow-2xs transition-colors cursor-pointer disabled:opacity-60"
+                    >
+                      {isPending && submitIntent === "save" ? (
+                        <Loader2 size={15} className="animate-spin" />
+                      ) : (
+                        <Save size={15} />
+                      )}
+                      <span>Save Client</span>
+                    </button>
+                  )}
 
                   {currentStep < 7 ? (
                     <button
@@ -1047,7 +1176,10 @@ export default function NewClientPage() {
                     <button
                       type="submit"
                       disabled={isPending || isSubmittingOverride}
-                      onClick={() => setSubmitIntent("save_and_add_service")}
+                      onClick={() => {
+                        submitIntentRef.current = "save_and_add_service";
+                        setSubmitIntent("save_and_add_service");
+                      }}
                       className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#0481A2] hover:bg-[#036c88] text-white font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-60"
                     >
                       {isPending && submitIntent === "save_and_add_service" ? (
@@ -1120,7 +1252,19 @@ export default function NewClientPage() {
                       key={step.id}
                       type="button"
                       onClick={() => {
-                        if (step.id <= currentStep || validateStep(currentStep)) {
+                        if (step.id < currentStep) {
+                          setStepError(null);
+                          setCurrentStep(step.id);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        } else if (step.id > currentStep) {
+                          for (let s = currentStep; s < step.id; s++) {
+                            if (!validateStep(s)) {
+                              setCurrentStep(s);
+                              window.scrollTo({ top: 0, behavior: "smooth" });
+                              return;
+                            }
+                          }
+                          setStepError(null);
                           setCurrentStep(step.id);
                           window.scrollTo({ top: 0, behavior: "smooth" });
                         }

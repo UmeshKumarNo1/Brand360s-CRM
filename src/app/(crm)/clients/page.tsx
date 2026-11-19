@@ -30,7 +30,7 @@ import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 
 export default function ClientsPage() {
   const router = useRouter();
-  const [dbClients, setDbClients] = useState<ClientRecord[]>([]);
+  const [dbClients, setDbClients] = useState<ClientRecord[]>(MOCK_CLIENTS);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -194,8 +194,8 @@ export default function ClientsPage() {
                 paymentStatus: isClientCompleted
                   ? "Paid"
                   : Number(r.payments_received) > 0
-                  ? "Partial"
-                  : "Unpaid",
+                    ? "Partial"
+                    : "Unpaid",
                 amountPaid: isClientCompleted ? perServiceVal : 0,
               }));
             }
@@ -208,16 +208,16 @@ export default function ClientsPage() {
               totalCount > 0
                 ? Math.round((completedCount / totalCount) * 100)
                 : r.client_status === "Completed"
-                ? 100
-                : 0;
+                  ? 100
+                  : 0;
 
             // Next follow-up lookup
             const clientFollowups = Array.isArray(followups)
               ? followups.filter(
-                  (f: any) =>
-                    (f.clientId === r.id || f.client_id === r.id) &&
-                    f.status === "Pending"
-                )
+                (f: any) =>
+                  (f.clientId === r.id || f.client_id === r.id) &&
+                  f.status === "Pending"
+              )
               : [];
             const nextFollowup = clientFollowups[0];
             const nextActionTitle = nextFollowup
@@ -236,10 +236,10 @@ export default function ClientsPage() {
               phone: r.phone || undefined,
               dateOfCreation: r.created_at
                 ? new Date(r.created_at).toLocaleDateString("en-IN", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })
                 : "-",
               createdAt: r.created_at || "-",
               salesperson: r.assigned_profile?.full_name || "Unassigned",
@@ -268,7 +268,7 @@ export default function ClientsPage() {
           });
           setDbClients(mapped);
         } else {
-          setDbClients([]);
+          setDbClients(MOCK_CLIENTS);
         }
       }
     } catch (err: any) {

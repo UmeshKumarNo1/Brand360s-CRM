@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { revalidatePath } from "next/cache";
 import { NotificationItem } from "@/lib/notifications/notification-types";
 
@@ -11,41 +12,59 @@ export async function fetchNotificationsAction(
   category: "all" | "alert" | "update" = "all",
   limit: number = 30
 ): Promise<{ notifications: NotificationItem[]; unreadCount: number }> {
-  const supabase = await createClient();
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return { notifications: [], unreadCount: 0 };
-
-  // 1. Fetch unread count
-  const { count: unreadCount } = await supabase
-    .from("notifications")
-    .select("id", { count: "exact", head: true })
-    .eq("recipient_id", user.id)
-    .eq("is_read", false);
-
-  // 2. Fetch list
-  let query = supabase
-    .from("notifications")
-    .select("*")
-    .eq("recipient_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (category !== "all") {
-    query = query.eq("category", category);
+  if (!isSupabaseConfigured()) {
+    return { notifications: [], unreadCount: 0 };
   }
 
-  const { data, error } = await query;
+  try {
+    const supabase = await createClient();
 
-  if (error) {
-    console.error("Error fetching notifications:", error);
-    return { notifications: [], unreadCount: unreadCount || 0 };
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { notifications: [], unreadCount: 0 };
+
+    // 1. Fetch unread count
+    let unreadCount = 0;
+    try {
+      const { count, error: countErr } = await supabase
+        .from("notifications")
+        .select("id", { count: "exact", head: true })
+        .eq("recipient_id", user.id)
+        .eq("is_read", false);
+      if (!countErr && typeof count === "number") {
+        unreadCount = count;
+      }
+    } catch {
+      // ignore
+    }
+
+    // 2. Fetch list
+    let query = supabase
+      .from("notifications")
+      .select("*")
+      .eq("recipient_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (category !== "all") {
+      query = query.eq("category", category);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      if (error.code !== "PGRST205") {
+        console.warn("Notice fetching notifications:", error.message);
+      }
+      return { notifications: [], unreadCount: 0 };
+    }
+
+    return {
+      notifications: (data || []) as NotificationItem[],
+      unreadCount,
+    };
+  } catch (err) {
+    return { notifications: [], unreadCount: 0 };
   }
-
-  return {
-    notifications: (data || []) as NotificationItem[],
-    unreadCount: unreadCount || 0,
-  };
 }
 
 /**

@@ -4,7 +4,7 @@ import { useActionState, useState, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { loginAction } from "@/app/actions/auth";
+import { loginAction, quickDemoLoginAction } from "@/app/actions/auth";
 import { Eye, EyeOff, Lock, Mail, ArrowRight, Loader2 } from "lucide-react";
 
 function LoginForm() {
@@ -13,99 +13,138 @@ function LoginForm() {
 
   const [state, formAction, isPending] = useActionState(loginAction, null);
   const [showPassword, setShowPassword] = useState(false);
+  const [isDemoLoggingIn, setIsDemoLoggingIn] = useState(false);
+
+  const handleQuickLogin = async (role: "admin" | "salesperson") => {
+    setIsDemoLoggingIn(true);
+    try {
+      await quickDemoLoginAction(role, returnUrl);
+    } catch {
+      setIsDemoLoggingIn(false);
+    }
+  };
 
   return (
-    <form action={formAction} className="space-y-5">
-      <input type="hidden" name="returnUrl" value={returnUrl} />
+    <div className="space-y-5">
+      <form action={formAction} className="space-y-4">
+        <input type="hidden" name="returnUrl" value={returnUrl} />
 
-      {state?.error && (
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs font-semibold text-red-700 flex items-center gap-2">
-          <span>{state.error}</span>
-        </div>
-      )}
-
-      {/* Email Field */}
-      <div>
-        <label
-          htmlFor="email"
-          className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5"
-        >
-          Email address
-        </label>
-        <div className="relative rounded-lg shadow-xs">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-            <Mail size={16} />
+        {state?.error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs font-semibold text-red-700 flex items-center gap-2">
+            <span>{state.error}</span>
           </div>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            required
-            placeholder="admin@brand360s.com"
-            className="block w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0481A2]/20 focus:border-[#0481A2] placeholder:text-slate-400"
-          />
-        </div>
-      </div>
+        )}
 
-      {/* Password Field */}
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
+        {/* Email Field */}
+        <div>
           <label
-            htmlFor="password"
-            className="block text-xs font-semibold uppercase tracking-wider text-slate-700"
+            htmlFor="email"
+            className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5"
           >
-            Password
+            Email address
           </label>
-          <Link
-            href="/forgot-password"
-            className="text-xs font-semibold text-[#0481A2] hover:text-[#036c88] hover:underline"
-          >
-            Forgot password?
-          </Link>
-        </div>
-        <div className="relative rounded-lg shadow-xs">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-            <Lock size={16} />
+          <div className="relative rounded-lg shadow-xs">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <Mail size={16} />
+            </div>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              defaultValue="admin@brand360s.com"
+              placeholder="admin@brand360s.com"
+              className="block w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0481A2]/20 focus:border-[#0481A2] placeholder:text-slate-400"
+            />
           </div>
-          <input
-            id="password"
-            name="password"
-            type={showPassword ? "text" : "password"}
-            autoComplete="current-password"
-            required
-            placeholder="••••••••"
-            className="block w-full pl-10 pr-10 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0481A2]/20 focus:border-[#0481A2] placeholder:text-slate-400"
-          />
+        </div>
+
+        {/* Password Field */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label
+              htmlFor="password"
+              className="block text-xs font-semibold uppercase tracking-wider text-slate-700"
+            >
+              Password
+            </label>
+            <Link
+              href="/forgot-password"
+              className="text-xs font-semibold text-[#0481A2] hover:text-[#036c88] hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
+          <div className="relative rounded-lg shadow-xs">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <Lock size={16} />
+            </div>
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              defaultValue="Admin@12345"
+              placeholder="••••••••"
+              className="block w-full pl-10 pr-10 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0481A2]/20 focus:border-[#0481A2] placeholder:text-slate-400"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none cursor-pointer"
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={isPending || isDemoLoggingIn}
+          className="w-full flex justify-center items-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-[#0481A2] hover:bg-[#036c88] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0481A2] transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
+        >
+          {isPending ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              <span>Signing in...</span>
+            </>
+          ) : (
+            <>
+              <span>Sign In</span>
+              <ArrowRight size={16} />
+            </>
+          )}
+        </button>
+      </form>
+
+      {/* 1-Click Quick Demo Sign-in */}
+      <div className="pt-4 border-t border-slate-100">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 text-center mb-2.5">
+          Quick 1-Click Access
+        </p>
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+            disabled={isPending || isDemoLoggingIn}
+            onClick={() => handleQuickLogin("admin")}
+            className="w-full py-2 px-3 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
           >
-            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            <span>👑 Admin</span>
+          </button>
+          <button
+            type="button"
+            disabled={isPending || isDemoLoggingIn}
+            onClick={() => handleQuickLogin("salesperson")}
+            className="w-full py-2 px-3 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+          >
+            <span>💼 Salesperson</span>
           </button>
         </div>
       </div>
-
-      {/* Submit Button */}
-      <button
-        type="submit"
-        disabled={isPending}
-        className="w-full flex justify-center items-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-[#0481A2] hover:bg-[#036c88] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0481A2] transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
-      >
-        {isPending ? (
-          <>
-            <Loader2 size={16} className="animate-spin" />
-            <span>Signing in...</span>
-          </>
-        ) : (
-          <>
-            <span>Sign In</span>
-            <ArrowRight size={16} />
-          </>
-        )}
-      </button>
-    </form>
+    </div>
   );
 }
 

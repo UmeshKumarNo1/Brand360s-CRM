@@ -16,6 +16,7 @@ import {
   archiveClientAction,
   restoreClientAction,
   checkClientDependenciesAction,
+  voidInvoicesAndArchiveClientAction,
   bulkArchiveClientsAction,
   bulkRestoreClientsAction,
   DeleteClientCheckResult,
@@ -328,6 +329,17 @@ export default function ClientsPage() {
       loadData();
     } else {
       throw new Error(res.error || "Failed to archive client.");
+    }
+  };
+
+  const handleVoidAndArchiveClient = async () => {
+    if (!selectedClientForDelete) return;
+    const res = await voidInvoicesAndArchiveClientAction(selectedClientForDelete.id, "Voided and archived from clients list");
+    if (res.success) {
+      success("Invoices Voided & Client Archived", `${selectedClientForDelete.companyName} invoices were marked as Cancelled and client was archived.`);
+      loadData();
+    } else {
+      throw new Error(res.error || "Failed to void invoices and archive client.");
     }
   };
 
@@ -711,7 +723,8 @@ export default function ClientsPage() {
             depCheck && !depCheck.canDelete
               ? depCheck.reason ||
               "This client has invoices or payments recorded. To preserve financial history, deletion is blocked. Please archive the client instead."
-              : "Permanently deleting this client will remove their record from the CRM. This action cannot be undone."
+              : depCheck?.reason ||
+              "Permanently deleting this client will remove their record from the CRM. This action cannot be undone."
           }
           isArchivingOnly={depCheck ? !depCheck.canDelete : false}
           archiveOption={{
@@ -719,6 +732,8 @@ export default function ClientsPage() {
             onArchive: handleArchiveClient,
           }}
           requireMatchInput={depCheck ? depCheck.canDelete : false}
+          depCheck={depCheck}
+          onVoidAndArchive={handleVoidAndArchiveClient}
         />
       )}
 

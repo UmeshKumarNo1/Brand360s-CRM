@@ -28,6 +28,7 @@ import {
 import { formatINR, cn } from "@/lib/utils";
 import { DetailedServiceData } from "@/app/actions/client-detailed-services";
 import { computeServiceFulfillment } from "@/lib/services/fulfillment-workflows";
+import { ServiceFulfillmentTimeline } from "@/components/services/ServiceFulfillmentTimeline";
 import { InlineAssignEmployeeCell } from "@/components/services/InlineAssignEmployeeCell";
 import { TargetDateCell } from "@/components/services/TargetDateCell";
 
@@ -58,11 +59,15 @@ export function ClientDetailedServiceCard({
 }: ClientDetailedServiceCardProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
-  // Compute fulfillment milestone stages
+  // Compute fulfillment milestone stages from actual persisted service stages and progress
   const fulfillment = computeServiceFulfillment({
     service_name: service.serviceName,
     service_category: service.serviceCategory,
     service_status: service.serviceStatus,
+    fulfillment_stages: service.fulfillmentStages,
+    current_stage_name: service.currentStageName,
+    current_stage_description: service.currentStageDescription,
+    progress_percentage: service.progressPercentage,
   });
 
   // Service Category Icon
@@ -288,56 +293,12 @@ export function ClientDetailedServiceCard({
 
                 {/* Horizontal Milestone Tracker */}
                 <div className="py-7 px-2">
-                  <div className="flex items-center justify-between w-full relative">
-                    {fulfillment.stages.map((stage, sIdx) => {
-                      const isStageCompleted = stage.status === "completed";
-                      const isStageCurrent = stage.status === "current";
-                      const isLast = sIdx === fulfillment.stages.length - 1;
-
-                      return (
-                        <div key={stage.name} className="flex-1 flex flex-col items-center relative">
-                          {/* Node */}
-                          <div className="relative z-10 flex items-center justify-center">
-                            {isStageCompleted ? (
-                              <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-                                <CheckCircle2 size={13} className="stroke-[3]" />
-                              </div>
-                            ) : isStageCurrent ? (
-                              <div className="w-5 h-5 rounded-full bg-white border-2 border-blue-600 text-blue-600 flex items-center justify-center ring-4 ring-blue-100 shadow-xs">
-                                <div className="w-2 h-2 rounded-full bg-blue-600" />
-                              </div>
-                            ) : (
-                              <div className="w-4 h-4 rounded-full bg-white border border-slate-300" />
-                            )}
-                          </div>
-
-                          {/* Connector Line */}
-                          {!isLast && (
-                            <div
-                              className={cn(
-                                "absolute top-2.5 left-1/2 w-full h-[2px] -z-0",
-                                isStageCompleted ? "bg-emerald-500" : isStageCurrent ? "bg-blue-300" : "bg-slate-200"
-                              )}
-                            />
-                          )}
-
-                          {/* Stage Label */}
-                          <span
-                            className={cn(
-                              "text-[9.5px] mt-2 text-center font-medium leading-tight",
-                              isStageCompleted
-                                ? "text-slate-700"
-                                : isStageCurrent
-                                ? "text-blue-700 font-bold"
-                                : "text-slate-400"
-                            )}
-                          >
-                            {stage.name}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                  <ServiceFulfillmentTimeline
+                    stages={fulfillment.stages}
+                    currentStageName={fulfillment.currentStageName}
+                    progressPercentage={fulfillment.progressPercentage}
+                    size="md"
+                  />
                 </div>
               </div>
 

@@ -23,6 +23,7 @@ import {
   updateServiceFulfillmentStageAction,
   StageManagementData,
 } from "@/app/actions/fulfillment";
+import { ServiceFulfillmentTimeline } from "@/components/services/ServiceFulfillmentTimeline";
 
 interface ServiceStageModalProps {
   isOpen: boolean;
@@ -285,65 +286,18 @@ export function ServiceStageModal({
 
               {/* Horizontal Stepper */}
               <div className="py-4 px-2">
-                <div className="flex items-center justify-between w-full relative">
-                  {(data?.stages || []).map((stage, idx) => {
-                    const isDone = stage.status === "completed";
-                    const isCurrent = stage.status === "current";
-                    const isLast = idx === (data?.stages.length || 0) - 1;
-
-                    return (
-                      <div key={stage.name} className="flex-1 flex flex-col items-center relative group">
-                        {/* Milestone Node */}
-                        <button
-                          type="button"
-                          disabled={!data?.isAdmin || isSubmitting}
-                          onClick={() => {
-                            if (data?.isAdmin && !isCurrent) {
-                              setSelectedRevertIndex(idx);
-                            }
-                          }}
-                          className={cn(
-                            "relative z-10 flex items-center justify-center transition-all",
-                            data?.isAdmin ? "cursor-pointer hover:scale-110" : "cursor-default"
-                          )}
-                          title={data?.isAdmin ? `Admin: Jump/revert to stage "${stage.name}"` : stage.name}
-                        >
-                          {isDone ? (
-                            <div className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-                              <CheckCircle2 size={13} className="stroke-[3]" />
-                            </div>
-                          ) : isCurrent ? (
-                            <div className="w-5 h-5 rounded-full bg-white border-2 border-blue-600 text-blue-600 flex items-center justify-center ring-4 ring-blue-100 shadow-xs">
-                              <div className="w-2 h-2 rounded-full bg-blue-600" />
-                            </div>
-                          ) : (
-                            <div className="w-4 h-4 rounded-full bg-white border border-slate-300" />
-                          )}
-                        </button>
-
-                        {/* Connector Line */}
-                        {!isLast && (
-                          <div
-                            className={cn(
-                              "absolute top-2.5 left-1/2 w-full h-[2px] -z-0",
-                              isDone ? "bg-emerald-500" : isCurrent ? "bg-blue-300" : "bg-slate-200"
-                            )}
-                          />
-                        )}
-
-                        {/* Stage Label */}
-                        <span
-                          className={cn(
-                            "text-[10px] mt-2 text-center font-medium leading-tight px-1",
-                            isDone ? "text-slate-700" : isCurrent ? "text-blue-700 font-bold" : "text-slate-400"
-                          )}
-                        >
-                          {stage.name}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <ServiceFulfillmentTimeline
+                  stages={data?.stages || []}
+                  currentStageName={data?.currentStageName}
+                  progressPercentage={data?.progressPercentage}
+                  interactive={Boolean(data?.isAdmin)}
+                  onStageClick={(idx) => {
+                    if (data?.isAdmin && idx !== currentIdx) {
+                      setSelectedRevertIndex(idx);
+                    }
+                  }}
+                  size="md"
+                />
               </div>
 
               {/* Admin stage correction alert if a stage was clicked */}

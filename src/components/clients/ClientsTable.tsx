@@ -20,6 +20,8 @@ import { formatINR, cn } from "@/lib/utils";
 import { useState } from "react";
 import { TargetDateCell } from "@/components/services/TargetDateCell";
 import { ServiceStageModal } from "@/components/services/ServiceStageModal";
+import { computeServiceFulfillment } from "@/lib/services/fulfillment-workflows";
+import { ServiceFulfillmentTimeline } from "@/components/services/ServiceFulfillmentTimeline";
 
 interface ClientsTableProps {
   clients: ClientRecord[];
@@ -603,10 +605,20 @@ export function ClientsTable({
                                             className="py-2.5 px-3 align-middle cursor-pointer hover:bg-sky-50/50 transition-colors"
                                             title="Click to manage service fulfillment stages"
                                           >
-                                            <div className="flex justify-center">
-                                              <FulfillmentStepper
-                                                serviceName={service.service_name}
-                                                status={service.service_status}
+                                            <div className="flex justify-center w-[260px] mx-auto">
+                                              <ServiceFulfillmentTimeline
+                                                stages={
+                                                  Array.isArray(service.fulfillment_stages) && service.fulfillment_stages.length > 0
+                                                    ? service.fulfillment_stages
+                                                    : computeServiceFulfillment({
+                                                        service_name: service.service_name,
+                                                        service_category: service.service_category,
+                                                        service_status: service.service_status,
+                                                      }).stages
+                                                }
+                                                currentStageName={service.stage}
+                                                progressPercentage={service.progressPercent}
+                                                size="sm"
                                               />
                                             </div>
                                           </td>

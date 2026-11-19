@@ -401,6 +401,10 @@ export async function fetchClientsAction() {
         start_date,
         expected_completion_date,
         service_status,
+        fulfillment_stages,
+        current_stage_name,
+        current_stage_description,
+        progress_percentage,
         assigned_profile:profiles!assigned_employee_id(full_name)
       )
     `)

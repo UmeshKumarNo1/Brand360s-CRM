@@ -18,6 +18,11 @@ export interface DetailedServiceData {
   expectedCompletionDate: string | null;
   notes: string | null;
   vendorDetails: string;
+  // Fulfillment progression
+  fulfillmentStages?: any[] | null;
+  currentStageName?: string | null;
+  currentStageDescription?: string | null;
+  progressPercentage?: number | null;
   // Financial metrics
   contractValue: number;
   invoicedAmount: number;
@@ -364,6 +369,10 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       expectedCompletionDate: cs.expected_completion_date,
       notes: cs.notes,
       vendorDetails: vendorNames || "None",
+      fulfillmentStages: cs.fulfillment_stages || null,
+      currentStageName: cs.current_stage_name || null,
+      currentStageDescription: cs.current_stage_description || null,
+      progressPercentage: cs.progress_percentage !== undefined && cs.progress_percentage !== null ? Number(cs.progress_percentage) : null,
       contractValue: contractVal,
       invoicedAmount: invoicedTotal,
       collectedAmount: serviceAllocatedAmount,

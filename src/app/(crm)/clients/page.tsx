@@ -28,6 +28,7 @@ import { ClientsTableSkeleton } from "@/components/clients/ClientsTableSkeleton"
 import { useToast } from "@/components/common/ToastProvider";
 import { RefreshCw, Users, Archive, RotateCcw, Trash2, UserCheck, Layers } from "lucide-react";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
+import { computeServiceFulfillment } from "@/lib/services/fulfillment-workflows";
 
 export default function ClientsPage() {
   const router = useRouter();
@@ -155,32 +156,11 @@ export default function ClientsPage() {
                   Number(s.total_amount) ||
                   (Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0);
                 const status = s.service_status || "Pending";
-                let progress = 20;
-                let stageText = "Onboarding";
-                let payStatus: "Paid" | "Partial" | "Unpaid" = "Unpaid";
-                let amtPaid = 0;
-
-                if (status === "Completed") {
-                  progress = 100;
-                  stageText = "Completed";
-                  payStatus = "Paid";
-                  amtPaid = totalAmt;
-                } else if (status === "In Progress" || status === "Processing") {
-                  progress = 50;
-                  stageText = "Preparation (Work in progress)";
-                  payStatus = totalAmt > 0 ? "Partial" : "Unpaid";
-                  amtPaid = Math.round(totalAmt * 0.5);
-                } else if (status === "Filing") {
-                  progress = 75;
-                  stageText = "Filing (In review)";
-                  payStatus = "Partial";
-                  amtPaid = Math.round(totalAmt * 0.75);
-                } else {
-                  progress = 20;
-                  stageText = "Onboarding (Pending)";
-                  payStatus = "Unpaid";
-                  amtPaid = 0;
-                }
+                
+                // Compute true fulfillment progress from persistent stages
+                const fulfillment = computeServiceFulfillment(s);
+                const progress = fulfillment.progressPercentage;
+                const stageText = fulfillment.currentStageName;
 
                 return {
                   id: s.id,
@@ -195,8 +175,11 @@ export default function ClientsPage() {
                   assigned_employee_name: s.assigned_profile?.full_name || null,
                   stage: stageText,
                   progressPercent: progress,
-                  paymentStatus: payStatus,
-                  amountPaid: amtPaid,
+                  fulfillment_stages: s.fulfillment_stages || fulfillment.stages,
+                  current_stage_name: s.current_stage_name || fulfillment.currentStageName,
+                  current_stage_description: s.current_stage_description || fulfillment.currentStageDescription,
+                  paymentStatus: s.paymentStatus || (status === "Completed" ? "Paid" : "Unpaid"),
+                  amountPaid: s.amountPaid || 0,
                 };
               });
             } else if (r.services_purchased) {

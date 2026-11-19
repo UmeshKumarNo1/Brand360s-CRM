@@ -43,6 +43,7 @@ import { ServiceStageModal } from "@/components/services/ServiceStageModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 import { computeServiceFulfillment, FulfillmentStage } from "@/lib/services/fulfillment-workflows";
+import { ServiceFulfillmentTimeline } from "@/components/services/ServiceFulfillmentTimeline";
 import { InlineAssignEmployeeCell } from "@/components/services/InlineAssignEmployeeCell";
 import { TargetDateCell } from "@/components/services/TargetDateCell";
 
@@ -358,55 +359,13 @@ export function ClientServicesTab({
                           className="py-3 px-3 align-middle cursor-pointer hover:bg-sky-50/50 transition-colors"
                           title="Click to manage service fulfillment stages"
                         >
-                          <div className="flex items-center justify-between w-full max-w-[340px] mx-auto relative group">
-                            {fulfillment.stages.map((stage, sIdx) => {
-                              const isCompleted = stage.status === "completed";
-                              const isCurrent = stage.status === "current";
-                              const isLast = sIdx === fulfillment.stages.length - 1;
-
-                              return (
-                                <div key={stage.name} className="flex-1 flex flex-col items-center relative">
-                                  {/* Milestone Node */}
-                                  <div className="relative z-10 flex items-center justify-center">
-                                    {isCompleted ? (
-                                      <div className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-2xs">
-                                        <CheckCircle2 size={12} className="stroke-[3]" />
-                                      </div>
-                                    ) : isCurrent ? (
-                                      <div className="w-4 h-4 rounded-full bg-white border-2 border-blue-600 text-blue-600 flex items-center justify-center ring-2 ring-blue-100 shadow-2xs">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                                      </div>
-                                    ) : (
-                                      <div className="w-3.5 h-3.5 rounded-full bg-white border border-slate-300" />
-                                    )}
-                                  </div>
-
-                                  {/* Connector Line to next stage */}
-                                  {!isLast && (
-                                    <div
-                                      className={cn(
-                                        "absolute top-2 left-1/2 w-full h-[2px] -z-0",
-                                        isCompleted ? "bg-emerald-500" : isCurrent ? "bg-blue-300" : "bg-slate-200"
-                                      )}
-                                    />
-                                  )}
-
-                                  {/* Milestone Label */}
-                                  <span
-                                    className={cn(
-                                      "text-[9px] mt-1 text-center font-medium leading-tight whitespace-nowrap",
-                                      isCompleted
-                                        ? "text-slate-700"
-                                        : isCurrent
-                                        ? "text-blue-700 font-bold"
-                                        : "text-slate-400"
-                                    )}
-                                  >
-                                    {stage.name}
-                                  </span>
-                                </div>
-                              );
-                            })}
+                          <div className="w-full max-w-[340px] mx-auto">
+                            <ServiceFulfillmentTimeline
+                              stages={fulfillment.stages}
+                              currentStageName={fulfillment.currentStageName}
+                              progressPercentage={fulfillment.progressPercentage}
+                              size="sm"
+                            />
                           </div>
                         </td>
 

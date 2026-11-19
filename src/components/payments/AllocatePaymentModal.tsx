@@ -294,15 +294,21 @@ export function AllocatePaymentModal({
               <Loader2 size={16} className="animate-spin text-[#077EA1]" />
               <span>Fetching client invoices...</span>
             </div>
-          ) : invoices.length === 0 ? (
+          ) : invoices.filter((i) => i.balanceDue > 0).length === 0 ? (
             <div className="py-10 px-4 text-center text-xs border border-dashed border-slate-200 rounded-xl bg-slate-50/50 space-y-3">
               <div className="w-10 h-10 rounded-full bg-sky-50 text-[#0481A2] flex items-center justify-center mx-auto">
                 <FileText size={20} />
               </div>
               <div className="space-y-1">
-                <p className="font-bold text-slate-800 text-sm">No invoices available for this client.</p>
+                <p className="font-bold text-slate-800 text-sm">
+                  {invoices.length === 0
+                    ? "No invoices available for this client."
+                    : "No outstanding invoices available."}
+                </p>
                 <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                  Create an invoice to allocate this payment directly without leaving this screen.
+                  {invoices.length === 0
+                    ? "Create an invoice to allocate this payment directly without leaving this screen."
+                    : "Existing invoices for this client are already fully paid. Create an invoice for the remaining unbilled service value before allocating this payment."}
                 </p>
               </div>
               <div className="pt-2">
@@ -320,7 +326,7 @@ export function AllocatePaymentModal({
                   ) : (
                     <>
                       <Sparkles size={14} />
-                      <span>Generate Invoice</span>
+                      <span>Generate Invoice for Unbilled Services</span>
                     </>
                   )}
                 </button>

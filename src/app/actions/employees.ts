@@ -4,10 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+import { recordAuditLog } from "@/lib/audit/audit-logger";
 
 export interface EmployeeActionState {
   error?: string | null;
   success?: boolean;
+  unassignedServicesCount?: number;
 }
 
 // Dedicated server-only helper to get the Supabase Auth Admin client
@@ -307,9 +309,97 @@ export async function fetchEmployeeDetailsAction(employeeId: string) {
   };
 }
 
+export interface DeleteEmployeeCheckResult {
+  canDelete: boolean;
+  reason?: string;
+  assignedServicesCount: number;
+  assignedClientsCount: number;
+  assignedFollowupsCount: number;
+  assignedServices: {
+    id: string;
+    clientId: string;
+    serviceName: string;
+    clientName?: string;
+  }[];
+}
+
 /**
- * Deletes or deactivates an employee (Admin only)
- * If employee has assigned clients, prevents deletion and requires reassignment or deactivation.
+ * Checks dependencies before deleting an employee:
+ * - Counts assigned client services (which will be automatically unassigned)
+ * - Checks if salesperson for any clients or has pending followups
+ */
+export async function checkEmployeeDependenciesAction(
+  employeeId: string
+): Promise<DeleteEmployeeCheckResult> {
+  const supabase = await createClient();
+
+  const [clientsRes, followupsRes, servicesRes] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("id", { count: "exact", head: true })
+      .eq("assigned_salesperson", employeeId),
+    supabase
+      .from("follow_ups")
+      .select("id", { count: "exact", head: true })
+      .eq("assigned_to", employeeId)
+      .eq("status", "Pending"),
+    supabase
+      .from("client_services")
+      .select(`
+        id,
+        client_id,
+        service_name,
+        client:clients!client_id (company_name)
+      `)
+      .eq("assigned_employee_id", employeeId),
+  ]);
+
+  const assignedClientsCount = clientsRes.count || 0;
+  const assignedFollowupsCount = followupsRes.count || 0;
+  const serviceList = (servicesRes.data || []).map((s: any) => ({
+    id: s.id,
+    clientId: s.client_id,
+    serviceName: s.service_name,
+    clientName: s.client?.company_name || "Unknown Client",
+  }));
+  const assignedServicesCount = serviceList.length;
+
+  if (assignedClientsCount > 0) {
+    return {
+      canDelete: false,
+      reason: `Cannot delete employee: they are assigned to ${assignedClientsCount} client(s) as salesperson. Please reassign those clients first.`,
+      assignedServicesCount,
+      assignedClientsCount,
+      assignedFollowupsCount,
+      assignedServices: serviceList,
+    };
+  }
+
+  if (assignedFollowupsCount > 0) {
+    return {
+      canDelete: false,
+      reason: `Cannot delete employee: they have ${assignedFollowupsCount} pending follow-up(s). Please reassign them first.`,
+      assignedServicesCount,
+      assignedClientsCount,
+      assignedFollowupsCount,
+      assignedServices: serviceList,
+    };
+  }
+
+  return {
+    canDelete: true,
+    assignedServicesCount,
+    assignedClientsCount,
+    assignedFollowupsCount,
+    assignedServices: serviceList,
+  };
+}
+
+/**
+ * Deletes an employee permanently (Admin only).
+ * Automatically unassigns all assigned client services (sets assigned_employee_id to NULL),
+ * preserves all service details, workflows, invoices, payments, audit history,
+ * and logs an audit record.
  */
 export async function deleteEmployeeAction(employeeId: string): Promise<EmployeeActionState> {
   const supabase = await createClient();
@@ -331,7 +421,18 @@ export async function deleteEmployeeAction(employeeId: string): Promise<Employee
     return { error: "You cannot delete your own admin account." };
   }
 
-  // Check if employee has assigned clients
+  // 1. Fetch employee profile for audit and confirmation
+  const { data: targetEmployee } = await supabase
+    .from("profiles")
+    .select("id, full_name, email, role")
+    .eq("id", employeeId)
+    .single();
+
+  if (!targetEmployee) {
+    return { error: "Employee record not found." };
+  }
+
+  // 2. Check if employee has assigned clients
   const { count: assignedCount } = await supabase
     .from("clients")
     .select("id", { count: "exact", head: true })
@@ -339,15 +440,16 @@ export async function deleteEmployeeAction(employeeId: string): Promise<Employee
 
   if (assignedCount && assignedCount > 0) {
     return {
-      error: `Cannot delete employee: they are assigned to ${assignedCount} client(s). Please reassign those clients or deactivate the employee account instead.`,
+      error: `Cannot delete employee: they are assigned to ${assignedCount} client(s) as salesperson. Please reassign those clients or deactivate the employee account instead.`,
     };
   }
 
-  // Check if employee has assigned follow-ups
+  // 3. Check if employee has assigned pending follow-ups
   const { count: followupsCount } = await supabase
     .from("follow_ups")
     .select("id", { count: "exact", head: true })
-    .eq("assigned_to", employeeId);
+    .eq("assigned_to", employeeId)
+    .eq("status", "Pending");
 
   if (followupsCount && followupsCount > 0) {
     return {
@@ -355,20 +457,46 @@ export async function deleteEmployeeAction(employeeId: string): Promise<Employee
     };
   }
 
+  // 4. Identify all client services assigned to this employee
+  const { data: assignedServices } = await supabase
+    .from("client_services")
+    .select("id, client_id, service_name")
+    .eq("assigned_employee_id", employeeId);
+
+  const unassignedCount = (assignedServices || []).length;
+
+  // 5. Unassign all client services (set assigned_employee_id = NULL)
+  // Preserves workflow stages, progress, payments, invoices, documents, target dates and audit history
+  if (unassignedCount > 0) {
+    const { error: unassignError } = await supabase
+      .from("client_services")
+      .update({
+        assigned_employee_id: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("assigned_employee_id", employeeId);
+
+    if (unassignError) {
+      console.error("Error unassigning client services:", unassignError);
+      return { error: `Failed to unassign client services: ${unassignError.message}` };
+    }
+  }
+
   const adminAuth = getAdminAuthClient();
   const dbClient = adminAuth || supabase;
 
-  // Delete from profiles
+  // 6. Delete from profiles
   const { error: profileDeleteError } = await dbClient
     .from("profiles")
     .delete()
     .eq("id", employeeId);
 
   if (profileDeleteError) {
+    console.error("Error deleting profile:", profileDeleteError);
     return { error: profileDeleteError.message };
   }
 
-  // If service role available, delete from auth.users as well
+  // 7. If service role available, delete from auth.users as well
   if (adminAuth) {
     try {
       await adminAuth.auth.admin.deleteUser(employeeId);
@@ -377,6 +505,30 @@ export async function deleteEmployeeAction(employeeId: string): Promise<Employee
     }
   }
 
+  // 8. Permanent audit record
+  await recordAuditLog({
+    actorId: user.id,
+    action: "DELETE",
+    entityType: "employee",
+    entityId: employeeId,
+    entityName: targetEmployee.full_name || targetEmployee.email,
+    details: {
+      email: targetEmployee.email,
+      role: targetEmployee.role,
+      unassigned_services_count: unassignedCount,
+      unassigned_services: assignedServices || [],
+    },
+  });
+
+  // Revalidate relevant pages
   revalidatePath("/employees");
-  return { success: true };
+  revalidatePath("/clients");
+  revalidatePath("/services");
+  (assignedServices || []).forEach((s) => {
+    if (s.client_id) {
+      revalidatePath(`/clients/${s.client_id}`);
+    }
+  });
+
+  return { success: true, unassignedServicesCount: unassignedCount };
 }

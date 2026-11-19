@@ -20,6 +20,8 @@ import {
   fetchEmployeesAction,
   toggleEmployeeStatusAction,
   deleteEmployeeAction,
+  checkEmployeeDependenciesAction,
+  DeleteEmployeeCheckResult,
 } from "@/app/actions/employees";
 import { AddEmployeeModal } from "@/components/employees/AddEmployeeModal";
 import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationModal";
@@ -35,6 +37,8 @@ export default function EmployeesPage() {
 
   // Deletion modal state
   const [deletingEmployee, setDeletingEmployee] = useState<any | null>(null);
+  const [depCheck, setDepCheck] = useState<DeleteEmployeeCheckResult | null>(null);
+  const [isCheckingDep, setIsCheckingDep] = useState(false);
 
   const { success, error: toastError } = useToast();
   const requestIdRef = useRef(0);
@@ -84,11 +88,34 @@ export default function EmployeesPage() {
     }
   };
 
+  const handleInitiateDelete = async (emp: any) => {
+    setDeletingEmployee(emp);
+    setDepCheck(null);
+    setIsCheckingDep(true);
+    try {
+      const res = await checkEmployeeDependenciesAction(emp.id);
+      setDepCheck(res);
+    } catch (err: any) {
+      console.error("Error checking employee dependencies:", err);
+    } finally {
+      setIsCheckingDep(false);
+    }
+  };
+
   const handleConfirmDelete = async () => {
     if (!deletingEmployee) return;
     const res = await deleteEmployeeAction(deletingEmployee.id);
     if (res.success) {
-      success("Employee Deleted", `${deletingEmployee.fullName} has been removed.`);
+      const unassignedText =
+        res.unassignedServicesCount && res.unassignedServicesCount > 0
+          ? ` (${res.unassignedServicesCount} service(s) automatically set to Unassigned)`
+          : "";
+      success(
+        "Employee Deleted",
+        `${deletingEmployee.fullName} has been removed${unassignedText}.`
+      );
+      setDeletingEmployee(null);
+      setDepCheck(null);
       loadData();
     } else {
       throw new Error(res.error || "Failed to delete employee.");
@@ -271,7 +298,7 @@ export default function EmployeesPage() {
 
                           {/* Delete Action */}
                           <button
-                            onClick={() => setDeletingEmployee(emp)}
+                            onClick={() => handleInitiateDelete(emp)}
                             className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors cursor-pointer"
                             title="Delete Employee"
                           >
@@ -299,11 +326,22 @@ export default function EmployeesPage() {
       {deletingEmployee && (
         <DeleteConfirmationModal
           isOpen={!!deletingEmployee}
-          onClose={() => setDeletingEmployee(null)}
+          onClose={() => {
+            setDeletingEmployee(null);
+            setDepCheck(null);
+          }}
           onConfirm={handleConfirmDelete}
           title="Delete Employee Account"
           recordName={deletingEmployee.fullName}
-          consequences={`Deleting this employee account will permanently revoke their access credentials and profile. If they have active assigned clients or tasks, deletion will be blocked and you will be asked to reassign their clients first.`}
+          consequences={
+            isCheckingDep
+              ? "Checking employee dependencies and service assignments..."
+              : depCheck && !depCheck.canDelete
+              ? depCheck.reason || "This employee cannot be deleted."
+              : depCheck && depCheck.assignedServicesCount > 0
+              ? `This employee is assigned to ${depCheck.assignedServicesCount} service(s). Deleting this employee will automatically unassign those services (setting them to Unassigned). All service progress, documents, invoices, and audit history will remain intact. Continue?`
+              : "Deleting this employee account will permanently revoke their access credentials and profile. They currently have 0 assigned services. Continue?"
+          }
           requireMatchInput={false}
           archiveOption={{
             label: deletingEmployee.isActive ? "Deactivate Instead" : "Keep Deactivated",

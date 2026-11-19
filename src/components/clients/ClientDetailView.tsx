@@ -56,14 +56,22 @@ import {
 import { AssignServiceModal } from "@/components/services/AssignServiceModal";
 import { UploadServiceDeliverableModal } from "@/components/services/UploadServiceDeliverableModal";
 import { ServiceDocumentsModal } from "@/components/services/ServiceDocumentsModal";
+import { ServiceStageModal } from "@/components/services/ServiceStageModal";
 import { InvoicePreviewModal } from "@/components/invoices/InvoicePreviewModal";
 import {
   deleteClientAction,
   archiveClientAction,
   restoreClientAction,
   checkClientDependenciesAction,
+  voidInvoicesAndArchiveClientAction,
   DeleteClientCheckResult,
 } from "@/app/actions/client-delete";
+import {
+  deleteClientServiceAction,
+  checkServiceDeletionEligibilityAction,
+  ServiceDeletionEligibility,
+} from "@/app/actions/services";
+import { DeleteServiceModal } from "@/components/services/DeleteServiceModal";
 import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
@@ -100,7 +108,13 @@ export function ClientDetailView({
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(Boolean(initialAddService));
   const [deliverableModalService, setDeliverableModalService] = useState<any | null>(null);
   const [documentsModalService, setDocumentsModalService] = useState<any | null>(null);
+  const [stageModalServiceId, setStageModalServiceId] = useState<string | null>(null);
   const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
+
+  // Service Deletion State
+  const [serviceToDelete, setServiceToDelete] = useState<DetailedServiceData | null>(null);
+  const [serviceEligibility, setServiceEligibility] = useState<ServiceDeletionEligibility | null>(null);
+  const [isLoadingServiceCheck, setIsLoadingServiceCheck] = useState(false);
 
   const { success, error: toastError } = useToast();
   const reqIdRef = useRef(0);
@@ -163,6 +177,16 @@ export function ClientDetailView({
     }
   };
 
+  const handleVoidAndArchiveClient = async () => {
+    const res = await voidInvoicesAndArchiveClientAction(client.id, "Voided and archived from client details view");
+    if (res.success) {
+      success("Invoices Voided & Client Archived", `${client.companyName} invoices were marked as Cancelled and the client was archived.`);
+      router.refresh();
+    } else {
+      throw new Error(res.error || "Failed to void invoices and archive client.");
+    }
+  };
+
   const handleRestoreClient = async () => {
     const res = await restoreClientAction(client.id);
     if (res.success) {
@@ -170,6 +194,34 @@ export function ClientDetailView({
       router.refresh();
     } else {
       toastError("Failed to restore", res.error || "Server error.");
+    }
+  };
+
+  const handleOpenDeleteService = async (svc: DetailedServiceData) => {
+    setServiceToDelete(svc);
+    setIsLoadingServiceCheck(true);
+    setServiceEligibility(null);
+    try {
+      const eligibility = await checkServiceDeletionEligibilityAction(svc.id);
+      setServiceEligibility(eligibility);
+    } catch (err: any) {
+      toastError("Eligibility Check Failed", err.message || "Failed to audit service.");
+    } finally {
+      setIsLoadingServiceCheck(false);
+    }
+  };
+
+  const handleConfirmDeleteService = async () => {
+    if (!serviceToDelete) return;
+    const res = await deleteClientServiceAction(serviceToDelete.id);
+    if (res.success) {
+      success("Service Deleted", `Service "${serviceToDelete.serviceName}" has been permanently deleted.`);
+      setServiceToDelete(null);
+      setServiceEligibility(null);
+      loadDetailedServices();
+      router.refresh();
+    } else {
+      throw new Error(res.error || "Failed to delete service.");
     }
   };
 
@@ -418,7 +470,7 @@ export function ClientDetailView({
           }`}
         >
           <Layers size={15} />
-          <span>Services ({serviceCount})</span>
+          <span>Services ({detailedServices.length || serviceCount})</span>
         </button>
 
         <button
@@ -471,16 +523,16 @@ export function ClientDetailView({
       </div>
 
       {/* Tab Panels */}
-      <div className="pt-2">
+      <div className="pt-1">
         {activeTab === "services" && (
-          <div className="space-y-5">
+          <div className="space-y-6 pt-1">
             {/* Header Bar matching Reference Image 2 */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-1 pb-1">
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 pb-2">
               <h2 className="text-lg font-bold text-slate-900 tracking-tight">
                 Client Services ({detailedServices.length})
               </h2>
 
-              <div className="flex flex-wrap items-center gap-3 text-xs bg-slate-50/90 px-3.5 py-1.5 rounded-xl border border-slate-200/80 shadow-2xs">
+              <div className="flex flex-wrap items-center gap-3 text-xs bg-slate-50/90 px-4 py-2 rounded-xl border border-slate-200/80 shadow-2xs">
                 <div className="flex items-center gap-1.5">
                   <span className="text-slate-500 font-medium">Contract:</span>
                   <strong className="text-slate-900 font-sans font-number font-semibold">
@@ -563,6 +615,9 @@ export function ClientDetailView({
                       index={idx}
                       totalServices={detailedServices.length}
                       defaultExpanded={idx === 0}
+                      canEdit={canEdit}
+                      isAdmin={isAdmin}
+                      onRefresh={() => loadDetailedServices(true)}
                       onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
                       onAddDocument={(svcId) => {
                         const match = detailedServices.find((s) => s.id === svcId);
@@ -570,6 +625,12 @@ export function ClientDetailView({
                       }}
                       onManageService={(svc) => {
                         setDocumentsModalService(svc);
+                      }}
+                      onManageStage={(svcId) => {
+                        setStageModalServiceId(svcId);
+                      }}
+                      onDeleteService={(svc) => {
+                        handleOpenDeleteService(svc);
                       }}
                     />
                   ))
@@ -984,7 +1045,8 @@ export function ClientDetailView({
             depCheck && !depCheck.canDelete
               ? depCheck.reason ||
                 "This client has invoices or payments recorded. To preserve financial history, deletion is blocked. Please archive the client instead."
-              : "Permanently deleting this client will remove their record from the CRM. This action cannot be undone."
+              : depCheck?.reason ||
+                "Permanently deleting this client will remove their record from the CRM. This action cannot be undone."
           }
           isArchivingOnly={depCheck ? !depCheck.canDelete : false}
           archiveOption={{
@@ -992,6 +1054,8 @@ export function ClientDetailView({
             onArchive: handleArchiveClient,
           }}
           requireMatchInput={depCheck ? depCheck.canDelete : false}
+          depCheck={depCheck}
+          onVoidAndArchive={handleVoidAndArchiveClient}
         />
       )}
 
@@ -1007,6 +1071,32 @@ export function ClientDetailView({
         clientNames={[client.companyName]}
         currentSalespersonName={client.salesperson}
       />
+
+      {/* Service Fulfillment Stage Management Modal */}
+      <ServiceStageModal
+        isOpen={Boolean(stageModalServiceId)}
+        onClose={() => setStageModalServiceId(null)}
+        serviceId={stageModalServiceId}
+        onSuccess={() => {
+          loadDetailedServices(true);
+          router.refresh();
+        }}
+      />
+
+      {/* Service Deletion Modal */}
+      {serviceToDelete && (
+        <DeleteServiceModal
+          isOpen={Boolean(serviceToDelete)}
+          onClose={() => {
+            setServiceToDelete(null);
+            setServiceEligibility(null);
+          }}
+          onConfirm={handleConfirmDeleteService}
+          serviceName={serviceToDelete.serviceName}
+          eligibility={serviceEligibility}
+          isLoadingCheck={isLoadingServiceCheck}
+        />
+      )}
     </div>
   );
 }

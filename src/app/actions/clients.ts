@@ -392,8 +392,32 @@ export async function fetchClientsAction() {
     return [];
   }
 
-  try {
-    const supabase = await createClient();
+try {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("clients")
+    .select(`
+      *,
+      assigned_profile:profiles!assigned_salesperson(full_name, email),
+      services:client_services(
+        id,
+        service_name,
+        service_category,
+        service_fee,
+        govt_fee,
+        total_amount,
+        start_date,
+        expected_completion_date,
+        service_status,
+        fulfillment_stages,
+        current_stage_name,
+        current_stage_description,
+        progress_percentage,
+        assigned_profile:profiles!assigned_employee_id(full_name)
+      )
+    `)
+    .order("created_at", { ascending: false });
 
     const { data, error } = await supabase
       .from("clients")
@@ -416,18 +440,137 @@ export async function fetchClientsAction() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      console.error("Error fetching clients with services, falling back to basic query:", error);
-      const { data: fallbackData } = await supabase
+      console.error(
+        "Error fetching clients with services, falling back to basic query:",
+        error
+      );
+
+      const { data: fallbackData, error: fallbackError } = await supabase
         .from("clients")
         .select(`
           *,
           assigned_profile:profiles!assigned_salesperson(full_name, email)
         `)
         .order("created_at", { ascending: false });
+
+      if (fallbackError) {
+        console.error("Fallback client query failed:", fallbackError);
+        return [];
+      }
+
       return fallbackData || [];
     }
 
-    return data || [];
+    // Extract all client service IDs to fetch payment allocations
+    const allServiceIds: string[] = [];
+
+    (data || []).forEach((c: any) => {
+      (c.services || []).forEach((s: any) => {
+        if (s.id) allServiceIds.push(s.id);
+      });
+    });
+
+    const paidByService: Record<string, number> = {};
+
+    if (allServiceIds.length > 0) {
+      // 1. Direct allocations to client services
+      const { data: directAllocs, error: directError } = await supabase
+        .from("invoice_payment_allocations")
+        .select("client_service_id, invoice_id, allocated_amount")
+        .in("client_service_id", allServiceIds);
+
+      if (directError) {
+        console.error("Direct payment allocation lookup failed:", directError);
+      }
+
+      (directAllocs || []).forEach((a: any) => {
+        if (a.client_service_id) {
+          paidByService[a.client_service_id] =
+            (paidByService[a.client_service_id] || 0) +
+            (Number(a.allocated_amount) || 0);
+        }
+      });
+
+      // 2. Find allocations linked through invoice items
+      const { data: invoiceItems, error: invoiceItemsError } = await supabase
+        .from("invoice_items")
+        .select("invoice_id, client_service_id")
+        .in("client_service_id", allServiceIds);
+
+      if (invoiceItemsError) {
+        console.error("Invoice item lookup failed:", invoiceItemsError);
+      }
+
+      if (invoiceItems && invoiceItems.length > 0) {
+        const invoiceToServiceMap: Record<string, string> = {};
+        const relevantInvoiceIds: string[] = [];
+
+        invoiceItems.forEach((item: any) => {
+          if (item.invoice_id && item.client_service_id) {
+            invoiceToServiceMap[item.invoice_id] = item.client_service_id;
+            relevantInvoiceIds.push(item.invoice_id);
+          }
+        });
+
+        if (relevantInvoiceIds.length > 0) {
+          const { data: indirectAllocs, error: indirectError } = await supabase
+            .from("invoice_payment_allocations")
+            .select("invoice_id, client_service_id, allocated_amount")
+            .in("invoice_id", relevantInvoiceIds);
+
+          if (indirectError) {
+            console.error("Indirect payment allocation lookup failed:", indirectError);
+          }
+
+          (indirectAllocs || []).forEach((a: any) => {
+            if (
+              !a.client_service_id &&
+              a.invoice_id &&
+              invoiceToServiceMap[a.invoice_id]
+            ) {
+              const resolvedSvcId = invoiceToServiceMap[a.invoice_id];
+
+              // Avoid double-counting when direct allocations exist
+              if (!paidByService[resolvedSvcId]) {
+                paidByService[resolvedSvcId] =
+                  (paidByService[resolvedSvcId] || 0) +
+                  (Number(a.allocated_amount) || 0);
+              }
+            }
+          });
+        }
+      }
+    }
+
+    // Enrich each client's services with paymentStatus and amountPaid
+    return (data || []).map((client: any) => {
+      const enrichedServices = (client.services || []).map((s: any) => {
+        const contractVal =
+          Number(s.total_amount) ||
+          (Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0);
+
+        const paid = paidByService[s.id] || 0;
+
+        let paymentStatus: "Paid" | "Partial" | "Unpaid" = "Unpaid";
+
+        if (contractVal > 0 && paid >= contractVal - 0.009) {
+          paymentStatus = "Paid";
+        } else if (paid > 0.009) {
+          paymentStatus = "Partial";
+        }
+
+        return {
+          ...s,
+          amountPaid: paid,
+          paymentStatus,
+        };
+      });
+
+      return {
+        ...client,
+        services: enrichedServices,
+      };
+    });
   } catch (err) {
     console.warn("fetchClientsAction notice:", err);
     return [];
@@ -461,6 +604,27 @@ export async function fetchSalespeopleAction() {
     console.warn("fetchSalespeopleAction notice:", err);
     return [];
   }
+}
+
+/**
+ * Lightweight client list for dropdown selectors in modals and forms.
+ * Avoids heavy joins and sub-table scans.
+ */
+export async function fetchClientsDropdownAction() {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("clients")
+    .select("id, company_name, client_code, contract_value, balance_receivable, client_status")
+    .neq("client_status", "Archived")
+    .order("company_name", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching clients dropdown:", error);
+    return [];
+  }
+
+  return data || [];
 }
 
 /**
@@ -501,5 +665,59 @@ export async function fetchClientContractSummaryAction(clientId: string) {
     previouslyReceived: totalVerifiedReceived,
     remainingContractBalance,
     maximumPermittedPayment: remainingContractBalance,
+  };
+}
+
+/**
+ * Fast aggregated KPIs summary for the Clients portfolio header cards.
+ * Performs a lean database query without retrieving full nested services/allocations.
+ */
+export async function fetchClientsKpiSummaryAction() {
+  const supabase = await createClient();
+
+  const { data: clients, error } = await supabase
+    .from("clients")
+    .select("client_status, contract_value, payments_received, balance_receivable");
+
+  if (error || !clients) {
+    console.error("Error fetching clients KPI summary:", error);
+    return {
+      totalNonArchived: 0,
+      activeOperationalCount: 0,
+      archivedCount: 0,
+      totalContractValue: 0,
+      amountCollected: 0,
+      totalOutstanding: 0,
+    };
+  }
+
+  let totalNonArchived = 0;
+  let activeOperationalCount = 0;
+  let archivedCount = 0;
+  let totalContractValue = 0;
+  let amountCollected = 0;
+  let totalOutstanding = 0;
+
+  for (const c of clients) {
+    if (c.client_status === "Archived") {
+      archivedCount++;
+    } else {
+      totalNonArchived++;
+      if (c.client_status === "Active") {
+        activeOperationalCount++;
+      }
+      totalContractValue += Number(c.contract_value) || 0;
+      amountCollected += Number(c.payments_received) || 0;
+      totalOutstanding += Number(c.balance_receivable) || 0;
+    }
+  }
+
+  return {
+    totalNonArchived,
+    activeOperationalCount,
+    archivedCount,
+    totalContractValue,
+    amountCollected,
+    totalOutstanding,
   };
 }

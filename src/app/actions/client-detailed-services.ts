@@ -8,6 +8,7 @@ export interface DetailedServiceData {
   serviceName: string;
   serviceCategory: string;
   serviceStatus: string;
+  assignedEmployeeId: string | null;
   assignedEmployeeName: string;
   serviceFee: number;
   govtFee: number;
@@ -17,12 +18,18 @@ export interface DetailedServiceData {
   expectedCompletionDate: string | null;
   notes: string | null;
   vendorDetails: string;
+  // Fulfillment progression
+  fulfillmentStages?: any[] | null;
+  currentStageName?: string | null;
+  currentStageDescription?: string | null;
+  progressPercentage?: number | null;
   // Financial metrics
   contractValue: number;
   invoicedAmount: number;
   collectedAmount: number;
   outstandingAmount: number;
   paymentProgress: number;
+  paymentStatus: "Paid" | "Partially Paid" | "Unpaid" | "Overdue";
   // Invoices & Payments linked to this service
   invoices: {
     id: string;
@@ -221,7 +228,9 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       serviceAllocatedAmount = verifiedNonReversed.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
     }
 
-    const outstanding = Math.max(0, (invoicedTotal > 0 ? invoicedTotal : contractVal) - serviceAllocatedAmount);
+    // In the ex-GST service convention, service contract outstanding is contractVal - serviceAllocatedAmount
+    // while gross invoice balance is tracked separately on the invoice cards.
+    const outstanding = Math.max(0, contractVal - serviceAllocatedAmount);
     const paymentProgress = contractVal > 0 ? Math.min(100, Math.round((serviceAllocatedAmount / contractVal) * 100)) : 0;
 
     // Vendor info
@@ -239,6 +248,40 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       uploadedAt: d.created_at,
       status: "Received",
     }));
+
+    // Calculate service-level payment status based on associated invoices and payments
+    // Rules:
+    // - PAID: Total outstanding invoice balance = 0 and invoiced/contract total > 0.
+    // - PARTIALLY PAID: Amount paid > 0 but outstanding balance remains.
+    // - UNPAID: No payment has been allocated.
+    // - OVERDUE: When an unpaid/partially paid invoice has passed its due date.
+    let servicePaymentStatus: "Paid" | "Partially Paid" | "Unpaid" | "Overdue" = "Unpaid";
+    const nowStr = new Date().toISOString().split("T")[0];
+
+    const serviceTotalBillable = invoicedTotal > 0 ? invoicedTotal : contractVal;
+    const effectiveOutstanding = invoicedTotal > 0
+      ? matchingInvoices.reduce((sum, inv) => sum + (Number(inv.balanceDue) || 0), 0)
+      : outstanding;
+
+    const hasOverdueInvoice = matchingInvoices.some(
+      (inv) => inv.balanceDue > 0 && inv.dueDate && inv.dueDate < nowStr && inv.status !== "Paid"
+    );
+
+    if (serviceAllocatedAmount >= serviceTotalBillable - 0.01 && serviceTotalBillable > 0) {
+      servicePaymentStatus = "Paid";
+    } else if (serviceAllocatedAmount > 0.01) {
+      if (hasOverdueInvoice) {
+        servicePaymentStatus = "Overdue";
+      } else {
+        servicePaymentStatus = "Partially Paid";
+      }
+    } else {
+      if (hasOverdueInvoice) {
+        servicePaymentStatus = "Overdue";
+      } else {
+        servicePaymentStatus = "Unpaid";
+      }
+    }
 
     // Next Action
     const isCompleted = cs.service_status === "Completed";
@@ -316,6 +359,7 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       serviceName: cs.service_name,
       serviceCategory: cs.service_category || "General",
       serviceStatus: cs.service_status || "Pending",
+      assignedEmployeeId: cs.assigned_employee_id || null,
       assignedEmployeeName: cs.assigned_profile?.full_name || "Unassigned",
       serviceFee: Number(cs.service_fee) || 0,
       govtFee: Number(cs.govt_fee) || 0,
@@ -325,11 +369,16 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       expectedCompletionDate: cs.expected_completion_date,
       notes: cs.notes,
       vendorDetails: vendorNames || "None",
+      fulfillmentStages: cs.fulfillment_stages || null,
+      currentStageName: cs.current_stage_name || null,
+      currentStageDescription: cs.current_stage_description || null,
+      progressPercentage: cs.progress_percentage !== undefined && cs.progress_percentage !== null ? Number(cs.progress_percentage) : null,
       contractValue: contractVal,
       invoicedAmount: invoicedTotal,
       collectedAmount: serviceAllocatedAmount,
-      outstandingAmount: outstanding,
+      outstandingAmount: effectiveOutstanding,
       paymentProgress,
+      paymentStatus: servicePaymentStatus,
       invoices: matchingInvoices,
       payments: matchingPayments,
       documents: docs,

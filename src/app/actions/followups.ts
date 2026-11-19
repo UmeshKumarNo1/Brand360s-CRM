@@ -595,3 +595,57 @@ export async function updateFollowupStatusAction(
   revalidatePath("/dashboard");
   return { success: true };
 }
+
+/**
+ * Lightweight action to fetch only pending followups for clients next-action enrichment
+ * Avoids full profile joins, historical notes, completed items, and completers lookup.
+ */
+export async function fetchPendingClientFollowupsAction() {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("follow_ups")
+    .select("client_id, title, follow_up_type, due_date")
+    .eq("status", "Pending")
+    .order("due_date", { ascending: true });
+
+  if (error || !data) {
+    return {};
+  }
+
+  // Map first upcoming followup by client_id
+  const nextByClient: Record<string, { title: string; dueDate: string }> = {};
+  for (const f of data) {
+    if (f.client_id && !nextByClient[f.client_id]) {
+      nextByClient[f.client_id] = {
+        title: f.title || f.follow_up_type || "Follow-up required",
+        dueDate: f.due_date,
+      };
+    }
+  }
+
+  return nextByClient;
+}
+
+/**
+ * Highly optimized lightweight action to fetch only pending followups count
+ * for dashboard/clients header stats without fetching all rows.
+ */
+export async function fetchPendingFollowupsCountAction(): Promise<number> {
+  try {
+    const supabase = await createClient();
+    const { count, error } = await supabase
+      .from("follow_ups")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "Pending");
+
+    if (error) {
+      console.error("Error fetching pending followups count:", error);
+      return 0;
+    }
+    return count || 0;
+  } catch (err) {
+    console.error("Exception in fetchPendingFollowupsCountAction:", err);
+    return 0;
+  }
+}

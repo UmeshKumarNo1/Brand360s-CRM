@@ -11,6 +11,9 @@ export interface ClientServiceItem {
   assigned_employee_name?: string | null;
   stage?: string;
   progressPercent?: number;
+  fulfillment_stages?: any[] | null;
+  current_stage_name?: string | null;
+  current_stage_description?: string | null;
   paymentStatus?: 'Paid' | 'Partial' | 'Unpaid';
   amountPaid?: number;
 }

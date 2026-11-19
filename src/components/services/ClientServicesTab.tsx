@@ -24,6 +24,7 @@ import {
   Briefcase,
   Globe,
   User,
+  TrendingUp,
 } from "lucide-react";
 import {
   fetchClientServicesAction,
@@ -38,14 +39,19 @@ import { RenewServiceModal } from "@/components/renewals/RenewServiceModal";
 import { RenewalHistoryModal } from "@/components/renewals/RenewalHistoryModal";
 import { UploadServiceDeliverableModal } from "@/components/services/UploadServiceDeliverableModal";
 import { ServiceDocumentsModal } from "@/components/services/ServiceDocumentsModal";
+import { ServiceStageModal } from "@/components/services/ServiceStageModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 import { computeServiceFulfillment, FulfillmentStage } from "@/lib/services/fulfillment-workflows";
+import { ServiceFulfillmentTimeline } from "@/components/services/ServiceFulfillmentTimeline";
+import { InlineAssignEmployeeCell } from "@/components/services/InlineAssignEmployeeCell";
+import { TargetDateCell } from "@/components/services/TargetDateCell";
 
 interface ClientServicesTabProps {
   clientId: string;
   clientName: string;
   isAdmin: boolean;
+  canEdit?: boolean;
   initialAddService?: boolean;
 }
 
@@ -53,6 +59,7 @@ export function ClientServicesTab({
   clientId,
   clientName,
   isAdmin,
+  canEdit = true,
   initialAddService,
 }: ClientServicesTabProps) {
   const [services, setServices] = useState<any[]>([]);
@@ -68,6 +75,7 @@ export function ClientServicesTab({
   const [historyModalService, setHistoryModalService] = useState<any | null>(null);
   const [deliverableModalService, setDeliverableModalService] = useState<any | null>(null);
   const [documentsModalService, setDocumentsModalService] = useState<any | null>(null);
+  const [stageModalServiceId, setStageModalServiceId] = useState<string | null>(null);
 
   const { success, error: toastError } = useToast();
   const requestIdRef = useRef(0);
@@ -290,9 +298,17 @@ export function ClientServicesTab({
                               <ServiceIcon size={14} />
                             </div>
                             <div className="min-w-0">
-                              <span className="font-bold text-slate-900 block leading-tight text-xs truncate" title={s.service_name}>
-                                {s.service_name}
-                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setDocumentsModalService(s)}
+                                className="font-bold text-slate-900 block leading-tight text-xs truncate hover:text-[#077EA1] hover:underline cursor-pointer group text-left"
+                                title={`View details for ${s.service_name}`}
+                              >
+                                <span className="inline-flex items-center gap-1">
+                                  <span>{s.service_name}</span>
+                                  <ExternalLink size={11} className="text-slate-400 group-hover:text-[#077EA1] shrink-0" />
+                                </span>
+                              </button>
                               <span className="text-[10px] text-slate-400 block truncate leading-tight mt-0.5" title={s.service_category || "General"}>
                                 ({s.service_category || "General"})
                               </span>
@@ -338,61 +354,27 @@ export function ClientServicesTab({
                         </td>
 
                         {/* 4. Fulfillment Progress (Horizontal Milestone Tracker matching Reference Image 2) */}
-                        <td className="py-3 px-3 align-middle">
-                          <div className="flex items-center justify-between w-full max-w-[340px] mx-auto relative">
-                            {fulfillment.stages.map((stage, sIdx) => {
-                              const isCompleted = stage.status === "completed";
-                              const isCurrent = stage.status === "current";
-                              const isLast = sIdx === fulfillment.stages.length - 1;
-
-                              return (
-                                <div key={stage.name} className="flex-1 flex flex-col items-center relative group">
-                                  {/* Milestone Node */}
-                                  <div className="relative z-10 flex items-center justify-center">
-                                    {isCompleted ? (
-                                      <div className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-2xs">
-                                        <CheckCircle2 size={12} className="stroke-[3]" />
-                                      </div>
-                                    ) : isCurrent ? (
-                                      <div className="w-4 h-4 rounded-full bg-white border-2 border-blue-600 text-blue-600 flex items-center justify-center ring-2 ring-blue-100 shadow-2xs">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                                      </div>
-                                    ) : (
-                                      <div className="w-3.5 h-3.5 rounded-full bg-white border border-slate-300" />
-                                    )}
-                                  </div>
-
-                                  {/* Connector Line to next stage */}
-                                  {!isLast && (
-                                    <div
-                                      className={cn(
-                                        "absolute top-2 left-1/2 w-full h-[2px] -z-0",
-                                        isCompleted ? "bg-emerald-500" : isCurrent ? "bg-blue-300" : "bg-slate-200"
-                                      )}
-                                    />
-                                  )}
-
-                                  {/* Milestone Label */}
-                                  <span
-                                    className={cn(
-                                      "text-[9px] mt-1 text-center font-medium leading-tight whitespace-nowrap",
-                                      isCompleted
-                                        ? "text-slate-700"
-                                        : isCurrent
-                                        ? "text-blue-700 font-bold"
-                                        : "text-slate-400"
-                                    )}
-                                  >
-                                    {stage.name}
-                                  </span>
-                                </div>
-                              );
-                            })}
+                        <td
+                          onClick={() => setStageModalServiceId(s.id)}
+                          className="py-3 px-3 align-middle cursor-pointer hover:bg-sky-50/50 transition-colors"
+                          title="Click to manage service fulfillment stages"
+                        >
+                          <div className="w-full max-w-[340px] mx-auto">
+                            <ServiceFulfillmentTimeline
+                              stages={fulfillment.stages}
+                              currentStageName={fulfillment.currentStageName}
+                              progressPercentage={fulfillment.progressPercentage}
+                              size="sm"
+                            />
                           </div>
                         </td>
 
                         {/* 5. Progress % Indicator */}
-                        <td className="py-3 px-2 align-middle text-center whitespace-nowrap">
+                        <td
+                          onClick={() => setStageModalServiceId(s.id)}
+                          className="py-3 px-2 align-middle text-center whitespace-nowrap cursor-pointer hover:bg-sky-50/50 transition-colors"
+                          title="Click to manage stage"
+                        >
                           <span
                             className={cn(
                               "inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold font-sans font-number",
@@ -410,8 +392,12 @@ export function ClientServicesTab({
                         </td>
 
                         {/* 6. Current Stage Column */}
-                        <td className="py-3 px-2.5 align-middle">
-                          <span className="font-bold text-slate-800 block text-xs leading-tight">
+                        <td
+                          onClick={() => setStageModalServiceId(s.id)}
+                          className="py-3 px-2.5 align-middle cursor-pointer hover:bg-sky-50/50 transition-colors"
+                          title="Click to manage stage"
+                        >
+                          <span className="font-bold text-slate-800 block text-xs leading-tight hover:text-[#0481A2]">
                             {fulfillment.currentStageName}
                           </span>
                           {fulfillment.currentStageDescription && (
@@ -423,20 +409,26 @@ export function ClientServicesTab({
 
                         {/* 7. Assigned To Column */}
                         <td className="py-3 px-2.5 align-middle text-slate-700 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5 text-xs">
-                            <User size={13} className="text-blue-600 shrink-0" />
-                            <span className="font-medium truncate max-w-[100px]" title={employeeName}>
-                              {employeeName}
-                            </span>
-                          </div>
+                          <InlineAssignEmployeeCell
+                            serviceId={s.id}
+                            clientId={clientId}
+                            assignedEmployeeId={s.assigned_employee_id}
+                            assignedEmployeeName={employeeName}
+                            editable={canEdit}
+                            onUpdated={() => loadData(true)}
+                          />
                         </td>
 
                         {/* 8. Due Date Column */}
                         <td className="py-3 px-2.5 align-middle text-slate-600 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5 text-xs font-sans font-number">
-                            <Calendar size={13} className="text-rose-500 shrink-0" />
-                            <span>{formatDate(s.expected_completion_date)}</span>
-                          </div>
+                          <TargetDateCell
+                            serviceId={s.id}
+                            clientId={clientId}
+                            initialDate={s.expected_completion_date}
+                            isCompleted={s.service_status === "Completed"}
+                            editable={canEdit}
+                            onDateUpdated={() => loadData(true)}
+                          />
                         </td>
 
                         {/* 9. Status Column */}
@@ -466,6 +458,18 @@ export function ClientServicesTab({
                               ref={actionMenuRef}
                               className="absolute right-3 top-8 z-30 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 text-left text-xs animate-in fade-in-50"
                             >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionMenuId(null);
+                                  setStageModalServiceId(s.id);
+                                }}
+                                className="w-full px-3 py-1.5 text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer font-medium text-[#0481A2]"
+                              >
+                                <TrendingUp size={13} className="text-[#0481A2]" />
+                                <span>Manage Fulfillment Stages</span>
+                              </button>
+
                               <button
                                 type="button"
                                 onClick={() => {
@@ -645,6 +649,15 @@ export function ClientServicesTab({
           serviceStatus={documentsModalService.service_status}
         />
       )}
+      {/* Service Fulfillment Stage Management Modal */}
+      <ServiceStageModal
+        isOpen={Boolean(stageModalServiceId)}
+        onClose={() => setStageModalServiceId(null)}
+        serviceId={stageModalServiceId}
+        onSuccess={() => {
+          loadData(true);
+        }}
+      />
     </div>
   );
 }

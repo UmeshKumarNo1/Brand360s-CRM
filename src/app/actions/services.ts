@@ -6,10 +6,24 @@ import { revalidatePath } from "next/cache";
 import { autoGenerateInvoiceForClientAction } from "@/app/actions/invoices";
 import { uploadClientServiceDocumentAction } from "@/app/actions/documents";
 import { syncClientContractValueAction } from "@/app/actions/client-reconciliation";
+import { verifyAdminSession, recordAuditLog } from "@/lib/audit/audit-logger";
 
 export interface ServiceActionState {
   error?: string | null;
   success?: boolean;
+}
+
+export interface ServiceDeletionEligibility {
+  canDelete: boolean;
+  ruleCategory: "NO_FINANCIALS" | "DRAFT_ONLY" | "ISSUED_INVOICE" | "PAYMENTS_OR_ALLOCS";
+  reason: string;
+  serviceId: string;
+  serviceName: string;
+  clientId: string;
+  draftInvoicesCount: number;
+  issuedInvoicesCount: number;
+  allocationsCount: number;
+  allocatedTotal: number;
 }
 
 export async function fetchServicesCatalogAction() {
@@ -177,12 +191,33 @@ export async function fetchClientServicesAction(clientId: string) {
     // Also fetch invoice items linked to client services
     const { data: invoiceItems } = await supabase
       .from("invoice_items")
-      .select("id, client_service_id, total");
+      .select("id, invoice_id, client_service_id, total");
 
+    const invoiceToServiceMap: Record<string, string> = {};
     (invoiceItems || []).forEach((item: any) => {
       if (item.client_service_id && serviceIds.includes(item.client_service_id)) {
         invoicedByService[item.client_service_id] =
           (invoicedByService[item.client_service_id] || 0) + (Number(item.total) || 0);
+        if (item.invoice_id) {
+          invoiceToServiceMap[item.invoice_id] = item.client_service_id;
+        }
+      }
+    });
+
+    // Check allocations where client_service_id might be null but invoice has a linked service
+    const { data: allClientAllocs } = await supabase
+      .from("invoice_payment_allocations")
+      .select("invoice_id, client_service_id, allocated_amount");
+
+    (allClientAllocs || []).forEach((a: any) => {
+      if (!a.client_service_id && a.invoice_id && invoiceToServiceMap[a.invoice_id]) {
+        const resolvedSvcId = invoiceToServiceMap[a.invoice_id];
+        if (serviceIds.includes(resolvedSvcId)) {
+          const currentDirect = paidByService[resolvedSvcId] || 0;
+          if (currentDirect === 0) {
+            paidByService[resolvedSvcId] = (paidByService[resolvedSvcId] || 0) + (Number(a.allocated_amount) || 0);
+          }
+        }
       }
     });
   }
@@ -193,7 +228,8 @@ export async function fetchClientServicesAction(clientId: string) {
     const invoicedAmt = invoicedByService[s.id] || contractVal;
 
     let paymentStatus: "Paid" | "Partial" | "Unpaid" = "Unpaid";
-    if (contractVal > 0 && amountPaid >= contractVal - 0.009) {
+    const billableTarget = invoicedAmt > 0 ? invoicedAmt : contractVal;
+    if (billableTarget > 0 && amountPaid >= billableTarget - 0.009) {
       paymentStatus = "Paid";
     } else if (amountPaid > 0.009) {
       paymentStatus = "Partial";
@@ -555,3 +591,326 @@ export async function updateClientServiceDueDateAction(
   revalidatePath("/reports");
   return { success: true };
 }
+
+/**
+ * Assigns or unassigns an employee to a client service.
+ * Supports passing null to clear assignment.
+ */
+export async function assignClientServiceEmployeeAction(
+  serviceId: string,
+  employeeId: string | null,
+  clientId?: string
+): Promise<ServiceActionState> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Authentication required." };
+
+  if (!serviceId) {
+    return { error: "Service ID is required." };
+  }
+
+  // Update assigned_employee_id
+  const { error } = await supabase
+    .from("client_services")
+    .update({
+      assigned_employee_id: employeeId || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", serviceId);
+
+  if (error) {
+    console.error("Error assigning employee to client service:", error);
+    return { error: error.message };
+  }
+
+  if (clientId) {
+    revalidatePath(`/clients/${clientId}`);
+  }
+  revalidatePath("/clients");
+  revalidatePath("/services");
+  revalidatePath("/reports");
+  return { success: true };
+}
+
+/**
+ * Checks whether an individual client service is eligible for deletion
+ * Implements Cases A, B, C, D
+ */
+export async function checkServiceDeletionEligibilityAction(
+  serviceId: string
+): Promise<ServiceDeletionEligibility> {
+  const supabase = await createClient();
+
+  // Try RPC first
+  const { data: rpcData, error: rpcError } = await supabase.rpc("check_service_deletion_eligibility", {
+    p_service_id: serviceId,
+  });
+
+  if (!rpcError && rpcData && rpcData.success) {
+    return {
+      canDelete: Boolean(rpcData.canDelete),
+      ruleCategory: rpcData.ruleCategory,
+      reason: rpcData.reason,
+      serviceId: rpcData.serviceId,
+      serviceName: rpcData.serviceName,
+      clientId: rpcData.clientId,
+      draftInvoicesCount: Number(rpcData.draftInvoicesCount) || 0,
+      issuedInvoicesCount: Number(rpcData.issuedInvoicesCount) || 0,
+      allocationsCount: Number(rpcData.allocationsCount) || 0,
+      allocatedTotal: Number(rpcData.allocatedTotal) || 0,
+    };
+  }
+
+  // Graceful server-side fallback
+  const { data: service, error: sErr } = await supabase
+    .from("client_services")
+    .select("id, client_id, service_name")
+    .eq("id", serviceId)
+    .single();
+
+  if (sErr || !service) {
+    return {
+      canDelete: false,
+      ruleCategory: "PAYMENTS_OR_ALLOCS",
+      reason: "Service not found.",
+      serviceId,
+      serviceName: "Unknown Service",
+      clientId: "",
+      draftInvoicesCount: 0,
+      issuedInvoicesCount: 0,
+      allocationsCount: 0,
+      allocatedTotal: 0,
+    };
+  }
+
+  // Check payment allocations
+  const { data: allocs } = await supabase
+    .from("invoice_payment_allocations")
+    .select("id, allocated_amount")
+    .eq("client_service_id", serviceId);
+
+  const allocationsCount = allocs?.length || 0;
+  const allocatedTotal = (allocs || []).reduce((sum, a) => sum + (Number(a.allocated_amount) || 0), 0);
+
+  // Check invoice items
+  const { data: items } = await supabase
+    .from("invoice_items")
+    .select("id, invoice:invoices!invoice_id (id, status, invoice_number)")
+    .eq("client_service_id", serviceId);
+
+  let draftInvoicesCount = 0;
+  let issuedInvoicesCount = 0;
+
+  (items || []).forEach((it: any) => {
+    const inv = it.invoice;
+    if (!inv) return;
+    if (inv.status === "Draft") {
+      draftInvoicesCount++;
+    } else if (inv.status !== "Cancelled") {
+      issuedInvoicesCount++;
+    }
+  });
+
+  if (allocationsCount > 0 || allocatedTotal > 0) {
+    return {
+      canDelete: false,
+      ruleCategory: "PAYMENTS_OR_ALLOCS",
+      reason: `This service has recorded payment allocations (₹${allocatedTotal.toLocaleString("en-IN")}). Permanent deletion is blocked to preserve financial receipts and tax audit history.`,
+      serviceId,
+      serviceName: service.service_name,
+      clientId: service.client_id,
+      draftInvoicesCount,
+      issuedInvoicesCount,
+      allocationsCount,
+      allocatedTotal,
+    };
+  }
+
+  if (issuedInvoicesCount > 0) {
+    return {
+      canDelete: false,
+      ruleCategory: "ISSUED_INVOICE",
+      reason: `This service is linked to ${issuedInvoicesCount} issued tax invoice(s). Permanent deletion is blocked to maintain sequential numbering and compliance.`,
+      serviceId,
+      serviceName: service.service_name,
+      clientId: service.client_id,
+      draftInvoicesCount,
+      issuedInvoicesCount,
+      allocationsCount: 0,
+      allocatedTotal: 0,
+    };
+  }
+
+  if (draftInvoicesCount > 0) {
+    return {
+      canDelete: true,
+      ruleCategory: "DRAFT_ONLY",
+      reason: `This service has ${draftInvoicesCount} unissued draft invoice(s). Deleting it will safely purge unissued draft items without affecting issued financial records.`,
+      serviceId,
+      serviceName: service.service_name,
+      clientId: service.client_id,
+      draftInvoicesCount,
+      issuedInvoicesCount,
+      allocationsCount: 0,
+      allocatedTotal: 0,
+    };
+  }
+
+  return {
+    canDelete: true,
+    ruleCategory: "NO_FINANCIALS",
+    reason: "This service has no invoices or payments. It can be safely and permanently deleted.",
+    serviceId,
+    serviceName: service.service_name,
+    clientId: service.client_id,
+    draftInvoicesCount: 0,
+    issuedInvoicesCount: 0,
+    allocationsCount: 0,
+    allocatedTotal: 0,
+  };
+}
+
+/**
+ * Safely deletes an individual client service (Admin only)
+ * Recalculates client contract values and updates services_purchased string.
+ */
+export async function deleteClientServiceAction(
+  serviceId: string
+): Promise<{ success: boolean; error?: string; clientId?: string }> {
+  const { authorized, error: authError, user, profile } = await verifyAdminSession();
+  if (!authorized) {
+    return { success: false, error: authError || "Only an authorized Admin can delete services." };
+  }
+
+  const supabase = await createClient();
+
+  // Pre-flight check
+  const check = await checkServiceDeletionEligibilityAction(serviceId);
+  if (!check.canDelete) {
+    return { success: false, error: check.reason };
+  }
+
+  // 1. Try atomic database RPC
+  const { data: rpcRes, error: rpcErr } = await supabase.rpc("safe_delete_client_service", {
+    p_service_id: serviceId,
+  });
+
+  if (!rpcErr && rpcRes) {
+    if (!rpcRes.success) {
+      return { success: false, error: rpcRes.error || "Failed to delete service." };
+    }
+
+    await recordAuditLog({
+      actorId: user?.id,
+      action: "DELETE",
+      entityType: "client_service",
+      entityId: serviceId,
+      entityName: check.serviceName,
+      details: {
+        client_id: check.clientId,
+        deleted_by_name: profile?.full_name,
+        rule_category: check.ruleCategory,
+      },
+    });
+
+    if (check.clientId) {
+      revalidatePath(`/clients/${check.clientId}`);
+    }
+    revalidatePath("/clients");
+    revalidatePath("/services");
+    revalidatePath("/dashboard");
+    return { success: true, clientId: check.clientId };
+  }
+
+  // 2. Fallback: Transaction-like server steps
+  try {
+    // If draft only, clean up draft line items & draft invoices
+    if (check.ruleCategory === "DRAFT_ONLY") {
+      const { data: draftItems } = await supabase
+        .from("invoice_items")
+        .select("id, invoice_id")
+        .eq("client_service_id", serviceId);
+
+      const draftItemIds = (draftItems || []).map((i) => i.id);
+      const draftInvoiceIds = Array.from(new Set((draftItems || []).map((i) => i.invoice_id)));
+
+      if (draftItemIds.length > 0) {
+        await supabase.from("invoice_items").delete().in("id", draftItemIds);
+      }
+
+      // If draft invoices have no items left, remove them
+      for (const invId of draftInvoiceIds) {
+        const { count } = await supabase
+          .from("invoice_items")
+          .select("id", { count: "exact", head: true })
+          .eq("invoice_id", invId);
+
+        if (count === 0) {
+          await supabase.from("invoices").delete().eq("id", invId).eq("status", "Draft");
+        }
+      }
+    }
+
+    // Dependent non-financial records
+    await supabase.from("service_stage_history").delete().eq("client_service_id", serviceId);
+    await supabase.from("documents").delete().eq("client_service_id", serviceId);
+    await supabase.from("service_vendors").delete().eq("client_service_id", serviceId);
+    await supabase.from("renewals").delete().eq("client_service_id", serviceId);
+
+    // Delete client service
+    const { error: delErr } = await supabase
+      .from("client_services")
+      .delete()
+      .eq("id", serviceId);
+
+    if (delErr) {
+      return { success: false, error: delErr.message };
+    }
+
+    // Sync client contract value and services_purchased
+    if (check.clientId) {
+      await syncClientContractValueAction(check.clientId);
+
+      const { data: remainingServices } = await supabase
+        .from("client_services")
+        .select("service_name")
+        .eq("client_id", check.clientId);
+
+      const updatedStr = (remainingServices && remainingServices.length > 0)
+        ? Array.from(new Set(remainingServices.map((s) => s.service_name))).join(", ")
+        : null;
+
+      await supabase
+        .from("clients")
+        .update({ services_purchased: updatedStr })
+        .eq("id", check.clientId);
+    }
+
+    await recordAuditLog({
+      actorId: user?.id,
+      action: "DELETE",
+      entityType: "client_service",
+      entityId: serviceId,
+      entityName: check.serviceName,
+      details: {
+        client_id: check.clientId,
+        deleted_by_name: profile?.full_name,
+        rule_category: check.ruleCategory,
+      },
+    });
+
+    if (check.clientId) {
+      revalidatePath(`/clients/${check.clientId}`);
+    }
+    revalidatePath("/clients");
+    revalidatePath("/services");
+    revalidatePath("/dashboard");
+
+    return { success: true, clientId: check.clientId };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Failed to complete service deletion." };
+  }
+}
+
+

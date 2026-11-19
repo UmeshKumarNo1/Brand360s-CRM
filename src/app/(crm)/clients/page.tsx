@@ -8,14 +8,15 @@ import { ClientFilters } from "@/components/clients/ClientFilters";
 import { ClientsTable } from "@/components/clients/ClientsTable";
 import { ClientPagination } from "@/components/clients/ClientPagination";
 import { ClientRecord, ClientServiceItem, MOCK_CLIENTS } from "@/data/mockClients";
-import { fetchClientsAction, fetchSalespeopleAction } from "@/app/actions/clients";
-import { fetchFollowupsAction } from "@/app/actions/followups";
+import { fetchClientsAction, fetchSalespeopleAction, fetchClientsKpiSummaryAction } from "@/app/actions/clients";
+import { fetchPendingClientFollowupsAction, fetchPendingFollowupsCountAction } from "@/app/actions/followups";
 import { fetchActiveServicesCountAction } from "@/app/actions/services";
 import {
   deleteClientAction,
   archiveClientAction,
   restoreClientAction,
   checkClientDependenciesAction,
+  voidInvoicesAndArchiveClientAction,
   bulkArchiveClientsAction,
   bulkRestoreClientsAction,
   DeleteClientCheckResult,
@@ -24,14 +25,17 @@ import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationModal";
 import { ReassignClientModal } from "@/components/clients/ReassignClientModal";
 import { ScanDuplicatesModal } from "@/components/clients/ScanDuplicatesModal";
+import { ClientsTableSkeleton } from "@/components/clients/ClientsTableSkeleton";
 import { useToast } from "@/components/common/ToastProvider";
 import { RefreshCw, Users, Archive, RotateCcw, Trash2, UserCheck, Layers } from "lucide-react";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
+import { computeServiceFulfillment } from "@/lib/services/fulfillment-workflows";
 
 export default function ClientsPage() {
   const router = useRouter();
   const [dbClients, setDbClients] = useState<ClientRecord[]>(MOCK_CLIENTS);
   const [isLoading, setIsLoading] = useState(true);
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -56,6 +60,7 @@ export default function ClientsPage() {
   const [scanModalOpen, setScanModalOpen] = useState(false);
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedSalesperson, setSelectedSalesperson] = useState("All");
   const [selectedService, setSelectedService] = useState("All");
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState("All");
@@ -63,6 +68,24 @@ export default function ClientsPage() {
   const [salespeopleList, setSalespeopleList] = useState<{ id: string; full_name: string }[]>([]);
   const [pendingFollowupsCount, setPendingFollowupsCount] = useState<number>(0);
   const [activeServicesCount, setActiveServicesCount] = useState<number>(0);
+
+  // Server stats state for instant KPI card loading
+  const [kpiStats, setKpiStats] = useState({
+    totalNonArchived: 0,
+    activeOperationalCount: 0,
+    archivedCount: 0,
+    totalContractValue: 0,
+    amountCollected: 0,
+    totalOutstanding: 0,
+  });
+
+  // Debounce search input by 250ms to eliminate recalculations on rapid typing
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 250);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
 
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -79,31 +102,47 @@ export default function ClientsPage() {
     });
   }, []);
 
+  // Fast independent fetch for top KPI cards & counts
+  const loadKpiStats = useCallback(async () => {
+    setIsStatsLoading(true);
+    try {
+      const [kpis, pendingCount, servicesCount] = await Promise.all([
+        fetchClientsKpiSummaryAction(),
+        fetchPendingFollowupsCountAction(),
+        fetchActiveServicesCountAction(),
+      ]);
+
+      if (kpis) {
+        setKpiStats(kpis);
+      }
+      if (typeof pendingCount === "number") {
+        setPendingFollowupsCount(pendingCount);
+      }
+      if (typeof servicesCount === "number") {
+        setActiveServicesCount(servicesCount);
+      }
+    } catch (e) {
+      console.error("Error loading KPI summary:", e);
+    } finally {
+      setIsStatsLoading(false);
+    }
+  }, []);
+
   const loadData = useCallback(async () => {
     const currentReqId = ++requestIdRef.current;
     setIsLoading(true);
     setErrorMessage(null);
 
     try {
-      const [records, spList, followups, servicesCount] = await Promise.all([
+      const [records, spList, pendingFollowupsMap] = await Promise.all([
         fetchClientsAction(),
         fetchSalespeopleAction(),
-        fetchFollowupsAction(),
-        fetchActiveServicesCountAction(),
+        fetchPendingClientFollowupsAction(),
       ]);
 
       if (currentReqId === requestIdRef.current) {
-        if (typeof servicesCount === "number") {
-          setActiveServicesCount(servicesCount);
-        }
-
         if (spList && Array.isArray(spList)) {
           setSalespeopleList(spList.map((s: any) => ({ id: s.id, full_name: s.full_name })));
-        }
-
-        if (followups && Array.isArray(followups)) {
-          const pending = followups.filter((f: any) => f.status === "Pending" && f.clientStatus !== "Archived").length;
-          setPendingFollowupsCount(pending);
         }
 
         if (records && records.length > 0) {
@@ -118,32 +157,11 @@ export default function ClientsPage() {
                   Number(s.total_amount) ||
                   (Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0);
                 const status = s.service_status || "Pending";
-                let progress = 20;
-                let stageText = "Onboarding";
-                let payStatus: "Paid" | "Partial" | "Unpaid" = "Unpaid";
-                let amtPaid = 0;
-
-                if (status === "Completed") {
-                  progress = 100;
-                  stageText = "Completed";
-                  payStatus = "Paid";
-                  amtPaid = totalAmt;
-                } else if (status === "In Progress" || status === "Processing") {
-                  progress = 50;
-                  stageText = "Preparation (Work in progress)";
-                  payStatus = totalAmt > 0 ? "Partial" : "Unpaid";
-                  amtPaid = Math.round(totalAmt * 0.5);
-                } else if (status === "Filing") {
-                  progress = 75;
-                  stageText = "Filing (In review)";
-                  payStatus = "Partial";
-                  amtPaid = Math.round(totalAmt * 0.75);
-                } else {
-                  progress = 20;
-                  stageText = "Onboarding (Pending)";
-                  payStatus = "Unpaid";
-                  amtPaid = 0;
-                }
+                
+                // Compute true fulfillment progress from persistent stages
+                const fulfillment = computeServiceFulfillment(s);
+                const progress = fulfillment.progressPercentage;
+                const stageText = fulfillment.currentStageName;
 
                 return {
                   id: s.id,
@@ -158,8 +176,11 @@ export default function ClientsPage() {
                   assigned_employee_name: s.assigned_profile?.full_name || null,
                   stage: stageText,
                   progressPercent: progress,
-                  paymentStatus: payStatus,
-                  amountPaid: amtPaid,
+                  fulfillment_stages: s.fulfillment_stages || fulfillment.stages,
+                  current_stage_name: s.current_stage_name || fulfillment.currentStageName,
+                  current_stage_description: s.current_stage_description || fulfillment.currentStageDescription,
+                  paymentStatus: s.paymentStatus || (status === "Completed" ? "Paid" : "Unpaid"),
+                  amountPaid: s.amountPaid || 0,
                 };
               });
             } else if (r.services_purchased) {
@@ -211,20 +232,16 @@ export default function ClientsPage() {
                   ? 100
                   : 0;
 
-            // Next follow-up lookup
-            const clientFollowups = Array.isArray(followups)
-              ? followups.filter(
-                (f: any) =>
-                  (f.clientId === r.id || f.client_id === r.id) &&
-                  f.status === "Pending"
-              )
-              : [];
-            const nextFollowup = clientFollowups[0];
-            const nextActionTitle = nextFollowup
-              ? nextFollowup.title || nextFollowup.followUpType || "Follow-up required"
-              : undefined;
-            const nextActionDueDate = nextFollowup?.dueDate || undefined;
+// Direct O(1) next follow-up lookup
+const nextFollowup = pendingFollowupsMap
+  ? pendingFollowupsMap[r.id]
+  : undefined;
 
+const nextActionTitle = nextFollowup
+  ? nextFollowup.title || nextFollowup.followUpType || "Follow-up required"
+  : undefined;
+
+const nextActionDueDate = nextFollowup?.dueDate || undefined;
             return {
               id: r.id,
               no: idx + 1,
@@ -283,8 +300,9 @@ export default function ClientsPage() {
   }, []);
 
   useEffect(() => {
+    loadKpiStats();
     loadData();
-  }, [loadData]);
+  }, [loadKpiStats, loadData]);
 
   // Open delete / archive modal after running pre-flight dependency check
   const handleOpenDelete = async (client: ClientRecord) => {
@@ -316,6 +334,17 @@ export default function ClientsPage() {
       loadData();
     } else {
       throw new Error(res.error || "Failed to archive client.");
+    }
+  };
+
+  const handleVoidAndArchiveClient = async () => {
+    if (!selectedClientForDelete) return;
+    const res = await voidInvoicesAndArchiveClientAction(selectedClientForDelete.id, "Voided and archived from clients list");
+    if (res.success) {
+      success("Invoices Voided & Client Archived", `${selectedClientForDelete.companyName} invoices were marked as Cancelled and client was archived.`);
+      loadData();
+    } else {
+      throw new Error(res.error || "Failed to void invoices and archive client.");
     }
   };
 
@@ -393,6 +422,7 @@ export default function ClientsPage() {
 
   // Filter Logic: separate active vs archived clients
   const filteredClients = useMemo(() => {
+    const query = debouncedSearchQuery.toLowerCase().trim();
     return dbClients.filter((client) => {
       // Tab filter
       const isArchived = client.clientStatus === "Archived";
@@ -400,8 +430,7 @@ export default function ClientsPage() {
       if (clientTab === "archived" && !isArchived) return false;
 
       // Search across company, trade name, contact, phone, email, client code, salesperson
-      if (searchQuery.trim() !== "") {
-        const query = searchQuery.toLowerCase().trim();
+      if (query !== "") {
         const matchesName = client.companyName?.toLowerCase().includes(query);
         const matchesTrade = client.tradeName?.toLowerCase().includes(query);
         const matchesContact = client.contactPerson?.toLowerCase().includes(query);
@@ -437,7 +466,7 @@ export default function ClientsPage() {
       }
       return true;
     });
-  }, [dbClients, clientTab, searchQuery, selectedSalesperson, selectedService, selectedPaymentStatus, selectedClientStatus]);
+  }, [dbClients, clientTab, debouncedSearchQuery, selectedSalesperson, selectedService, selectedPaymentStatus, selectedClientStatus]);
 
   const totalPages = Math.ceil(filteredClients.length / pageSize) || 1;
   const paginatedClients = useMemo(() => {
@@ -476,21 +505,34 @@ export default function ClientsPage() {
     setSelectedIds([]);
   };
 
-  const totalNonArchived = dbClients.filter((c) => c.clientStatus !== "Archived").length;
-  const activeOperationalCount = dbClients.filter((c) => c.clientStatus === "Active").length;
-  const archivedCount = dbClients.filter((c) => c.clientStatus === "Archived").length;
+  // Use real-time kpiStats (fast loaded) or compute from loaded dbClients if available
+  const totalNonArchived = dbClients.length > 0 
+    ? dbClients.filter((c) => c.clientStatus !== "Archived").length 
+    : kpiStats.totalNonArchived;
+  const activeOperationalCount = dbClients.length > 0
+    ? dbClients.filter((c) => c.clientStatus === "Active").length
+    : kpiStats.activeOperationalCount;
+  const archivedCount = dbClients.length > 0
+    ? dbClients.filter((c) => c.clientStatus === "Archived").length
+    : kpiStats.archivedCount;
 
-  const totalContractValueNumber = dbClients
-    .filter((c) => c.clientStatus !== "Archived")
-    .reduce((acc, c) => acc + (c.contractValue || 0), 0);
+  const totalContractValueNumber = dbClients.length > 0
+    ? dbClients
+        .filter((c) => c.clientStatus !== "Archived")
+        .reduce((acc, c) => acc + (c.contractValue || 0), 0)
+    : kpiStats.totalContractValue;
 
-  const amountCollectedNumber = dbClients
-    .filter((c) => c.clientStatus !== "Archived")
-    .reduce((acc, c) => acc + (c.paymentsReceived || 0), 0);
+  const amountCollectedNumber = dbClients.length > 0
+    ? dbClients
+        .filter((c) => c.clientStatus !== "Archived")
+        .reduce((acc, c) => acc + (c.paymentsReceived || 0), 0)
+    : kpiStats.amountCollected;
 
-  const totalOutstandingNumber = dbClients
-    .filter((c) => c.clientStatus !== "Archived")
-    .reduce((acc, c) => acc + (c.balanceReceivable || 0), 0);
+  const totalOutstandingNumber = dbClients.length > 0
+    ? dbClients
+        .filter((c) => c.clientStatus !== "Archived")
+        .reduce((acc, c) => acc + (c.balanceReceivable || 0), 0)
+    : kpiStats.totalOutstanding;
 
   const formatCompactINR = (amount: number) => {
     if (amount >= 10000000) {
@@ -523,6 +565,7 @@ export default function ClientsPage() {
         amountCollected={formatCompactINR(amountCollectedNumber)}
         totalOutstanding={formatCompactINR(totalOutstandingNumber)}
         pendingFollowups={pendingFollowupsCount}
+        isLoading={isStatsLoading && dbClients.length === 0}
       />
 
       {/* Tabs: Active vs Archived Portfolio */}
@@ -638,10 +681,7 @@ export default function ClientsPage() {
       {!errorMessage && (
         <>
           {isLoading ? (
-            <div className="bg-white border border-[#E2E8F0] rounded-2xl p-12 text-center shadow-xs flex flex-col items-center justify-center gap-3">
-              <RefreshCw size={24} className="animate-spin text-[#0481A2]" />
-              <p className="text-xs text-slate-500 font-medium">Loading client portfolio...</p>
-            </div>
+            <ClientsTableSkeleton rows={pageSize > 10 ? 10 : pageSize} />
           ) : (
             <ClientsTable
               clients={paginatedClients}
@@ -650,6 +690,7 @@ export default function ClientsPage() {
               onArchiveClient={handleOpenDelete}
               onRestoreClient={handleRestoreClient}
               onReassignClient={handleOpenReassign}
+              onRefresh={loadData}
             />
           )}
 
@@ -687,7 +728,8 @@ export default function ClientsPage() {
             depCheck && !depCheck.canDelete
               ? depCheck.reason ||
               "This client has invoices or payments recorded. To preserve financial history, deletion is blocked. Please archive the client instead."
-              : "Permanently deleting this client will remove their record from the CRM. This action cannot be undone."
+              : depCheck?.reason ||
+              "Permanently deleting this client will remove their record from the CRM. This action cannot be undone."
           }
           isArchivingOnly={depCheck ? !depCheck.canDelete : false}
           archiveOption={{
@@ -695,6 +737,8 @@ export default function ClientsPage() {
             onArchive: handleArchiveClient,
           }}
           requireMatchInput={depCheck ? depCheck.canDelete : false}
+          depCheck={depCheck}
+          onVoidAndArchive={handleVoidAndArchiveClient}
         />
       )}
 

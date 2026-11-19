@@ -163,7 +163,7 @@ export function ClientDetailedServiceCard({
 
       {/* 2. Expanded Body Section */}
       {isExpanded && (
-        <div className="pt-6 px-7 pb-8 space-y-6 bg-white">
+        <div className="pt-7 px-8 pb-9 space-y-7 bg-white">
           {/* Top 3-Column Layout: Commercial Details, Fulfillment Progress, Payment Summary */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
             {/* A. Service & Commercial Details (4 Cols) */}
@@ -392,7 +392,7 @@ export function ClientDetailedServiceCard({
                               className={cn(
                                 "px-2.5 py-0.5 rounded-full text-[10px] font-semibold",
                                 inv.status === "Paid"
-                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                   : "bg-rose-50 text-rose-700 border border-rose-200"
                               )}
                             >

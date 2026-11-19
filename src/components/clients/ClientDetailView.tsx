@@ -417,7 +417,7 @@ export function ClientDetailView({
           }`}
         >
           <Layers size={15} />
-          <span>Services ({serviceCount})</span>
+          <span>Services ({detailedServices.length || serviceCount})</span>
         </button>
 
         <button
@@ -470,7 +470,7 @@ export function ClientDetailView({
       </div>
 
       {/* Tab Panels */}
-      <div className="pt-3">
+      <div className="pt-1">
         {activeTab === "services" && (
           <div className="space-y-6 pt-1">
             {/* Header Bar matching Reference Image 2 */}

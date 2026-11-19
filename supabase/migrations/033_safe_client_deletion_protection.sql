@@ -54,7 +54,7 @@ BEGIN
 
   SELECT COUNT(*) INTO v_issued_invoices_count
   FROM public.invoices
-  WHERE client_id = p_client_id AND status <> 'Draft';
+  WHERE client_id = p_client_id AND status <> 'Draft' AND status <> 'Cancelled';
 
   SELECT COUNT(*) INTO v_payments_count
   FROM public.payments

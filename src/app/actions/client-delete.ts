@@ -35,7 +35,7 @@ export async function checkClientDependenciesAction(clientId: string): Promise<D
     followupsRes,
   ] = await Promise.all([
     supabase.from("invoices").select("id", { count: "exact", head: true }).eq("client_id", clientId).eq("status", "Draft"),
-    supabase.from("invoices").select("id", { count: "exact", head: true }).eq("client_id", clientId).neq("status", "Draft"),
+    supabase.from("invoices").select("id", { count: "exact", head: true }).eq("client_id", clientId).neq("status", "Draft").neq("status", "Cancelled"),
     supabase.from("payments").select("id", { count: "exact", head: true }).eq("client_id", clientId),
     supabase.from("invoice_payment_allocations").select("id, invoice:invoices!inner(client_id)", { count: "exact", head: true }).eq("invoice.client_id", clientId),
     supabase.from("payment_schedules").select("id", { count: "exact", head: true }).eq("client_id", clientId),

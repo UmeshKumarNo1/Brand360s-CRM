@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   ChevronDown,
   ChevronUp,
@@ -24,6 +24,9 @@ import {
   Tag,
   User,
   ExternalLink,
+  Trash2,
+  FolderOpen,
+  Award,
 } from "lucide-react";
 import { formatINR, cn } from "@/lib/utils";
 import { DetailedServiceData } from "@/app/actions/client-detailed-services";
@@ -38,10 +41,12 @@ interface ClientDetailedServiceCardProps {
   totalServices: number;
   defaultExpanded?: boolean;
   canEdit?: boolean;
+  isAdmin?: boolean;
   onPreviewInvoice?: (invoiceId: string) => void;
   onAddDocument?: (serviceId: string) => void;
   onManageService?: (service: DetailedServiceData) => void;
   onManageStage?: (serviceId: string) => void;
+  onDeleteService?: (service: DetailedServiceData) => void;
   onRefresh?: () => void;
 }
 
@@ -51,13 +56,32 @@ export function ClientDetailedServiceCard({
   totalServices,
   defaultExpanded = true,
   canEdit = true,
+  isAdmin = false,
   onPreviewInvoice,
   onAddDocument,
   onManageService,
   onManageStage,
+  onDeleteService,
   onRefresh,
 }: ClientDetailedServiceCardProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    }
+    if (isMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isMenuOpen]);
 
   // Compute fulfillment milestone stages from actual persisted service stages and progress
   const fulfillment = computeServiceFulfillment({
@@ -194,17 +218,68 @@ export function ClientDetailedServiceCard({
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onManageService?.(service);
-            }}
-            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors"
-            title="Service Actions"
-          >
-            <MoreVertical size={16} />
-          </button>
+          {/* Actions Dropdown Menu */}
+          <div className="relative" ref={menuRef}>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMenuOpen((prev) => !prev);
+              }}
+              className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors"
+              title="Service Actions"
+            >
+              <MoreVertical size={16} />
+            </button>
+
+            {isMenuOpen && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100 text-xs"
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onManageService?.(service);
+                  }}
+                  className="w-full px-3.5 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                >
+                  <FolderOpen size={14} className="text-slate-400" />
+                  <span>View Documents &amp; Details</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onManageStage?.(service.id);
+                  }}
+                  className="w-full px-3.5 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                >
+                  <Award size={14} className="text-slate-400" />
+                  <span>Manage Fulfillment Stage</span>
+                </button>
+
+                {isAdmin && (
+                  <>
+                    <div className="my-1 border-t border-slate-100" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onDeleteService?.(service);
+                      }}
+                      className="w-full px-3.5 py-2 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-medium cursor-pointer"
+                    >
+                      <Trash2 size={14} className="text-rose-600" />
+                      <span>Delete Service</span>
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

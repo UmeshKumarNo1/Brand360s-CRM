@@ -66,6 +66,12 @@ import {
   voidInvoicesAndArchiveClientAction,
   DeleteClientCheckResult,
 } from "@/app/actions/client-delete";
+import {
+  deleteClientServiceAction,
+  checkServiceDeletionEligibilityAction,
+  ServiceDeletionEligibility,
+} from "@/app/actions/services";
+import { DeleteServiceModal } from "@/components/services/DeleteServiceModal";
 import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
@@ -104,6 +110,11 @@ export function ClientDetailView({
   const [documentsModalService, setDocumentsModalService] = useState<any | null>(null);
   const [stageModalServiceId, setStageModalServiceId] = useState<string | null>(null);
   const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
+
+  // Service Deletion State
+  const [serviceToDelete, setServiceToDelete] = useState<DetailedServiceData | null>(null);
+  const [serviceEligibility, setServiceEligibility] = useState<ServiceDeletionEligibility | null>(null);
+  const [isLoadingServiceCheck, setIsLoadingServiceCheck] = useState(false);
 
   const { success, error: toastError } = useToast();
   const reqIdRef = useRef(0);
@@ -183,6 +194,34 @@ export function ClientDetailView({
       router.refresh();
     } else {
       toastError("Failed to restore", res.error || "Server error.");
+    }
+  };
+
+  const handleOpenDeleteService = async (svc: DetailedServiceData) => {
+    setServiceToDelete(svc);
+    setIsLoadingServiceCheck(true);
+    setServiceEligibility(null);
+    try {
+      const eligibility = await checkServiceDeletionEligibilityAction(svc.id);
+      setServiceEligibility(eligibility);
+    } catch (err: any) {
+      toastError("Eligibility Check Failed", err.message || "Failed to audit service.");
+    } finally {
+      setIsLoadingServiceCheck(false);
+    }
+  };
+
+  const handleConfirmDeleteService = async () => {
+    if (!serviceToDelete) return;
+    const res = await deleteClientServiceAction(serviceToDelete.id);
+    if (res.success) {
+      success("Service Deleted", `Service "${serviceToDelete.serviceName}" has been permanently deleted.`);
+      setServiceToDelete(null);
+      setServiceEligibility(null);
+      loadDetailedServices();
+      router.refresh();
+    } else {
+      throw new Error(res.error || "Failed to delete service.");
     }
   };
 
@@ -574,6 +613,7 @@ export function ClientDetailView({
                       totalServices={detailedServices.length}
                       defaultExpanded={idx === 0}
                       canEdit={canEdit}
+                      isAdmin={isAdmin}
                       onRefresh={() => loadDetailedServices(true)}
                       onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
                       onAddDocument={(svcId) => {
@@ -585,6 +625,9 @@ export function ClientDetailView({
                       }}
                       onManageStage={(svcId) => {
                         setStageModalServiceId(svcId);
+                      }}
+                      onDeleteService={(svc) => {
+                        handleOpenDeleteService(svc);
                       }}
                     />
                   ))
@@ -1036,6 +1079,21 @@ export function ClientDetailView({
           router.refresh();
         }}
       />
+
+      {/* Service Deletion Modal */}
+      {serviceToDelete && (
+        <DeleteServiceModal
+          isOpen={Boolean(serviceToDelete)}
+          onClose={() => {
+            setServiceToDelete(null);
+            setServiceEligibility(null);
+          }}
+          onConfirm={handleConfirmDeleteService}
+          serviceName={serviceToDelete.serviceName}
+          eligibility={serviceEligibility}
+          isLoadingCheck={isLoadingServiceCheck}
+        />
+      )}
     </div>
   );
 }

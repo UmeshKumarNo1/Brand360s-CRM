@@ -18,6 +18,7 @@ interface ClientStatsCardsProps {
   amountCollected?: string;
   totalOutstanding?: string;
   pendingFollowups?: number;
+  isLoading?: boolean;
 }
 
 export function ClientStatsCards({
@@ -28,6 +29,7 @@ export function ClientStatsCards({
   amountCollected = "₹0",
   totalOutstanding = "₹0",
   pendingFollowups = 0,
+  isLoading = false,
 }: ClientStatsCardsProps) {
   const stats = [
     {
@@ -106,19 +108,28 @@ export function ClientStatsCards({
 
             {/* Value & Label */}
             <div className="min-w-0 flex-1 flex flex-col justify-center">
-              <div className="text-lg sm:text-xl font-bold font-number text-slate-900 leading-tight truncate">
-                {stat.value}
-              </div>
-              <p
-                className="text-[11px] font-bold text-slate-800 leading-tight mt-0.5 break-words line-clamp-2"
-                title={stat.label}
-              >
-                {stat.label}
-              </p>
-              {stat.sublabel && (
-                <p className="text-[10px] font-medium text-slate-400 mt-0.5 leading-tight truncate">
-                  {stat.sublabel}
-                </p>
+              {isLoading ? (
+                <div className="space-y-1.5 py-1">
+                  <div className="h-5 w-16 bg-slate-200/80 rounded animate-pulse" />
+                  <div className="h-3 w-20 bg-slate-100 rounded animate-pulse" />
+                </div>
+              ) : (
+                <>
+                  <div className="text-lg sm:text-xl font-bold font-number text-slate-900 leading-tight truncate">
+                    {stat.value}
+                  </div>
+                  <p
+                    className="text-[11px] font-bold text-slate-800 leading-tight mt-0.5 break-words line-clamp-2"
+                    title={stat.label}
+                  >
+                    {stat.label}
+                  </p>
+                  {stat.sublabel && (
+                    <p className="text-[10px] font-medium text-slate-400 mt-0.5 leading-tight truncate">
+                      {stat.sublabel}
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>

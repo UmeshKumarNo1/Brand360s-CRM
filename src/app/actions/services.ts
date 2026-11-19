@@ -168,12 +168,33 @@ export async function fetchClientServicesAction(clientId: string) {
     // Also fetch invoice items linked to client services
     const { data: invoiceItems } = await supabase
       .from("invoice_items")
-      .select("id, client_service_id, total");
+      .select("id, invoice_id, client_service_id, total");
 
+    const invoiceToServiceMap: Record<string, string> = {};
     (invoiceItems || []).forEach((item: any) => {
       if (item.client_service_id && serviceIds.includes(item.client_service_id)) {
         invoicedByService[item.client_service_id] =
           (invoicedByService[item.client_service_id] || 0) + (Number(item.total) || 0);
+        if (item.invoice_id) {
+          invoiceToServiceMap[item.invoice_id] = item.client_service_id;
+        }
+      }
+    });
+
+    // Check allocations where client_service_id might be null but invoice has a linked service
+    const { data: allClientAllocs } = await supabase
+      .from("invoice_payment_allocations")
+      .select("invoice_id, client_service_id, allocated_amount");
+
+    (allClientAllocs || []).forEach((a: any) => {
+      if (!a.client_service_id && a.invoice_id && invoiceToServiceMap[a.invoice_id]) {
+        const resolvedSvcId = invoiceToServiceMap[a.invoice_id];
+        if (serviceIds.includes(resolvedSvcId)) {
+          const currentDirect = paidByService[resolvedSvcId] || 0;
+          if (currentDirect === 0) {
+            paidByService[resolvedSvcId] = (paidByService[resolvedSvcId] || 0) + (Number(a.allocated_amount) || 0);
+          }
+        }
       }
     });
   }

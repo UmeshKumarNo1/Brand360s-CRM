@@ -978,10 +978,10 @@ export async function allocatePaymentToInvoicesAction(
     const allocAmount = Number(item.amount) || 0;
     if (allocAmount <= 0) continue;
 
-    // Fetch invoice
+    // Fetch invoice along with line items to identify linked client_service_id
     const { data: inv, error: invError } = await supabase
       .from("invoices")
-      .select("id, client_id, total_amount, amount_paid, balance_due, status, due_date")
+      .select("id, client_id, total_amount, amount_paid, balance_due, status, due_date, items:invoice_items(id, client_service_id)")
       .eq("id", item.invoiceId)
       .single();
 
@@ -1004,27 +1004,34 @@ export async function allocatePaymentToInvoicesAction(
       };
     }
 
-    // Try RPC first for atomicity (reconcile_and_allocate_payment or allocate_payment_to_invoice)
+    // Resolve client_service_id from invoice line items
+    const resolvedItem = (inv.items || []).find((it: any) => it.client_service_id);
+    const resolvedServiceId = resolvedItem?.client_service_id || null;
+    const resolvedItemId = resolvedItem?.id || null;
+
+    // Try RPC first for atomicity (allocate_payment_to_invoice with service awareness)
     let allocatedSuccess = false;
 
-    const { data: recData, error: recError } = await supabase.rpc("reconcile_and_allocate_payment", {
+    const { data: rpcData, error: rpcError } = await supabase.rpc("allocate_payment_to_invoice", {
       p_payment_id: paymentId,
       p_invoice_id: item.invoiceId,
       p_amount: allocAmount,
+      p_invoice_item_id: resolvedItemId,
+      p_client_service_id: resolvedServiceId,
     });
 
-    if (!recError && recData && (recData.success === true || (typeof recData === "object" && !recData.error))) {
-      results.push(recData);
+    if (!rpcError && rpcData && (rpcData.success === true || (typeof rpcData === "object" && !rpcData.error))) {
+      results.push(rpcData);
       allocatedSuccess = true;
     } else {
-      const { data: rpcData, error: rpcError } = await supabase.rpc("allocate_payment_to_invoice", {
+      const { data: recData, error: recError } = await supabase.rpc("reconcile_and_allocate_payment", {
         p_payment_id: paymentId,
         p_invoice_id: item.invoiceId,
         p_amount: allocAmount,
       });
 
-      if (!rpcError && rpcData && (rpcData.success === true || (typeof rpcData === "object" && !rpcData.error))) {
-        results.push(rpcData);
+      if (!recError && recData && (recData.success === true || (typeof recData === "object" && !recData.error))) {
+        results.push(recData);
         allocatedSuccess = true;
       }
     }
@@ -1037,6 +1044,8 @@ export async function allocatePaymentToInvoicesAction(
           payment_id: paymentId,
           invoice_id: item.invoiceId,
           allocated_amount: allocAmount,
+          client_service_id: resolvedServiceId,
+          invoice_item_id: resolvedItemId,
         })
         .select()
         .single();
@@ -1146,6 +1155,7 @@ export async function allocatePaymentToInvoicesAction(
   // 5. Revalidate affected paths
   revalidatePath("/payments");
   revalidatePath("/invoices");
+  revalidatePath("/clients");
   revalidatePath(`/clients/${payment.client_id}`);
   revalidatePath("/dashboard");
 
@@ -1518,6 +1528,7 @@ export async function reversePaymentAction(params: ReversePaymentParams): Promis
   // 5. Revalidate affected paths
   revalidatePath("/payments");
   revalidatePath("/invoices");
+  revalidatePath("/clients");
   revalidatePath(`/clients/${payment.client_id}`);
   revalidatePath("/dashboard");
   revalidatePath("/reports");

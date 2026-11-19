@@ -418,7 +418,86 @@ export async function fetchClientsAction() {
     return fallbackData || [];
   }
 
-  return data;
+  // Extract all client service IDs to fetch payment allocations
+  const allServiceIds: string[] = [];
+  (data || []).forEach((c: any) => {
+    (c.services || []).forEach((s: any) => {
+      if (s.id) allServiceIds.push(s.id);
+    });
+  });
+
+  const paidByService: Record<string, number> = {};
+
+  if (allServiceIds.length > 0) {
+    // 1. Direct allocations to client_service_id
+    const { data: directAllocs } = await supabase
+      .from("invoice_payment_allocations")
+      .select("client_service_id, invoice_id, allocated_amount")
+      .in("client_service_id", allServiceIds);
+
+    (directAllocs || []).forEach((a: any) => {
+      if (a.client_service_id) {
+        paidByService[a.client_service_id] =
+          (paidByService[a.client_service_id] || 0) + (Number(a.allocated_amount) || 0);
+      }
+    });
+
+    // 2. Fallback check for allocations to invoices whose line items identify client_service_id
+    const { data: invoiceItems } = await supabase
+      .from("invoice_items")
+      .select("invoice_id, client_service_id");
+
+    const invoiceToServiceMap: Record<string, string> = {};
+    (invoiceItems || []).forEach((item: any) => {
+      if (item.invoice_id && item.client_service_id) {
+        invoiceToServiceMap[item.invoice_id] = item.client_service_id;
+      }
+    });
+
+    // Check allocations where client_service_id might be null but invoice is linked to service
+    const { data: allAllocs } = await supabase
+      .from("invoice_payment_allocations")
+      .select("invoice_id, client_service_id, allocated_amount");
+
+    (allAllocs || []).forEach((a: any) => {
+      if (!a.client_service_id && a.invoice_id && invoiceToServiceMap[a.invoice_id]) {
+        const resolvedSvcId = invoiceToServiceMap[a.invoice_id];
+        if (allServiceIds.includes(resolvedSvcId)) {
+          // Only add if not already counted via direct alloc
+          const alreadyPaid = paidByService[resolvedSvcId] || 0;
+          if (alreadyPaid === 0) {
+            paidByService[resolvedSvcId] = (paidByService[resolvedSvcId] || 0) + (Number(a.allocated_amount) || 0);
+          }
+        }
+      }
+    });
+  }
+
+  // Enrich each client's services with paymentStatus and amountPaid
+  return (data || []).map((client: any) => {
+    const enrichedServices = (client.services || []).map((s: any) => {
+      const contractVal = Number(s.total_amount) || (Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0);
+      const paid = paidByService[s.id] || 0;
+
+      let paymentStatus: "Paid" | "Partial" | "Unpaid" = "Unpaid";
+      if (contractVal > 0 && paid >= contractVal - 0.009) {
+        paymentStatus = "Paid";
+      } else if (paid > 0.009) {
+        paymentStatus = "Partial";
+      }
+
+      return {
+        ...s,
+        amountPaid: paid,
+        paymentStatus,
+      };
+    });
+
+    return {
+      ...client,
+      services: enrichedServices,
+    };
+  });
 }
 
 export async function fetchSalespeopleAction() {

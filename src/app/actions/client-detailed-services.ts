@@ -221,7 +221,9 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       serviceAllocatedAmount = verifiedNonReversed.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
     }
 
-    const outstanding = Math.max(0, (invoicedTotal > 0 ? invoicedTotal : contractVal) - serviceAllocatedAmount);
+    // In the ex-GST service convention, service contract outstanding is contractVal - serviceAllocatedAmount
+    // while gross invoice balance is tracked separately on the invoice cards.
+    const outstanding = Math.max(0, contractVal - serviceAllocatedAmount);
     const paymentProgress = contractVal > 0 ? Math.min(100, Math.round((serviceAllocatedAmount / contractVal) * 100)) : 0;
 
     // Vendor info

@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { revalidatePath } from "next/cache";
 import { recordAuditLog } from "@/lib/audit/audit-logger";
 import { generatePaymentReceiptAction } from "./receipts";
@@ -36,6 +37,10 @@ export interface ReversePaymentParams {
 }
 
 export async function fetchPaymentsAction() {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
   const supabase = await createClient();
 
   const { data: payments, error } = await supabase
@@ -124,6 +129,10 @@ export async function fetchPaymentsAction() {
 }
 
 export async function fetchAllInstallmentsAction() {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
   const supabase = await createClient();
 
   const { data: schedules, error } = await supabase

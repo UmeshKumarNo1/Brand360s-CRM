@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
 import { recordAuditLog } from "@/lib/audit/audit-logger";
@@ -28,6 +29,14 @@ function getAdminAuthClient() {
 }
 
 export async function fetchEmployeesAction() {
+  if (!isSupabaseConfigured()) {
+    return [
+      { id: "00000000-0000-0000-0000-000000000001", full_name: "Admin User", email: "admin@brand360s.com", role: "admin", is_active: true, created_at: new Date().toISOString(), assigned_clients_count: 5 },
+      { id: "00000000-0000-0000-0000-000000000002", full_name: "Employee1", email: "sales1@brand360s.com", role: "employee", is_active: true, created_at: new Date().toISOString(), assigned_clients_count: 3 },
+      { id: "00000000-0000-0000-0000-000000000003", full_name: "Employee2", email: "sales2@brand360s.com", role: "employee", is_active: true, created_at: new Date().toISOString(), assigned_clients_count: 2 },
+    ];
+  }
+
   const supabase = await createClient();
 
   // Verify current user is admin

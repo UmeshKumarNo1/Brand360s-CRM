@@ -335,7 +335,10 @@ export function ClientDetailView({
 
           <button
             type="button"
-            onClick={() => setActiveTab("services")}
+            onClick={() => {
+              setActiveTab("services");
+              setIsAddServiceModalOpen(true);
+            }}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-xl shadow-sm transition-colors cursor-pointer"
           >
             <Plus size={15} />

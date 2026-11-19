@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { revalidatePath } from "next/cache";
 
 export interface VendorActionState {
@@ -10,6 +11,10 @@ export interface VendorActionState {
 }
 
 export async function fetchVendorsAction() {
+  if (!isSupabaseConfigured()) {
+    return { data: [], error: null };
+  }
+
   const supabase = await createClient();
 
   try {

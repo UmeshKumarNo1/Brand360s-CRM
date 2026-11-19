@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { revalidatePath } from "next/cache";
 import { generateInvoiceNumberAction as generateNextInvoiceNumber } from "@/lib/invoices/invoice-number";
 
@@ -47,6 +48,10 @@ export interface CreateInvoicePayload {
  * Optional clientId to fetch strictly for one client without downloading entire portfolio
  */
 export async function fetchInvoicesAction(clientId?: string) {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
   const supabase = await createClient();
 
   try {

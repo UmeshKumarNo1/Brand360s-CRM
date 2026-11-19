@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 
 export interface ReportSummaryKpis {
   totalRevenue: number;
@@ -55,6 +56,23 @@ export interface ComprehensiveReportData {
 export async function fetchComprehensiveReportsAction(
   dateRange: "this-month" | "last-month" | "last-3-months" | "last-6-months" | "this-year" | "all" = "all"
 ): Promise<ComprehensiveReportData> {
+  if (!isSupabaseConfigured()) {
+    return {
+      kpis: {
+        totalRevenue: 0,
+        paymentsReceived: 0,
+        outstandingReceivables: 0,
+        totalInvoiced: 0,
+        newClients: 0,
+        activeServices: 0,
+      },
+      monthlyRevenue: [],
+      salespersonPerformance: [],
+      serviceBreakdown: [],
+      clientGrowth: [],
+    };
+  }
+
   const supabase = await createClient();
 
   // Determine date boundary

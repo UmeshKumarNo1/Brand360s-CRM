@@ -33,7 +33,7 @@ import { computeServiceFulfillment } from "@/lib/services/fulfillment-workflows"
 
 export default function ClientsPage() {
   const router = useRouter();
-  const [dbClients, setDbClients] = useState<ClientRecord[]>([]);
+  const [dbClients, setDbClients] = useState<ClientRecord[]>(MOCK_CLIENTS);
   const [isLoading, setIsLoading] = useState(true);
   const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -215,8 +215,8 @@ export default function ClientsPage() {
                 paymentStatus: isClientCompleted
                   ? "Paid"
                   : Number(r.payments_received) > 0
-                  ? "Partial"
-                  : "Unpaid",
+                    ? "Partial"
+                    : "Unpaid",
                 amountPaid: isClientCompleted ? perServiceVal : 0,
               }));
             }
@@ -229,14 +229,19 @@ export default function ClientsPage() {
               totalCount > 0
                 ? Math.round((completedCount / totalCount) * 100)
                 : r.client_status === "Completed"
-                ? 100
-                : 0;
+                  ? 100
+                  : 0;
 
-            // Direct O(1) next follow-up lookup
-            const nextFollowup = pendingFollowupsMap ? pendingFollowupsMap[r.id] : undefined;
-            const nextActionTitle = nextFollowup?.title;
-            const nextActionDueDate = nextFollowup?.dueDate;
+// Direct O(1) next follow-up lookup
+const nextFollowup = pendingFollowupsMap
+  ? pendingFollowupsMap[r.id]
+  : undefined;
 
+const nextActionTitle = nextFollowup
+  ? nextFollowup.title || nextFollowup.followUpType || "Follow-up required"
+  : undefined;
+
+const nextActionDueDate = nextFollowup?.dueDate || undefined;
             return {
               id: r.id,
               no: idx + 1,
@@ -248,10 +253,10 @@ export default function ClientsPage() {
               phone: r.phone || undefined,
               dateOfCreation: r.created_at
                 ? new Date(r.created_at).toLocaleDateString("en-IN", {
-                    day: "2-digit",
-                    month: "short",
-                    year: "numeric",
-                  })
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })
                 : "-",
               createdAt: r.created_at || "-",
               salesperson: r.assigned_profile?.full_name || "Unassigned",
@@ -280,7 +285,7 @@ export default function ClientsPage() {
           });
           setDbClients(mapped);
         } else {
-          setDbClients([]);
+          setDbClients(MOCK_CLIENTS);
         }
       }
     } catch (err: any) {

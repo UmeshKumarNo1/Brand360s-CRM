@@ -1,8 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { revalidatePath } from "next/cache";
 import { validatePhoneNumber, parseInitialPhone } from "@/lib/validation/phone";
+import { COUNTRY_NAME_TO_CODE } from "@/lib/data/countries";
 import { checkClientDuplicatesAction } from "./duplicate-detection";
 import { DuplicateMatch } from "@/lib/validation/duplicate-detector";
 import { autoGenerateInvoiceForClientAction } from "@/app/actions/invoices";
@@ -122,7 +124,8 @@ export async function createClientAction(
     fieldErrors.phone = "Primary Mobile Number is required.";
   } else {
     try {
-      const parsed = parseInitialPhone(phone);
+      const defaultCountry = COUNTRY_NAME_TO_CODE[country] || "IN";
+      const parsed = parseInitialPhone(phone, defaultCountry);
       const phoneCheck = validatePhoneNumber(parsed.nationalNumber, parsed.country, true);
       if (!phoneCheck.isValid) {
         fieldErrors.phone = phoneCheck.error || "Invalid phone number.";
@@ -167,7 +170,8 @@ export async function createClientAction(
 
   if (alternate_phone) {
     try {
-      const parsedAlt = parseInitialPhone(alternate_phone);
+      const defaultCountry = COUNTRY_NAME_TO_CODE[country] || "IN";
+      const parsedAlt = parseInitialPhone(alternate_phone, defaultCountry);
       const altCheck = validatePhoneNumber(parsedAlt.nationalNumber, parsedAlt.country, false);
       if (!altCheck.isValid) {
         fieldErrors.alternate_phone = altCheck.error || "Invalid alternate phone number.";
@@ -384,6 +388,11 @@ export async function createClientAction(
 }
 
 export async function fetchClientsAction() {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
+try {
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -410,120 +419,191 @@ export async function fetchClientsAction() {
     `)
     .order("created_at", { ascending: false });
 
-  if (error) {
-    console.error("Error fetching clients with services, falling back to basic query:", error);
-    const { data: fallbackData } = await supabase
+    const { data, error } = await supabase
       .from("clients")
       .select(`
         *,
-        assigned_profile:profiles!assigned_salesperson(full_name, email)
+        assigned_profile:profiles!assigned_salesperson(full_name, email),
+        services:client_services(
+          id,
+          service_name,
+          service_category,
+          service_fee,
+          govt_fee,
+          total_amount,
+          start_date,
+          expected_completion_date,
+          service_status,
+          assigned_profile:profiles!assigned_employee_id(full_name)
+        )
       `)
       .order("created_at", { ascending: false });
-    return fallbackData || [];
-  }
 
-  // Extract all client service IDs to fetch payment allocations
-  const allServiceIds: string[] = [];
-  (data || []).forEach((c: any) => {
-    (c.services || []).forEach((s: any) => {
-      if (s.id) allServiceIds.push(s.id);
-    });
-  });
+    if (error) {
+      console.error(
+        "Error fetching clients with services, falling back to basic query:",
+        error
+      );
 
-  const paidByService: Record<string, number> = {};
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from("clients")
+        .select(`
+          *,
+          assigned_profile:profiles!assigned_salesperson(full_name, email)
+        `)
+        .order("created_at", { ascending: false });
 
-  if (allServiceIds.length > 0) {
-    // 1. Direct allocations to client_service_id (restricted strictly to this portfolio's services)
-    const { data: directAllocs } = await supabase
-      .from("invoice_payment_allocations")
-      .select("client_service_id, invoice_id, allocated_amount")
-      .in("client_service_id", allServiceIds);
-
-    (directAllocs || []).forEach((a: any) => {
-      if (a.client_service_id) {
-        paidByService[a.client_service_id] =
-          (paidByService[a.client_service_id] || 0) + (Number(a.allocated_amount) || 0);
+      if (fallbackError) {
+        console.error("Fallback client query failed:", fallbackError);
+        return [];
       }
+
+      return fallbackData || [];
+    }
+
+    // Extract all client service IDs to fetch payment allocations
+    const allServiceIds: string[] = [];
+
+    (data || []).forEach((c: any) => {
+      (c.services || []).forEach((s: any) => {
+        if (s.id) allServiceIds.push(s.id);
+      });
     });
 
-    // 2. Targeted lookup for allocations where client_service_id wasn't stamped directly
-    // Only query invoice_items matching our service IDs
-    const { data: invoiceItems } = await supabase
-      .from("invoice_items")
-      .select("invoice_id, client_service_id")
-      .in("client_service_id", allServiceIds);
+    const paidByService: Record<string, number> = {};
 
-    if (invoiceItems && invoiceItems.length > 0) {
-      const invoiceToServiceMap: Record<string, string> = {};
-      const relevantInvoiceIds: string[] = [];
-      invoiceItems.forEach((item: any) => {
-        if (item.invoice_id && item.client_service_id) {
-          invoiceToServiceMap[item.invoice_id] = item.client_service_id;
-          relevantInvoiceIds.push(item.invoice_id);
+    if (allServiceIds.length > 0) {
+      // 1. Direct allocations to client services
+      const { data: directAllocs, error: directError } = await supabase
+        .from("invoice_payment_allocations")
+        .select("client_service_id, invoice_id, allocated_amount")
+        .in("client_service_id", allServiceIds);
+
+      if (directError) {
+        console.error("Direct payment allocation lookup failed:", directError);
+      }
+
+      (directAllocs || []).forEach((a: any) => {
+        if (a.client_service_id) {
+          paidByService[a.client_service_id] =
+            (paidByService[a.client_service_id] || 0) +
+            (Number(a.allocated_amount) || 0);
         }
       });
 
-      if (relevantInvoiceIds.length > 0) {
-        const { data: indirectAllocs } = await supabase
-          .from("invoice_payment_allocations")
-          .select("invoice_id, client_service_id, allocated_amount")
-          .in("invoice_id", relevantInvoiceIds);
+      // 2. Find allocations linked through invoice items
+      const { data: invoiceItems, error: invoiceItemsError } = await supabase
+        .from("invoice_items")
+        .select("invoice_id, client_service_id")
+        .in("client_service_id", allServiceIds);
 
-        (indirectAllocs || []).forEach((a: any) => {
-          if (!a.client_service_id && a.invoice_id && invoiceToServiceMap[a.invoice_id]) {
-            const resolvedSvcId = invoiceToServiceMap[a.invoice_id];
-            // Only add if not already counted via direct alloc
-            const alreadyPaid = paidByService[resolvedSvcId] || 0;
-            if (alreadyPaid === 0) {
-              paidByService[resolvedSvcId] = (paidByService[resolvedSvcId] || 0) + (Number(a.allocated_amount) || 0);
-            }
+      if (invoiceItemsError) {
+        console.error("Invoice item lookup failed:", invoiceItemsError);
+      }
+
+      if (invoiceItems && invoiceItems.length > 0) {
+        const invoiceToServiceMap: Record<string, string> = {};
+        const relevantInvoiceIds: string[] = [];
+
+        invoiceItems.forEach((item: any) => {
+          if (item.invoice_id && item.client_service_id) {
+            invoiceToServiceMap[item.invoice_id] = item.client_service_id;
+            relevantInvoiceIds.push(item.invoice_id);
           }
         });
+
+        if (relevantInvoiceIds.length > 0) {
+          const { data: indirectAllocs, error: indirectError } = await supabase
+            .from("invoice_payment_allocations")
+            .select("invoice_id, client_service_id, allocated_amount")
+            .in("invoice_id", relevantInvoiceIds);
+
+          if (indirectError) {
+            console.error("Indirect payment allocation lookup failed:", indirectError);
+          }
+
+          (indirectAllocs || []).forEach((a: any) => {
+            if (
+              !a.client_service_id &&
+              a.invoice_id &&
+              invoiceToServiceMap[a.invoice_id]
+            ) {
+              const resolvedSvcId = invoiceToServiceMap[a.invoice_id];
+
+              // Avoid double-counting when direct allocations exist
+              if (!paidByService[resolvedSvcId]) {
+                paidByService[resolvedSvcId] =
+                  (paidByService[resolvedSvcId] || 0) +
+                  (Number(a.allocated_amount) || 0);
+              }
+            }
+          });
+        }
       }
     }
-  }
 
-  // Enrich each client's services with paymentStatus and amountPaid
-  return (data || []).map((client: any) => {
-    const enrichedServices = (client.services || []).map((s: any) => {
-      const contractVal = Number(s.total_amount) || (Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0);
-      const paid = paidByService[s.id] || 0;
+    // Enrich each client's services with paymentStatus and amountPaid
+    return (data || []).map((client: any) => {
+      const enrichedServices = (client.services || []).map((s: any) => {
+        const contractVal =
+          Number(s.total_amount) ||
+          (Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0);
 
-      let paymentStatus: "Paid" | "Partial" | "Unpaid" = "Unpaid";
-      if (contractVal > 0 && paid >= contractVal - 0.009) {
-        paymentStatus = "Paid";
-      } else if (paid > 0.009) {
-        paymentStatus = "Partial";
-      }
+        const paid = paidByService[s.id] || 0;
+
+        let paymentStatus: "Paid" | "Partial" | "Unpaid" = "Unpaid";
+
+        if (contractVal > 0 && paid >= contractVal - 0.009) {
+          paymentStatus = "Paid";
+        } else if (paid > 0.009) {
+          paymentStatus = "Partial";
+        }
+
+        return {
+          ...s,
+          amountPaid: paid,
+          paymentStatus,
+        };
+      });
 
       return {
-        ...s,
-        amountPaid: paid,
-        paymentStatus,
+        ...client,
+        services: enrichedServices,
       };
     });
-
-    return {
-      ...client,
-      services: enrichedServices,
-    };
-  });
+  } catch (err) {
+    console.warn("fetchClientsAction notice:", err);
+    return [];
+  }
 }
 
 export async function fetchSalespeopleAction() {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, role, is_active")
-    .order("full_name");
-
-  if (error) {
-    console.error("Error fetching salespeople:", error);
-    return [];
+  if (!isSupabaseConfigured()) {
+    return [
+      { id: "00000000-0000-0000-0000-000000000001", full_name: "Admin User", email: "admin@brand360s.com", role: "admin", is_active: true },
+      { id: "00000000-0000-0000-0000-000000000002", full_name: "Employee1", email: "sales1@brand360s.com", role: "employee", is_active: true },
+      { id: "00000000-0000-0000-0000-000000000003", full_name: "Employee2", email: "sales2@brand360s.com", role: "employee", is_active: true },
+    ];
   }
 
-  return data || [];
+  try {
+    const supabase = await createClient();
+
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, role, is_active")
+      .order("full_name");
+
+    if (error) {
+      console.error("Error fetching salespeople:", error);
+      return [];
+    }
+
+    return data || [];
+  } catch (err) {
+    console.warn("fetchSalespeopleAction notice:", err);
+    return [];
+  }
 }
 
 /**

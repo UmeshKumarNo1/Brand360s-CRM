@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { revalidatePath } from "next/cache";
 import { autoGenerateInvoiceForClientAction } from "@/app/actions/invoices";
 import { uploadClientServiceDocumentAction } from "@/app/actions/documents";
@@ -26,6 +27,10 @@ export interface ServiceDeletionEligibility {
 }
 
 export async function fetchServicesCatalogAction() {
+  if (!isSupabaseConfigured()) {
+    return [];
+  }
+
   const supabase = await createClient();
 
   const { data, error } = await supabase
@@ -42,6 +47,10 @@ export async function fetchServicesCatalogAction() {
 }
 
 export async function fetchActiveServicesCountAction(): Promise<number> {
+  if (!isSupabaseConfigured()) {
+    return 0;
+  }
+
   try {
     const supabase = await createClient();
     const { data, error } = await supabase

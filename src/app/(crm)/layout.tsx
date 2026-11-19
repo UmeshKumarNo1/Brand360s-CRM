@@ -2,8 +2,15 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { ToastProvider } from "@/components/common/ToastProvider";
 
+export const dynamic = "force-dynamic";
+
 export default async function Layout({ children }: { children: React.ReactNode }) {
-  const profile = await getCurrentUserProfileAction();
+  let profile = null;
+  try {
+    profile = await getCurrentUserProfileAction();
+  } catch (err) {
+    console.error("Layout error getting profile:", err);
+  }
 
   return (
     <ToastProvider>

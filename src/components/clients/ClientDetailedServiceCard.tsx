@@ -36,6 +36,7 @@ interface ClientDetailedServiceCardProps {
   onPreviewInvoice?: (invoiceId: string) => void;
   onAddDocument?: (serviceId: string) => void;
   onManageService?: (service: DetailedServiceData) => void;
+  onManageStage?: (serviceId: string) => void;
 }
 
 export function ClientDetailedServiceCard({
@@ -46,6 +47,7 @@ export function ClientDetailedServiceCard({
   onPreviewInvoice,
   onAddDocument,
   onManageService,
+  onManageStage,
 }: ClientDetailedServiceCardProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -216,16 +218,23 @@ export function ClientDetailedServiceCard({
             </div>
 
             {/* B. Fulfillment Progress (5 Cols) */}
-            <div className="lg:col-span-5 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-6 shadow-2xs flex flex-col justify-between">
+            <div
+              onClick={() => onManageStage?.(service.id)}
+              className="lg:col-span-5 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-6 shadow-2xs flex flex-col justify-between cursor-pointer hover:border-sky-300 hover:shadow-xs transition-all group"
+              title="Click to manage fulfillment stages"
+            >
               <div>
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200/80">
                   <div className="flex items-center gap-2">
                     <TrendingUp size={15} className="text-[#0481A2]" />
-                    <h4 className="font-bold text-slate-900 text-xs">Fulfilment Progress</h4>
+                    <h4 className="font-bold text-slate-900 text-xs group-hover:text-[#0481A2] transition-colors">Fulfilment Progress</h4>
                   </div>
-                  <span className="text-[10px] text-slate-500 font-semibold">
-                    Progress: <strong className="text-slate-900 font-sans font-number">{fulfillment.progressPercentage}%</strong>
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-slate-500 font-semibold">
+                      Progress: <strong className="text-slate-900 font-sans font-number">{fulfillment.progressPercentage}%</strong>
+                    </span>
+                    <span className="text-[10px] text-[#0481A2] font-semibold underline ml-1">Manage</span>
+                  </div>
                 </div>
 
                 {/* Horizontal Milestone Tracker */}

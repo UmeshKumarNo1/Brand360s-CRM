@@ -24,6 +24,7 @@ import {
   Briefcase,
   Globe,
   User,
+  TrendingUp,
 } from "lucide-react";
 import {
   fetchClientServicesAction,
@@ -38,6 +39,7 @@ import { RenewServiceModal } from "@/components/renewals/RenewServiceModal";
 import { RenewalHistoryModal } from "@/components/renewals/RenewalHistoryModal";
 import { UploadServiceDeliverableModal } from "@/components/services/UploadServiceDeliverableModal";
 import { ServiceDocumentsModal } from "@/components/services/ServiceDocumentsModal";
+import { ServiceStageModal } from "@/components/services/ServiceStageModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 import { computeServiceFulfillment, FulfillmentStage } from "@/lib/services/fulfillment-workflows";
@@ -68,6 +70,7 @@ export function ClientServicesTab({
   const [historyModalService, setHistoryModalService] = useState<any | null>(null);
   const [deliverableModalService, setDeliverableModalService] = useState<any | null>(null);
   const [documentsModalService, setDocumentsModalService] = useState<any | null>(null);
+  const [stageModalServiceId, setStageModalServiceId] = useState<string | null>(null);
 
   const { success, error: toastError } = useToast();
   const requestIdRef = useRef(0);
@@ -338,15 +341,19 @@ export function ClientServicesTab({
                         </td>
 
                         {/* 4. Fulfillment Progress (Horizontal Milestone Tracker matching Reference Image 2) */}
-                        <td className="py-3 px-3 align-middle">
-                          <div className="flex items-center justify-between w-full max-w-[340px] mx-auto relative">
+                        <td
+                          onClick={() => setStageModalServiceId(s.id)}
+                          className="py-3 px-3 align-middle cursor-pointer hover:bg-sky-50/50 transition-colors"
+                          title="Click to manage service fulfillment stages"
+                        >
+                          <div className="flex items-center justify-between w-full max-w-[340px] mx-auto relative group">
                             {fulfillment.stages.map((stage, sIdx) => {
                               const isCompleted = stage.status === "completed";
                               const isCurrent = stage.status === "current";
                               const isLast = sIdx === fulfillment.stages.length - 1;
 
                               return (
-                                <div key={stage.name} className="flex-1 flex flex-col items-center relative group">
+                                <div key={stage.name} className="flex-1 flex flex-col items-center relative">
                                   {/* Milestone Node */}
                                   <div className="relative z-10 flex items-center justify-center">
                                     {isCompleted ? (
@@ -392,7 +399,11 @@ export function ClientServicesTab({
                         </td>
 
                         {/* 5. Progress % Indicator */}
-                        <td className="py-3 px-2 align-middle text-center whitespace-nowrap">
+                        <td
+                          onClick={() => setStageModalServiceId(s.id)}
+                          className="py-3 px-2 align-middle text-center whitespace-nowrap cursor-pointer hover:bg-sky-50/50 transition-colors"
+                          title="Click to manage stage"
+                        >
                           <span
                             className={cn(
                               "inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold font-sans font-number",
@@ -410,8 +421,12 @@ export function ClientServicesTab({
                         </td>
 
                         {/* 6. Current Stage Column */}
-                        <td className="py-3 px-2.5 align-middle">
-                          <span className="font-bold text-slate-800 block text-xs leading-tight">
+                        <td
+                          onClick={() => setStageModalServiceId(s.id)}
+                          className="py-3 px-2.5 align-middle cursor-pointer hover:bg-sky-50/50 transition-colors"
+                          title="Click to manage stage"
+                        >
+                          <span className="font-bold text-slate-800 block text-xs leading-tight hover:text-[#0481A2]">
                             {fulfillment.currentStageName}
                           </span>
                           {fulfillment.currentStageDescription && (
@@ -466,6 +481,18 @@ export function ClientServicesTab({
                               ref={actionMenuRef}
                               className="absolute right-3 top-8 z-30 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 text-left text-xs animate-in fade-in-50"
                             >
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionMenuId(null);
+                                  setStageModalServiceId(s.id);
+                                }}
+                                className="w-full px-3 py-1.5 text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer font-medium text-[#0481A2]"
+                              >
+                                <TrendingUp size={13} className="text-[#0481A2]" />
+                                <span>Manage Fulfillment Stages</span>
+                              </button>
+
                               <button
                                 type="button"
                                 onClick={() => {
@@ -645,6 +672,15 @@ export function ClientServicesTab({
           serviceStatus={documentsModalService.service_status}
         />
       )}
+      {/* Service Fulfillment Stage Management Modal */}
+      <ServiceStageModal
+        isOpen={Boolean(stageModalServiceId)}
+        onClose={() => setStageModalServiceId(null)}
+        serviceId={stageModalServiceId}
+        onSuccess={() => {
+          loadData(true);
+        }}
+      />
     </div>
   );
 }

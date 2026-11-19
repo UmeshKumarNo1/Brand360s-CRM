@@ -56,6 +56,7 @@ import {
 import { AssignServiceModal } from "@/components/services/AssignServiceModal";
 import { UploadServiceDeliverableModal } from "@/components/services/UploadServiceDeliverableModal";
 import { ServiceDocumentsModal } from "@/components/services/ServiceDocumentsModal";
+import { ServiceStageModal } from "@/components/services/ServiceStageModal";
 import { InvoicePreviewModal } from "@/components/invoices/InvoicePreviewModal";
 import {
   deleteClientAction,
@@ -100,6 +101,7 @@ export function ClientDetailView({
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(Boolean(initialAddService));
   const [deliverableModalService, setDeliverableModalService] = useState<any | null>(null);
   const [documentsModalService, setDocumentsModalService] = useState<any | null>(null);
+  const [stageModalServiceId, setStageModalServiceId] = useState<string | null>(null);
   const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
 
   const { success, error: toastError } = useToast();
@@ -568,6 +570,9 @@ export function ClientDetailView({
                       onManageService={(svc) => {
                         setDocumentsModalService(svc);
                       }}
+                      onManageStage={(svcId) => {
+                        setStageModalServiceId(svcId);
+                      }}
                     />
                   ))
                 )}
@@ -1003,6 +1008,17 @@ export function ClientDetailView({
         clientIds={[client.id]}
         clientNames={[client.companyName]}
         currentSalespersonName={client.salesperson}
+      />
+
+      {/* Service Fulfillment Stage Management Modal */}
+      <ServiceStageModal
+        isOpen={Boolean(stageModalServiceId)}
+        onClose={() => setStageModalServiceId(null)}
+        serviceId={stageModalServiceId}
+        onSuccess={() => {
+          loadDetailedServices(true);
+          router.refresh();
+        }}
       />
     </div>
   );

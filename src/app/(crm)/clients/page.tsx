@@ -650,6 +650,7 @@ export default function ClientsPage() {
               onArchiveClient={handleOpenDelete}
               onRestoreClient={handleRestoreClient}
               onReassignClient={handleOpenReassign}
+              onRefresh={loadData}
             />
           )}
 

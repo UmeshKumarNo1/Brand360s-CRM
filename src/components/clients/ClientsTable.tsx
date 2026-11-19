@@ -17,7 +17,9 @@ import {
 } from "lucide-react";
 import { ClientRecord, ClientServiceItem } from "@/data/mockClients";
 import { formatINR, cn } from "@/lib/utils";
+import { useState } from "react";
 import { TargetDateCell } from "@/components/services/TargetDateCell";
+import { ServiceStageModal } from "@/components/services/ServiceStageModal";
 
 interface ClientsTableProps {
   clients: ClientRecord[];
@@ -26,6 +28,7 @@ interface ClientsTableProps {
   onArchiveClient?: (client: ClientRecord) => void;
   onRestoreClient?: (client: ClientRecord) => void;
   onReassignClient?: (client: ClientRecord) => void;
+  onRefresh?: () => void;
 }
 
 function formatDate(dateStr?: string | null) {
@@ -157,7 +160,10 @@ export function ClientsTable({
   onArchiveClient,
   onRestoreClient,
   onReassignClient,
+  onRefresh,
 }: ClientsTableProps) {
+  const [stageModalServiceId, setStageModalServiceId] = useState<string | null>(null);
+
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden w-full max-w-full">
       <div className="overflow-x-auto w-full custom-scrollbar">
@@ -592,7 +598,11 @@ export function ClientsTable({
                                           </td>
 
                                           {/* FULFILLMENT PROGRESS (STAGES) */}
-                                          <td className="py-2.5 px-3 align-middle">
+                                          <td
+                                            onClick={() => service.id && setStageModalServiceId(service.id)}
+                                            className="py-2.5 px-3 align-middle cursor-pointer hover:bg-sky-50/50 transition-colors"
+                                            title="Click to manage service fulfillment stages"
+                                          >
                                             <div className="flex justify-center">
                                               <FulfillmentStepper
                                                 serviceName={service.service_name}
@@ -602,7 +612,11 @@ export function ClientsTable({
                                           </td>
 
                                           {/* PROGRESS: Minimal Pill Badge */}
-                                          <td className="py-2.5 px-3 text-center align-middle whitespace-nowrap">
+                                          <td
+                                            onClick={() => service.id && setStageModalServiceId(service.id)}
+                                            className="py-2.5 px-3 text-center align-middle whitespace-nowrap cursor-pointer hover:bg-sky-50/50 transition-colors"
+                                            title="Click to manage service fulfillment stages"
+                                          >
                                             <div className="flex justify-center">
                                               <ProgressBadge
                                                 percent={
@@ -614,7 +628,11 @@ export function ClientsTable({
                                           </td>
 
                                           {/* CURRENT STAGE: Minimal typography */}
-                                          <td className="py-2.5 px-3 text-center align-middle whitespace-nowrap">
+                                          <td
+                                            onClick={() => service.id && setStageModalServiceId(service.id)}
+                                            className="py-2.5 px-3 text-center align-middle whitespace-nowrap cursor-pointer hover:bg-sky-50/50 transition-colors"
+                                            title="Click to manage service fulfillment stages"
+                                          >
                                             {(() => {
                                               const { title, sub } = formatCurrentStage(service.stage, isServComplete);
                                               if (isServComplete) {
@@ -626,7 +644,7 @@ export function ClientsTable({
                                               }
                                               return (
                                                 <div className="inline-block text-left leading-tight">
-                                                  <p className="text-xs font-semibold text-slate-800">{title}</p>
+                                                  <p className="text-xs font-semibold text-slate-800 hover:text-[#0481A2] transition-colors">{title}</p>
                                                   {sub && (
                                                     <p className="text-[10px] text-slate-400 font-medium mt-0.5">{sub}</p>
                                                   )}
@@ -670,6 +688,15 @@ export function ClientsTable({
           </tbody>
         </table>
       </div>
+      {/* Service Fulfillment Stage Management Modal */}
+      <ServiceStageModal
+        isOpen={Boolean(stageModalServiceId)}
+        onClose={() => setStageModalServiceId(null)}
+        serviceId={stageModalServiceId}
+        onSuccess={() => {
+          onRefresh?.();
+        }}
+      />
     </div>
   );
 }

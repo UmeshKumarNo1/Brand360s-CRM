@@ -562,6 +562,8 @@ export function ClientDetailView({
                       index={idx}
                       totalServices={detailedServices.length}
                       defaultExpanded={idx === 0}
+                      canEdit={canEdit}
+                      onRefresh={() => loadDetailedServices(true)}
                       onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
                       onAddDocument={(svcId) => {
                         const match = detailedServices.find((s) => s.id === svcId);

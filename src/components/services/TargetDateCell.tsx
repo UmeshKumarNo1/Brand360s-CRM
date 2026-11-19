@@ -258,6 +258,28 @@ export function TargetDateCell({
     setWarning(null);
   };
 
+  const handleClear = () => {
+    setCurrentDate(null);
+    setTempDate("");
+    startTransition(async () => {
+      if (serviceId && !serviceId.startsWith("synth-")) {
+        try {
+          await updateClientServiceDueDateAction(serviceId, null, clientId);
+        } catch (err) {
+          console.error("Failed to clear target delivery date:", err);
+        }
+      }
+      if (onDateUpdated) {
+        onDateUpdated("");
+      }
+      setSaveSuccess(true);
+      setTimeout(() => {
+        setSaveSuccess(false);
+        setIsOpen(false);
+      }, 500);
+    });
+  };
+
   const handleSave = () => {
     if (!tempDate) return;
     const parsed = parseDateSafely(tempDate);
@@ -380,35 +402,47 @@ export function TargetDateCell({
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={() => setIsOpen(false)}
-              disabled={isPending}
-              className="px-2.5 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={isPending || !tempDate}
-              className="inline-flex items-center gap-1 px-3 py-1 bg-[#0481A2] text-white text-xs font-semibold rounded-md shadow-2xs hover:bg-[#036c88] transition-colors disabled:opacity-50"
-            >
-              {isPending ? (
-                <>
-                  <Loader2 size={12} className="animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : saveSuccess ? (
-                <>
-                  <Check size={12} />
-                  <span>Saved!</span>
-                </>
-              ) : (
-                <span>Save Date</span>
-              )}
-            </button>
+          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+            {currentDate ? (
+              <button
+                type="button"
+                onClick={handleClear}
+                disabled={isPending}
+                className="text-[11px] text-rose-600 hover:text-rose-800 hover:underline cursor-pointer disabled:opacity-50"
+              >
+                Clear Date
+              </button>
+            ) : <div />}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setIsOpen(false)}
+                disabled={isPending}
+                className="px-2.5 py-1 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isPending || !tempDate}
+                className="inline-flex items-center gap-1 px-3 py-1 bg-[#0481A2] text-white text-xs font-semibold rounded-md shadow-2xs hover:bg-[#036c88] transition-colors disabled:opacity-50"
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : saveSuccess ? (
+                  <>
+                    <Check size={12} />
+                    <span>Saved!</span>
+                  </>
+                ) : (
+                  <span>Save Date</span>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -28,16 +28,20 @@ import {
 import { formatINR, cn } from "@/lib/utils";
 import { DetailedServiceData } from "@/app/actions/client-detailed-services";
 import { computeServiceFulfillment } from "@/lib/services/fulfillment-workflows";
+import { InlineAssignEmployeeCell } from "@/components/services/InlineAssignEmployeeCell";
+import { TargetDateCell } from "@/components/services/TargetDateCell";
 
 interface ClientDetailedServiceCardProps {
   service: DetailedServiceData;
   index: number;
   totalServices: number;
   defaultExpanded?: boolean;
+  canEdit?: boolean;
   onPreviewInvoice?: (invoiceId: string) => void;
   onAddDocument?: (serviceId: string) => void;
   onManageService?: (service: DetailedServiceData) => void;
   onManageStage?: (serviceId: string) => void;
+  onRefresh?: () => void;
 }
 
 export function ClientDetailedServiceCard({
@@ -45,10 +49,12 @@ export function ClientDetailedServiceCard({
   index,
   totalServices,
   defaultExpanded = true,
+  canEdit = true,
   onPreviewInvoice,
   onAddDocument,
   onManageService,
   onManageStage,
+  onRefresh,
 }: ClientDetailedServiceCardProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
@@ -235,21 +241,28 @@ export function ClientDetailedServiceCard({
               </div>
 
               <div className="space-y-2 pt-2 border-t border-slate-200/60">
-                {service.assignedEmployeeName && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Assigned To</span>
-                    <span className="text-blue-700 font-semibold flex items-center gap-1">
-                      <User size={12} />
-                      {service.assignedEmployeeName}
-                    </span>
-                  </div>
-                )}
-                {service.expectedCompletionDate && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-500">Target Completion</span>
-                    <span className="text-slate-700 font-sans font-number">{service.expectedCompletionDate}</span>
-                  </div>
-                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Assigned To</span>
+                  <InlineAssignEmployeeCell
+                    serviceId={service.id}
+                    clientId={service.clientId}
+                    assignedEmployeeId={service.assignedEmployeeId}
+                    assignedEmployeeName={service.assignedEmployeeName}
+                    editable={canEdit}
+                    onUpdated={() => onRefresh?.()}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500">Target Completion</span>
+                  <TargetDateCell
+                    serviceId={service.id}
+                    clientId={service.clientId}
+                    initialDate={service.expectedCompletionDate}
+                    isCompleted={service.serviceStatus === "Completed"}
+                    editable={canEdit}
+                    onDateUpdated={() => onRefresh?.()}
+                  />
+                </div>
               </div>
             </div>
 

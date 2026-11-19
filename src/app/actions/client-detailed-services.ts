@@ -8,6 +8,7 @@ export interface DetailedServiceData {
   serviceName: string;
   serviceCategory: string;
   serviceStatus: string;
+  assignedEmployeeId: string | null;
   assignedEmployeeName: string;
   serviceFee: number;
   govtFee: number;
@@ -353,6 +354,7 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       serviceName: cs.service_name,
       serviceCategory: cs.service_category || "General",
       serviceStatus: cs.service_status || "Pending",
+      assignedEmployeeId: cs.assigned_employee_id || null,
       assignedEmployeeName: cs.assigned_profile?.full_name || "Unassigned",
       serviceFee: Number(cs.service_fee) || 0,
       govtFee: Number(cs.govt_fee) || 0,

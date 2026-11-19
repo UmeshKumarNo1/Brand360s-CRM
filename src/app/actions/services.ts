@@ -568,3 +568,44 @@ export async function updateClientServiceDueDateAction(
   revalidatePath("/reports");
   return { success: true };
 }
+
+/**
+ * Assigns or unassigns an employee to a client service.
+ * Supports passing null to clear assignment.
+ */
+export async function assignClientServiceEmployeeAction(
+  serviceId: string,
+  employeeId: string | null,
+  clientId?: string
+): Promise<ServiceActionState> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Authentication required." };
+
+  if (!serviceId) {
+    return { error: "Service ID is required." };
+  }
+
+  // Update assigned_employee_id
+  const { error } = await supabase
+    .from("client_services")
+    .update({
+      assigned_employee_id: employeeId || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", serviceId);
+
+  if (error) {
+    console.error("Error assigning employee to client service:", error);
+    return { error: error.message };
+  }
+
+  if (clientId) {
+    revalidatePath(`/clients/${clientId}`);
+  }
+  revalidatePath("/clients");
+  revalidatePath("/services");
+  revalidatePath("/reports");
+  return { success: true };
+}

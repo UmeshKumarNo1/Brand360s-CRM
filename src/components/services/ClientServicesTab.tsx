@@ -43,11 +43,14 @@ import { ServiceStageModal } from "@/components/services/ServiceStageModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 import { computeServiceFulfillment, FulfillmentStage } from "@/lib/services/fulfillment-workflows";
+import { InlineAssignEmployeeCell } from "@/components/services/InlineAssignEmployeeCell";
+import { TargetDateCell } from "@/components/services/TargetDateCell";
 
 interface ClientServicesTabProps {
   clientId: string;
   clientName: string;
   isAdmin: boolean;
+  canEdit?: boolean;
   initialAddService?: boolean;
 }
 
@@ -55,6 +58,7 @@ export function ClientServicesTab({
   clientId,
   clientName,
   isAdmin,
+  canEdit = true,
   initialAddService,
 }: ClientServicesTabProps) {
   const [services, setServices] = useState<any[]>([]);
@@ -446,20 +450,26 @@ export function ClientServicesTab({
 
                         {/* 7. Assigned To Column */}
                         <td className="py-3 px-2.5 align-middle text-slate-700 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5 text-xs">
-                            <User size={13} className="text-blue-600 shrink-0" />
-                            <span className="font-medium truncate max-w-[100px]" title={employeeName}>
-                              {employeeName}
-                            </span>
-                          </div>
+                          <InlineAssignEmployeeCell
+                            serviceId={s.id}
+                            clientId={clientId}
+                            assignedEmployeeId={s.assigned_employee_id}
+                            assignedEmployeeName={employeeName}
+                            editable={canEdit}
+                            onUpdated={() => loadData(true)}
+                          />
                         </td>
 
                         {/* 8. Due Date Column */}
                         <td className="py-3 px-2.5 align-middle text-slate-600 whitespace-nowrap">
-                          <div className="flex items-center gap-1.5 text-xs font-sans font-number">
-                            <Calendar size={13} className="text-rose-500 shrink-0" />
-                            <span>{formatDate(s.expected_completion_date)}</span>
-                          </div>
+                          <TargetDateCell
+                            serviceId={s.id}
+                            clientId={clientId}
+                            initialDate={s.expected_completion_date}
+                            isCompleted={s.service_status === "Completed"}
+                            editable={canEdit}
+                            onDateUpdated={() => loadData(true)}
+                          />
                         </td>
 
                         {/* 9. Status Column */}

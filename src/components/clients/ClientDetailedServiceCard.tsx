@@ -554,72 +554,80 @@ export function ClientDetailedServiceCard({
               </div>
             </div>
 
-            {/* 3. Right Box: Payment Summary & Next Action (3 Cols) */}
-            <div className="lg:col-span-3 bg-slate-50/70 border border-slate-200/80 rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between space-y-2.5">
-              {/* Payment Summary */}
-              <div>
-                <div className="flex items-center gap-2 pb-2 border-b border-slate-200/80">
-                  <CreditCard size={14} className="text-[#0481A2]" />
-                  <h4 className="font-bold text-slate-900 text-xs">Payment Summary</h4>
+            {/* 3. Right Box: Payment Summary (Separate Box) & Next Action (Separate Box) (3 Cols) */}
+            <div className="lg:col-span-3 bg-slate-50/70 border border-slate-200/80 rounded-xl p-3 sm:p-3.5 shadow-2xs flex flex-col justify-between gap-2.5">
+              {/* Payment Summary (Separate White Box) */}
+              <div className="bg-white border border-slate-200/80 rounded-lg p-2.5 sm:p-3 shadow-2xs space-y-2 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5 pb-1.5 border-b border-slate-100">
+                    <CreditCard size={13} className="text-[#0481A2]" />
+                    <h4 className="font-bold text-slate-900 text-xs">Payment Summary</h4>
+                  </div>
+
+                  <div className="pt-1.5 space-y-1.5">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-[10.5px] text-slate-500">Paid Amount</span>
+                      <span className="text-xs font-bold text-slate-700 font-sans font-number">{service.paymentProgress}%</span>
+                    </div>
+                    <div className="flex items-baseline justify-between">
+                      <p className="text-sm font-bold font-sans font-number">
+                        <span className={service.collectedAmount >= service.contractValue ? "text-emerald-600" : "text-slate-900"}>
+                          {formatINR(service.collectedAmount)}
+                        </span>{" "}
+                        <span className="text-slate-400 text-[11px] font-normal">/ {formatINR(service.contractValue)}</span>
+                      </p>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden mt-1">
+                      <div
+                        className={cn(
+                          "h-full rounded-full transition-all duration-500",
+                          service.paymentProgress >= 100
+                            ? "bg-emerald-600"
+                            : service.paymentProgress > 0
+                            ? "bg-[#0481A2]"
+                            : "bg-slate-300"
+                        )}
+                        style={{ width: `${Math.min(100, service.paymentProgress)}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <div className="pt-2 space-y-1.5">
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-[10.5px] text-slate-500">Paid Amount</span>
-                    <span className="text-xs font-bold text-slate-700 font-sans font-number">{service.paymentProgress}%</span>
-                  </div>
-                  <div className="flex items-baseline justify-between">
-                    <p className="text-base font-bold text-slate-900 font-sans font-number">
-                      <span className={service.collectedAmount >= service.contractValue ? "text-emerald-600" : "text-slate-900"}>
-                        {formatINR(service.collectedAmount)}
-                      </span>{" "}
-                      <span className="text-slate-400 text-xs font-normal">/ {formatINR(service.contractValue)}</span>
-                    </p>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden mt-1">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-all duration-500",
-                        service.paymentProgress >= 100
-                          ? "bg-emerald-600"
-                          : service.paymentProgress > 0
-                          ? "bg-[#0481A2]"
-                          : "bg-slate-300"
-                      )}
-                      style={{ width: `${Math.min(100, service.paymentProgress)}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="pt-1.5 border-t border-slate-200/80 flex items-center justify-between text-xs">
-                  <span className="text-slate-500 text-[11px]">Outstanding:</span>
+                <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                  <span className="text-slate-500 text-[10.5px]">Outstanding:</span>
                   <strong className={cn("font-bold font-sans font-number text-[11.5px]", service.outstandingAmount > 0 ? "text-rose-600" : "text-emerald-700")}>
                     {formatINR(service.outstandingAmount)}
                   </strong>
                 </div>
+              </div>
 
-                {/* Next Action */}
-                <div className="pt-2 border-t border-slate-200/80 space-y-1.5">
-                  <div className="flex items-center gap-1.5">
+              {/* Next Action (Separate White Box) */}
+              <div className="bg-white border border-slate-200/80 rounded-lg p-2.5 sm:p-3 shadow-2xs space-y-2 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-1.5 pb-1.5 border-b border-slate-100">
                     <Clock size={13} className="text-[#0481A2]" />
                     <h4 className="font-bold text-slate-900 text-xs">Next Action</h4>
                   </div>
 
-                  <div className={cn("p-2 rounded-lg border flex items-start gap-2", service.nextAction.isCompleted ? "bg-emerald-50/60 border-emerald-200 text-emerald-800" : "bg-amber-50/60 border-amber-200 text-amber-900")}>
-                    {service.nextAction.isCompleted ? (
-                      <CheckCircle2 size={14} className="text-emerald-600 shrink-0 mt-0.5" />
-                    ) : (
-                      <AlertCircle size={14} className="text-amber-600 shrink-0 mt-0.5" />
-                    )}
-                    <div className="text-[11px] leading-snug min-w-0">
-                      <p className="font-semibold truncate">{service.nextAction.title}</p>
-                      <p className="text-[9.5px] text-slate-500 mt-0.5">Due: {service.nextAction.dueDate}</p>
+                  <div className="pt-1.5">
+                    <div className={cn("p-2 rounded-lg border flex items-start gap-2", service.nextAction.isCompleted ? "bg-emerald-50/60 border-emerald-200 text-emerald-800" : "bg-amber-50/60 border-amber-200 text-amber-900")}>
+                      {service.nextAction.isCompleted ? (
+                        <CheckCircle2 size={14} className="text-emerald-600 shrink-0 mt-0.5" />
+                      ) : (
+                        <AlertCircle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                      )}
+                      <div className="text-[11px] leading-snug min-w-0">
+                        <p className="font-semibold truncate">{service.nextAction.title}</p>
+                        <p className="text-[9.5px] text-slate-500 mt-0.5">Due: {service.nextAction.dueDate}</p>
+                      </div>
                     </div>
                   </div>
+                </div>
+
+                <div className="pt-1 border-t border-slate-100 text-right">
+                  <span className="text-[9px] text-slate-400">Action tracked by CRM</span>
                 </div>
               </div>
             </div>

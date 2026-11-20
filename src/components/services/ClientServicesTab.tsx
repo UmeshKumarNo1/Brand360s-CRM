@@ -46,6 +46,7 @@ import { computeServiceFulfillment, FulfillmentStage } from "@/lib/services/fulf
 import { ServiceFulfillmentTimeline } from "@/components/services/ServiceFulfillmentTimeline";
 import { InlineAssignEmployeeCell } from "@/components/services/InlineAssignEmployeeCell";
 import { TargetDateCell } from "@/components/services/TargetDateCell";
+import { PortalDropdown } from "@/components/common/PortalDropdown";
 
 interface ClientServicesTabProps {
   clientId: string;
@@ -79,18 +80,7 @@ export function ClientServicesTab({
 
   const { success, error: toastError } = useToast();
   const requestIdRef = useRef(0);
-  const actionMenuRef = useRef<HTMLDivElement | null>(null);
-
-  // Close actions menu on click outside
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (actionMenuRef.current && !actionMenuRef.current.contains(e.target as Node)) {
-        setOpenActionMenuId(null);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  const actionButtonRefs = useRef<{ [key: string]: HTMLButtonElement | null }>({});
 
   const loadData = useCallback(async (silent = false) => {
     const currentReqId = ++requestIdRef.current;
@@ -439,8 +429,11 @@ export function ClientServicesTab({
                         </td>
 
                         {/* 10. Actions Column (Compact Three-Dot Menu) */}
-                        <td className="py-3 px-2 align-middle text-center relative">
+                        <td className="py-3 px-2 align-middle text-center">
                           <button
+                            ref={(el) => {
+                              actionButtonRefs.current[s.id] = el;
+                            }}
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -452,105 +445,106 @@ export function ClientServicesTab({
                             <MoreVertical size={14} />
                           </button>
 
-                          {/* Action Dropdown Menu */}
-                          {openActionMenuId === s.id && (
-                            <div
-                              ref={actionMenuRef}
-                              className="absolute right-3 top-8 z-30 w-48 bg-white rounded-xl shadow-lg border border-slate-200 py-1.5 text-left text-xs animate-in fade-in-50"
+                          {/* Action Dropdown Menu via Portal to avoid overflow clipping */}
+                          <PortalDropdown
+                            isOpen={openActionMenuId === s.id}
+                            onClose={() => setOpenActionMenuId(null)}
+                            triggerRef={{ current: actionButtonRefs.current[s.id] }}
+                            minWidth={200}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionMenuId(null);
+                                setStageModalServiceId(s.id);
+                              }}
+                              className="w-full px-3 py-2 text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer font-medium text-[#0481A2]"
                             >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenActionMenuId(null);
-                                  setStageModalServiceId(s.id);
-                                }}
-                                className="w-full px-3 py-1.5 text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer font-medium text-[#0481A2]"
-                              >
-                                <TrendingUp size={13} className="text-[#0481A2]" />
-                                <span>Manage Fulfillment Stages</span>
-                              </button>
+                              <TrendingUp size={13} className="text-[#0481A2]" />
+                              <span>Manage Fulfillment Stages</span>
+                            </button>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenActionMenuId(null);
-                                  setDocumentsModalService(s);
-                                }}
-                                className="w-full px-3 py-1.5 text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                              >
-                                <FileText size={13} className="text-slate-400" />
-                                <span>Documents & Deliverables</span>
-                              </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionMenuId(null);
+                                setDocumentsModalService(s);
+                              }}
+                              className="w-full px-3 py-2 text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                            >
+                              <FileText size={13} className="text-slate-400" />
+                              <span>Documents &amp; Deliverables</span>
+                            </button>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenActionMenuId(null);
-                                  setVendorModalService(s);
-                                }}
-                                className="w-full px-3 py-1.5 text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                              >
-                                <UserCheck size={13} className="text-slate-400" />
-                                <span>Vendor Assignment</span>
-                              </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionMenuId(null);
+                                setVendorModalService(s);
+                              }}
+                              className="w-full px-3 py-2 text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                            >
+                              <UserCheck size={13} className="text-slate-400" />
+                              <span>Vendor Assignment</span>
+                            </button>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenActionMenuId(null);
-                                  setRenewModalService({
-                                    id: s.id,
-                                    clientId,
-                                    clientName,
-                                    serviceName: s.service_name,
-                                    serviceCategory: s.service_category || "General",
-                                    renewalDate: s.expected_completion_date || s.renewal_date || new Date().toISOString().split("T")[0],
-                                    renewalAmount: Number(s.contractValue) || 0,
-                                    renewalStatus: s.renewal_status || "Upcoming",
-                                    salespersonName: "",
-                                    paymentStatus: s.paymentStatus || "Unpaid",
-                                  });
-                                }}
-                                className="w-full px-3 py-1.5 text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                              >
-                                <RefreshCw size={13} className="text-emerald-600" />
-                                <span>Renew Service</span>
-                              </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionMenuId(null);
+                                setRenewModalService({
+                                  id: s.id,
+                                  clientId,
+                                  clientName,
+                                  serviceName: s.service_name,
+                                  serviceCategory: s.service_category || "General",
+                                  renewalDate: s.expected_completion_date || s.renewal_date || new Date().toISOString().split("T")[0],
+                                  renewalAmount: Number(s.contractValue) || 0,
+                                  renewalStatus: s.renewal_status || "Upcoming",
+                                  salespersonName: "",
+                                  paymentStatus: s.paymentStatus || "Unpaid",
+                                });
+                              }}
+                              className="w-full px-3 py-2 text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                            >
+                              <RefreshCw size={13} className="text-emerald-600" />
+                              <span>Renew Service</span>
+                            </button>
 
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setOpenActionMenuId(null);
-                                  setHistoryModalService({
-                                    id: s.id,
-                                    service_name: s.service_name,
-                                    client_name: clientName,
-                                    client_id: clientId,
-                                  });
-                                }}
-                                className="w-full px-3 py-1.5 text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                              >
-                                <History size={13} className="text-slate-400" />
-                                <span>Renewal History</span>
-                              </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenActionMenuId(null);
+                                setHistoryModalService({
+                                  id: s.id,
+                                  service_name: s.service_name,
+                                  client_name: clientName,
+                                  client_id: clientId,
+                                });
+                              }}
+                              className="w-full px-3 py-2 text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                            >
+                              <History size={13} className="text-slate-400" />
+                              <span>Renewal History</span>
+                            </button>
 
-                              {isAdmin && (
-                                <div className="border-t border-slate-100 my-1 pt-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenActionMenuId(null);
-                                      handleRemove(s.id);
-                                    }}
-                                    className="w-full px-3 py-1.5 text-rose-600 hover:bg-rose-50 flex items-center gap-2 cursor-pointer"
-                                  >
-                                    <Trash2 size={13} />
-                                    <span>Remove Service</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
+                            {isAdmin && (
+                              <>
+                                <div className="border-t border-slate-100 my-1" />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setOpenActionMenuId(null);
+                                    handleRemove(s.id);
+                                  }}
+                                  className="w-full px-3 py-2 text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-medium cursor-pointer"
+                                >
+                                  <Trash2 size={13} className="text-rose-600" />
+                                  <span>Remove Service</span>
+                                </button>
+                              </>
+                            )}
+                          </PortalDropdown>
                         </td>
                       </tr>
                     );

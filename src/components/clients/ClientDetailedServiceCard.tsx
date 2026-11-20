@@ -34,6 +34,7 @@ import { computeServiceFulfillment } from "@/lib/services/fulfillment-workflows"
 import { ServiceFulfillmentTimeline } from "@/components/services/ServiceFulfillmentTimeline";
 import { InlineAssignEmployeeCell } from "@/components/services/InlineAssignEmployeeCell";
 import { TargetDateCell } from "@/components/services/TargetDateCell";
+import { PortalDropdown } from "@/components/common/PortalDropdown";
 
 interface ClientDetailedServiceCardProps {
   service: DetailedServiceData;
@@ -66,22 +67,7 @@ export function ClientDetailedServiceCard({
 }: ClientDetailedServiceCardProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  // Close menu on click outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsMenuOpen(false);
-      }
-    }
-    if (isMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isMenuOpen]);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   // Compute fulfillment milestone stages from actual persisted service stages and progress
   const fulfillment = computeServiceFulfillment({
@@ -219,8 +205,9 @@ export function ClientDetailedServiceCard({
           </div>
 
           {/* Actions Dropdown Menu */}
-          <div className="relative" ref={menuRef}>
+          <div>
             <button
+              ref={menuButtonRef}
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
@@ -232,53 +219,53 @@ export function ClientDetailedServiceCard({
               <MoreVertical size={16} />
             </button>
 
-            {isMenuOpen && (
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 z-30 animate-in fade-in zoom-in-95 duration-100 text-xs"
+            <PortalDropdown
+              isOpen={isMenuOpen}
+              onClose={() => setIsMenuOpen(false)}
+              triggerRef={menuButtonRef}
+              minWidth={210}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onManageService?.(service);
+                }}
+                className="w-full px-3.5 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
               >
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    onManageService?.(service);
-                  }}
-                  className="w-full px-3.5 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                >
-                  <FolderOpen size={14} className="text-slate-400" />
-                  <span>View Documents &amp; Details</span>
-                </button>
+                <FolderOpen size={14} className="text-slate-400" />
+                <span>View Documents &amp; Details</span>
+              </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsMenuOpen(false);
-                    onManageStage?.(service.id);
-                  }}
-                  className="w-full px-3.5 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
-                >
-                  <Award size={14} className="text-slate-400" />
-                  <span>Manage Fulfillment Stage</span>
-                </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onManageStage?.(service.id);
+                }}
+                className="w-full px-3.5 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+              >
+                <Award size={14} className="text-slate-400" />
+                <span>Manage Fulfillment Stage</span>
+              </button>
 
-                {isAdmin && (
-                  <>
-                    <div className="my-1 border-t border-slate-100" />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsMenuOpen(false);
-                        onDeleteService?.(service);
-                      }}
-                      className="w-full px-3.5 py-2 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-medium cursor-pointer"
-                    >
-                      <Trash2 size={14} className="text-rose-600" />
-                      <span>Delete Service</span>
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+              {isAdmin && (
+                <>
+                  <div className="my-1 border-t border-slate-100" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onDeleteService?.(service);
+                    }}
+                    className="w-full px-3.5 py-2 text-left text-rose-600 hover:bg-rose-50 flex items-center gap-2 font-medium cursor-pointer"
+                  >
+                    <Trash2 size={14} className="text-rose-600" />
+                    <span>Delete Service</span>
+                  </button>
+                </>
+              )}
+            </PortalDropdown>
           </div>
         </div>
       </div>

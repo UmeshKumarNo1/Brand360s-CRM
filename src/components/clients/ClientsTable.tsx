@@ -20,6 +20,7 @@ import { formatINR, cn } from "@/lib/utils";
 import { useState } from "react";
 import { TargetDateCell } from "@/components/services/TargetDateCell";
 import { ServiceStageModal } from "@/components/services/ServiceStageModal";
+import { AssignServiceModal } from "@/components/services/AssignServiceModal";
 import { computeServiceFulfillment } from "@/lib/services/fulfillment-workflows";
 import { ServiceFulfillmentTimeline } from "@/components/services/ServiceFulfillmentTimeline";
 import { InlineAssignEmployeeCell } from "@/components/services/InlineAssignEmployeeCell";
@@ -166,6 +167,7 @@ export function ClientsTable({
   onRefresh,
 }: ClientsTableProps) {
   const [stageModalServiceId, setStageModalServiceId] = useState<string | null>(null);
+  const [assignModalClient, setAssignModalClient] = useState<{ id: string; name: string } | null>(null);
 
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden w-full max-w-full">
@@ -461,11 +463,27 @@ export function ClientsTable({
                           <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
                             {/* 1. Minimal Light Child Header */}
                             <div className="px-4 py-2.5 bg-[#F0F5FA] border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                              {/* Left: Clean Title */}
-                              <div className="flex items-center gap-2">
+                              {/* Left: Clean Title & Action */}
+                              <div className="flex items-center gap-2.5">
                                 <span className="font-bold text-[#1E3A5F] text-xs sm:text-[13px] tracking-tight">
                                   Services
                                 </span>
+                                {services.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setAssignModalClient({
+                                        id: client.id,
+                                        name: client.companyName,
+                                      })
+                                    }
+                                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold text-[#0481A2] bg-white border border-sky-200 hover:bg-sky-50 shadow-2xs transition-colors cursor-pointer"
+                                    title="Assign additional service deliverable"
+                                  >
+                                    <Plus size={11} />
+                                    <span>Add Service</span>
+                                  </button>
+                                )}
                               </div>
 
                               {/* Right: Clean Financial Metrics separated by subtle pipes */}
@@ -511,13 +529,19 @@ export function ClientsTable({
                                 <p className="text-xs text-slate-500">
                                   No dedicated services assigned to this client yet.
                                 </p>
-                                <Link
-                                  href={`/clients/${client.id}?tab=services`}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0481A2] text-white text-xs font-semibold rounded-lg shadow-2xs hover:bg-[#036c88] transition-colors mt-2.5"
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setAssignModalClient({
+                                      id: client.id,
+                                      name: client.companyName,
+                                    })
+                                  }
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0481A2] text-white text-xs font-semibold rounded-lg shadow-2xs hover:bg-[#036c88] transition-colors mt-2.5 cursor-pointer"
                                 >
                                   <Plus size={14} />
                                   <span>Assign Service</span>
-                                </Link>
+                                </button>
                               </div>
                             ) : (
                               <div className="overflow-x-auto w-full custom-scrollbar">
@@ -735,6 +759,20 @@ export function ClientsTable({
           onRefresh?.();
         }}
       />
+
+      {/* One-Click Direct Service Assignment Modal */}
+      {assignModalClient && (
+        <AssignServiceModal
+          isOpen={Boolean(assignModalClient)}
+          onClose={() => setAssignModalClient(null)}
+          onSuccess={() => {
+            setAssignModalClient(null);
+            onRefresh?.();
+          }}
+          clientId={assignModalClient.id}
+          clientName={assignModalClient.name}
+        />
+      )}
     </div>
   );
 }

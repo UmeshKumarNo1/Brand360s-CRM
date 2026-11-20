@@ -10,6 +10,7 @@ interface PortalDropdownProps {
   children: ReactNode;
   className?: string;
   minWidth?: number;
+  align?: "right" | "left";
 }
 
 export function PortalDropdown({
@@ -19,6 +20,7 @@ export function PortalDropdown({
   children,
   className = "",
   minWidth = 200,
+  align = "right",
 }: PortalDropdownProps) {
   const [coords, setCoords] = useState<{
     top?: number;
@@ -47,7 +49,7 @@ export function PortalDropdown({
       const viewportHeight = window.innerHeight;
       const viewportWidth = window.innerWidth;
 
-      // Estimate menu height (~200px) or read current element if rendered
+      // Estimate menu height (~220px) or read current element if rendered
       const menuHeight = dropdownRef.current?.offsetHeight || 220;
       const spaceBelow = viewportHeight - rect.bottom;
       const spaceAbove = rect.top;
@@ -55,23 +57,33 @@ export function PortalDropdown({
       // If space below is less than menu height and there is more space above, open upward
       const openUpward = spaceBelow < menuHeight && spaceAbove > spaceBelow;
 
-      // Calculate horizontal positioning: align right edge by default, keep in viewport
-      let right = viewportWidth - rect.right;
-      if (right < 8) right = 8;
-      if (rect.right - minWidth < 8) {
-        // If aligning right overflows left, clamp left
-        right = Math.max(8, viewportWidth - (rect.left + minWidth));
+      let left: number | undefined;
+      let right: number | undefined;
+
+      if (align === "left") {
+        left = Math.max(8, rect.left);
+        if (left + minWidth > viewportWidth - 8) {
+          left = Math.max(8, viewportWidth - minWidth - 8);
+        }
+      } else {
+        right = viewportWidth - rect.right;
+        if (right < 8) right = 8;
+        if (rect.right - minWidth < 8) {
+          right = Math.max(8, viewportWidth - (rect.left + minWidth));
+        }
       }
 
       if (openUpward) {
         setCoords({
           bottom: viewportHeight - rect.top + 6,
+          left,
           right,
           openUpward: true,
         });
       } else {
         setCoords({
           top: rect.bottom + 6,
+          left,
           right,
           openUpward: false,
         });
@@ -88,7 +100,7 @@ export function PortalDropdown({
       window.removeEventListener("scroll", updatePosition, true);
       window.removeEventListener("resize", updatePosition);
     };
-  }, [isOpen, triggerRef, minWidth]);
+  }, [isOpen, triggerRef, minWidth, align]);
 
   // Handle outside click
   useEffect(() => {
@@ -129,6 +141,7 @@ export function PortalDropdown({
         position: "fixed",
         top: coords.top !== undefined ? `${coords.top}px` : undefined,
         bottom: coords.bottom !== undefined ? `${coords.bottom}px` : undefined,
+        left: coords.left !== undefined ? `${coords.left}px` : undefined,
         right: coords.right !== undefined ? `${coords.right}px` : undefined,
         zIndex: 9999,
         minWidth: `${minWidth}px`,

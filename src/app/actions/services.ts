@@ -278,6 +278,7 @@ export async function assignClientServiceAction(
   }
 
   const totalAmount = serviceFee + govtFee;
+  const taxAmount = Math.round(((serviceFee * taxRate) / 100) * 100) / 100;
 
   // Determine initial workflow stages
   const stageNames = getServiceFulfillmentPreset(serviceName, serviceCategory, workflowPreset);
@@ -294,6 +295,7 @@ export async function assignClientServiceAction(
       service_category: serviceCategory,
       service_fee: serviceFee,
       govt_fee: govtFee,
+      tax_amount: taxAmount,
       total_amount: totalAmount,
       tax_rate: taxRate,
       workflow_preset: workflowPreset || (serviceName.toLowerCase().includes("web") ? "website" : serviceName.toLowerCase().includes("gst") ? "gst" : "general"),
@@ -510,7 +512,7 @@ export async function editClientServiceAction(
   // 1. Fetch current service to verify financial constraints and current workflow state
   const { data: currentService, error: fetchErr } = await supabase
     .from("client_services")
-    .select("id, client_id, service_name, service_category, service_fee, govt_fee, total_amount, fulfillment_stages, workflow_preset, current_stage_name, progress_percentage")
+    .select("id, client_id, service_name, service_category, service_fee, govt_fee, total_amount, tax_rate, tax_amount, fulfillment_stages, workflow_preset, current_stage_name, progress_percentage")
     .eq("id", serviceId)
     .single();
 
@@ -558,6 +560,13 @@ export async function editClientServiceAction(
   }
 
   if (data.taxRate !== undefined) updateData.tax_rate = data.taxRate;
+  
+  // Recalculate tax_amount if serviceFee or taxRate was updated and no issued invoice exists
+  if (!hasIssuedInvoice && (data.serviceFee !== undefined || data.taxRate !== undefined)) {
+    const fee = data.serviceFee ?? Number(currentService.service_fee);
+    const rate = data.taxRate ?? (Number(currentService.tax_rate) || 18.0);
+    updateData.tax_amount = Math.round(((fee * rate) / 100) * 100) / 100;
+  }
   if (data.startDate !== undefined) updateData.start_date = data.startDate;
   if (data.expectedCompletionDate !== undefined) {
     updateData.expected_completion_date = snapToWorkingDayString(data.expectedCompletionDate);
@@ -699,7 +708,65 @@ export async function assignClientServiceEmployeeAction(
     return { error: "Service ID is required." };
   }
 
-  // Update assigned_employee_id
+  // 1. Fetch current user profile to verify assignment permissions
+  const { data: currentUserProfile } = await supabase
+    .from("profiles")
+    .select("id, role, full_name")
+    .eq("id", user.id)
+    .single();
+
+  const isAdmin = currentUserProfile?.role === "admin";
+
+  // 2. Fetch service with client to verify ownership/assignment authority
+  const { data: currentService, error: svcFetchError } = await supabase
+    .from("client_services")
+    .select(`
+      id,
+      client_id,
+      service_name,
+      assigned_employee_id,
+      client:clients!client_id (
+        id,
+        company_name,
+        assigned_salesperson,
+        created_by
+      )
+    `)
+    .eq("id", serviceId)
+    .single();
+
+  if (svcFetchError || !currentService) {
+    return { error: "Client service not found." };
+  }
+
+  const client = Array.isArray(currentService.client) ? currentService.client[0] : currentService.client;
+  const isAssignedSalesperson = client?.assigned_salesperson === user.id || client?.created_by === user.id;
+
+  if (!isAdmin && !isAssignedSalesperson) {
+    return { error: "Permission denied. Only Administrators and the assigned Salesperson can assign employees." };
+  }
+
+  // 3. If assigning an employee (not unassigning), verify that the employee exists and is active
+  let assignedEmployeeName = "Unassigned";
+  if (employeeId) {
+    const { data: targetProfile, error: targetProfileError } = await supabase
+      .from("profiles")
+      .select("id, full_name, role, is_active")
+      .eq("id", employeeId)
+      .single();
+
+    if (targetProfileError || !targetProfile) {
+      return { error: "Selected employee profile does not exist." };
+    }
+
+    if (targetProfile.is_active === false) {
+      return { error: "Cannot assign deactivated or inactive employee." };
+    }
+
+    assignedEmployeeName = targetProfile.full_name || "Employee";
+  }
+
+  // 4. Update assigned_employee_id
   const { error } = await supabase
     .from("client_services")
     .update({
@@ -713,8 +780,29 @@ export async function assignClientServiceEmployeeAction(
     return { error: error.message };
   }
 
-  if (clientId) {
-    revalidatePath(`/clients/${clientId}`);
+  // 5. Record CRM Audit Log
+  try {
+    const { recordAuditLog } = await import("@/lib/audit/audit-logger");
+    await recordAuditLog({
+      actorId: user.id,
+      action: "UPDATE",
+      entityType: "client_service",
+      entityId: serviceId,
+      entityName: `${currentService.service_name} (${client?.company_name || "Client"})`,
+      details: {
+        action_type: "REASSIGN_EMPLOYEE",
+        previous_employee_id: currentService.assigned_employee_id,
+        new_employee_id: employeeId || null,
+        new_employee_name: assignedEmployeeName,
+      },
+    });
+  } catch (auditErr) {
+    console.warn("Could not log employee assignment audit record:", auditErr);
+  }
+
+  const effectiveClientId = clientId || currentService.client_id;
+  if (effectiveClientId) {
+    revalidatePath(`/clients/${effectiveClientId}`);
   }
   revalidatePath("/clients");
   revalidatePath("/services");

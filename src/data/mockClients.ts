@@ -8,6 +8,7 @@ export interface ClientServiceItem {
   service_status: string; // 'Pending' | 'In Progress' | 'Processing' | 'Completed' | 'Cancelled' | 'Filing'
   start_date?: string | null;
   expected_completion_date?: string | null;
+  assigned_employee_id?: string | null;
   assigned_employee_name?: string | null;
   stage?: string;
   progressPercent?: number;

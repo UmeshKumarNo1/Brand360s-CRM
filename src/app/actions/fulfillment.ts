@@ -153,7 +153,7 @@ export async function fetchServiceStageDetailsAction(serviceId: string): Promise
  */
 export async function updateServiceFulfillmentStageAction(params: {
   serviceId: string;
-  action: "ADVANCE" | "REVERT" | "COMPLETE" | "NOTE";
+  action: "ADVANCE" | "REVERT" | "COMPLETE" | "NOTE" | "SET_STAGE";
   targetStageIndex?: number;
   notes?: string;
 }): Promise<StageUpdateResponse> {
@@ -205,7 +205,7 @@ export async function updateServiceFulfillmentStageAction(params: {
     };
   }
 
-  // Non-admins cannot revert stages
+  // Non-admins cannot revert stages backwards
   if (params.action === "REVERT" && !isAdmin) {
     return {
       success: false,
@@ -250,6 +250,40 @@ export async function updateServiceFulfillmentStageAction(params: {
     newStageName = "Completed";
     newServiceStatus = "Completed";
     newStageDescription = "Deliverable completed & approved";
+  } else if (params.action === "SET_STAGE") {
+    const targetIdx = params.targetStageIndex !== undefined ? params.targetStageIndex : currentIdx;
+    if (targetIdx >= 0 && targetIdx < totalStages) {
+      const isMovingBackwards = targetIdx < currentIdx;
+      if (isMovingBackwards && !isAdmin) {
+        return {
+          success: false,
+          error: "Only administrators can revert or move back to a previous fulfillment stage.",
+        };
+      }
+
+      // Preserve completion states of stages that were legitimately completed,
+      // and do not automatically mark skipped intermediate stages as completed
+      for (let i = 0; i < totalStages; i++) {
+        if (i === targetIdx) {
+          stages[i].status = "current";
+        } else if (i < targetIdx) {
+          // If moving forward, keep previously completed stages completed, or mark prior stages if not skipped
+          if (stages[i].status !== "completed") {
+            // Only stages prior to target keep their state or mark completed up to current
+            if (i < currentIdx) {
+              stages[i].status = "completed";
+            }
+          }
+        } else {
+          // Upcoming stages beyond target
+          stages[i].status = "upcoming";
+        }
+      }
+
+      newStageName = stages[targetIdx]?.name || "Onboarding";
+      newServiceStatus = targetIdx === totalStages - 1 ? "Completed" : targetIdx === 0 ? "Pending" : "In Progress";
+      newStageDescription = `Stage updated to ${newStageName}`;
+    }
   } else if (params.action === "REVERT") {
     // Admin correction: target stage index specified or move back 1 stage
     const targetIdx =

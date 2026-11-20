@@ -11,6 +11,7 @@ interface PortalDropdownProps {
   className?: string;
   minWidth?: number;
   align?: "right" | "left";
+  lockScroll?: boolean;
 }
 
 export function PortalDropdown({
@@ -21,6 +22,7 @@ export function PortalDropdown({
   className = "",
   minWidth = 200,
   align = "right",
+  lockScroll = false,
 }: PortalDropdownProps) {
   const [coords, setCoords] = useState<{
     top?: number;
@@ -131,6 +133,25 @@ export function PortalDropdown({
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, [isOpen, onClose, triggerRef]);
+
+  // Lock background page scrolling without layout shift
+  useEffect(() => {
+    if (!isOpen || !lockScroll) return;
+
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
+  }, [isOpen, lockScroll]);
 
   if (!mounted || !isOpen || !coords) return null;
 

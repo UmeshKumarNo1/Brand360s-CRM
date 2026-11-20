@@ -162,6 +162,7 @@ export function InlineAssignEmployeeCell({
         triggerRef={triggerButtonRef}
         minWidth={260}
         align="left"
+        lockScroll={true}
         className="p-2.5 text-left text-xs space-y-2 z-50"
       >
         {/* Popover Title & Close */}
@@ -196,7 +197,7 @@ export function InlineAssignEmployeeCell({
         )}
 
         {/* Employee List */}
-        <div className="max-h-48 overflow-y-auto space-y-0.5 divide-y divide-slate-50 pr-0.5 custom-scrollbar">
+        <div className="max-h-[260px] overflow-y-auto space-y-0.5 divide-y divide-slate-50 pr-0.5 custom-scrollbar">
           {isLoadingEmployees ? (
             <div className="flex items-center justify-center gap-1.5 py-4 text-slate-400 text-xs">
               <Loader2 size={13} className="animate-spin text-[#0481A2]" />

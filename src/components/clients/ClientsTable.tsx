@@ -725,12 +725,15 @@ export function ClientsTable({
                                             )}
                                           </td>
 
-                                          {/* TARGET DATE: Clean read-only status badge with dynamic green (>3d), orange (1-3d), red (today/overdue) */}
+                                          {/* TARGET DATE: Set / update target date popover with working days logic */}
                                           <td className="py-2.5 px-3.5 text-center align-middle whitespace-nowrap">
                                             <TargetDateCell
+                                              serviceId={service.id}
+                                              clientId={client.id}
                                               initialDate={service.expected_completion_date}
                                               isCompleted={service.service_status === "Completed"}
-                                              editable={false}
+                                              editable={Boolean(service.id)}
+                                              onDateUpdated={() => onRefresh?.()}
                                             />
                                           </td>
                                         </tr>

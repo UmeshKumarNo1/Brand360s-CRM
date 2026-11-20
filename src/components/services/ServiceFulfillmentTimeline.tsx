@@ -85,8 +85,8 @@ export function ServiceFulfillmentTimeline({
               className={cn(
                 "h-full rounded-full transition-all duration-300",
                 completedCount === totalStages
-                  ? "bg-emerald-500"
-                  : "bg-gradient-to-r from-emerald-500 via-blue-500 to-blue-400"
+                  ? "bg-[#00607A]"
+                  : "bg-gradient-to-r from-[#00607A] via-[#0481A2] to-sky-400"
               )}
               style={{ width: `${Math.min(100, Math.max(0, lineFillPercent))}%` }}
             />
@@ -117,8 +117,8 @@ export function ServiceFulfillmentTimeline({
                   circleSize,
                   "rounded-full flex items-center justify-center shrink-0 transition-all select-none",
                   interactive && "cursor-pointer hover:scale-110",
-                  isDone && "bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-50",
-                  isCurrent && "bg-white border-2 border-blue-600 text-blue-600 ring-4 ring-blue-100 shadow-xs",
+                  isDone && "bg-[#00607A] text-white shadow-xs ring-2 ring-sky-100",
+                  isCurrent && "bg-white border-2 border-[#00607A] text-[#00607A] ring-4 ring-sky-100 shadow-xs",
                   isUpcoming && "bg-white border border-slate-300 text-transparent"
                 )}
                 title={`${stage.name} (${isDone ? "Completed" : isCurrent ? "Active Milestone" : "Upcoming"})`}
@@ -126,7 +126,7 @@ export function ServiceFulfillmentTimeline({
                 {isDone ? (
                   <Check size={checkSize} strokeWidth={3} className="text-white shrink-0" />
                 ) : isCurrent ? (
-                  <div className={cn(dotSize, "rounded-full bg-blue-600 shrink-0")} />
+                  <div className={cn(dotSize, "rounded-full bg-[#00607A] shrink-0")} />
                 ) : null}
               </div>
 
@@ -136,7 +136,7 @@ export function ServiceFulfillmentTimeline({
                   className={cn(
                     "block text-center font-medium leading-tight tracking-tight transition-colors truncate whitespace-nowrap overflow-hidden max-w-full",
                     isSmall ? "text-[8.5px]" : "text-[10px]",
-                    isCurrent && "text-blue-700 font-bold",
+                    isCurrent && "text-[#00607A] font-bold",
                     isDone && "text-slate-700",
                     isUpcoming && "text-slate-400 font-normal"
                   )}

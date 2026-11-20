@@ -1,6 +1,20 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Briefcase, Building2, Calendar, FileText, CheckCircle2, Clock, User, Shield } from "lucide-react";
+import {
+  ArrowLeft,
+  Briefcase,
+  Building2,
+  Calendar,
+  FileText,
+  CheckCircle2,
+  Clock,
+  User,
+  Shield,
+  Code2,
+  Sparkles,
+  Home,
+  Layers,
+} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { fetchClientDetailedServicesAction } from "@/app/actions/client-detailed-services";
@@ -62,30 +76,33 @@ export default async function ServiceDetailPage({
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* Navigation Breadcrumb / Top Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-        <div className="flex items-center gap-3">
+      {/* 1. Page Header matching Reference Image 1 */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        {/* Left: Icon, Service Name, Tag, Breadcrumb */}
+        <div className="flex items-center gap-3.5 min-w-0">
           <Link
             href={`/clients/${clientId}?tab=services`}
-            className="p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-slate-900 transition-colors shadow-2xs hover:bg-slate-50 cursor-pointer"
+            className="w-12 h-12 rounded-2xl bg-[#1E293B] hover:bg-[#0F172A] text-white flex items-center justify-center shrink-0 shadow-sm transition-all group"
             title="Back to Client Services"
           >
-            <ArrowLeft size={16} />
+            <Code2 size={22} className="text-white group-hover:scale-105 transition-transform" />
           </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight font-sans truncate">
                 {matchedService.serviceName}
               </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-sky-50 text-[#0481A2] border border-sky-200">
-                {matchedService.serviceCategory || "General"}
+              <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-[#E0F7FA] text-[#0481A2] border border-[#B2EBF2] shrink-0">
+                <Sparkles size={11} className="text-[#0481A2]" />
+                <span>{matchedService.serviceCategory || "Branding & Web Development"}</span>
               </span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-              <span>Client:</span>
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
+              <Home size={13} className="text-slate-400 shrink-0" />
+              <span className="text-slate-400">&gt;</span>
               <Link
                 href={`/clients/${clientId}`}
-                className="font-semibold text-slate-800 hover:text-[#0481A2] hover:underline"
+                className="font-medium text-slate-700 hover:text-[#0481A2] hover:underline truncate"
               >
                 {client?.company_name} ({client?.client_code || "N/A"})
               </Link>
@@ -93,31 +110,69 @@ export default async function ServiceDetailPage({
           </div>
         </div>
 
-        {/* Financial Highlights */}
-        <div className="flex flex-wrap items-center gap-3 text-xs bg-white px-4 py-2.5 rounded-xl border border-slate-200 shadow-2xs">
-          <div>
-            <span className="text-slate-500 block text-[10px]">Contract Value</span>
-            <strong className="text-slate-900 font-bold font-sans font-number">{formatINR(matchedService.contractValue)}</strong>
+        {/* Right: 4 Financial Metric Highlights matching Reference Image 1 */}
+        <div className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs bg-white px-5 sm:px-6 py-3 rounded-2xl border border-slate-100 shadow-sm shrink-0">
+          {/* Contract Value */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 flex items-center justify-center shrink-0">
+              <Layers size={17} />
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px] font-medium leading-none mb-1">Contract Value</span>
+              <strong className="text-slate-900 font-bold text-sm font-sans font-number block leading-none">
+                {formatINR(matchedService.contractValue)}
+              </strong>
+            </div>
           </div>
-          <span className="text-slate-200">|</span>
-          <div>
-            <span className="text-slate-500 block text-[10px]">Invoiced (Incl. GST)</span>
-            <strong className="text-slate-900 font-bold font-sans font-number">{formatINR(matchedService.invoicedAmount)}</strong>
+
+          <div className="hidden sm:block h-7 w-[1px] bg-slate-100" />
+
+          {/* Invoiced (Incl. GST) */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#0481A2] flex items-center justify-center shrink-0">
+              <FileText size={17} />
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px] font-medium leading-none mb-1">Invoiced (Incl. GST)</span>
+              <strong className="text-slate-900 font-bold text-sm font-sans font-number block leading-none">
+                {formatINR(matchedService.invoicedAmount)}
+              </strong>
+            </div>
           </div>
-          <span className="text-slate-200">|</span>
-          <div>
-            <span className="text-slate-500 block text-[10px]">Collected</span>
-            <strong className="text-emerald-700 font-bold font-sans font-number">{formatINR(matchedService.collectedAmount)}</strong>
+
+          <div className="hidden sm:block h-7 w-[1px] bg-slate-100" />
+
+          {/* Collected */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+              <CheckCircle2 size={17} />
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px] font-medium leading-none mb-1">Collected</span>
+              <strong className="text-emerald-600 font-bold text-sm font-sans font-number block leading-none">
+                {formatINR(matchedService.collectedAmount)}
+              </strong>
+            </div>
           </div>
-          <span className="text-slate-200">|</span>
-          <div>
-            <span className="text-slate-500 block text-[10px]">Outstanding</span>
-            <strong className="text-rose-600 font-bold font-sans font-number">{formatINR(matchedService.outstandingAmount)}</strong>
+
+          <div className="hidden sm:block h-7 w-[1px] bg-slate-100" />
+
+          {/* Outstanding */}
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+              <Clock size={17} />
+            </div>
+            <div>
+              <span className="text-slate-400 block text-[10px] font-medium leading-none mb-1">Outstanding</span>
+              <strong className="text-rose-600 font-bold text-sm font-sans font-number block leading-none">
+                {formatINR(matchedService.outstandingAmount)}
+              </strong>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Detailed Service View */}
+      {/* 2. Main Detailed Service Card matching Reference Image 1 */}
       <ClientDetailedServiceCard
         service={matchedService}
         index={0}
@@ -129,4 +184,3 @@ export default async function ServiceDetailPage({
     </div>
   );
 }
-

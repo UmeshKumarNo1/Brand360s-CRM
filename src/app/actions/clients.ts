@@ -392,32 +392,8 @@ export async function fetchClientsAction() {
     return [];
   }
 
-try {
-  const supabase = await createClient();
-
-  const { data, error } = await supabase
-    .from("clients")
-    .select(`
-      *,
-      assigned_profile:profiles!assigned_salesperson(full_name, email),
-      services:client_services(
-        id,
-        service_name,
-        service_category,
-        service_fee,
-        govt_fee,
-        total_amount,
-        start_date,
-        expected_completion_date,
-        service_status,
-        fulfillment_stages,
-        current_stage_name,
-        current_stage_description,
-        progress_percentage,
-        assigned_profile:profiles!assigned_employee_id(full_name)
-      )
-    `)
-    .order("created_at", { ascending: false });
+  try {
+    const supabase = await createClient();
 
     const { data, error } = await supabase
       .from("clients")
@@ -434,6 +410,10 @@ try {
           start_date,
           expected_completion_date,
           service_status,
+          fulfillment_stages,
+          current_stage_name,
+          current_stage_description,
+          progress_percentage,
           assigned_profile:profiles!assigned_employee_id(full_name)
         )
       `)

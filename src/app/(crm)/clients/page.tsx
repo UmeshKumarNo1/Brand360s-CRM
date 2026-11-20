@@ -238,7 +238,7 @@ const nextFollowup = pendingFollowupsMap
   : undefined;
 
 const nextActionTitle = nextFollowup
-  ? nextFollowup.title || nextFollowup.followUpType || "Follow-up required"
+  ? nextFollowup.title || "Follow-up required"
   : undefined;
 
 const nextActionDueDate = nextFollowup?.dueDate || undefined;

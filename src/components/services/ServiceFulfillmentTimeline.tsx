@@ -130,19 +130,25 @@ export function ServiceFulfillmentTimeline({
                 ) : null}
               </div>
 
-              {/* Centered Milestone Label below Circle */}
-              <span
-                className={cn(
-                  "text-center mt-1.5 font-medium leading-tight break-words max-w-full tracking-tight transition-colors line-clamp-2",
-                  isSmall ? "text-[8.5px]" : "text-[10px]",
-                  isCurrent && "text-blue-700 font-bold",
-                  isDone && "text-slate-700",
-                  isUpcoming && "text-slate-400 font-normal"
-                )}
-                title={stage.name}
-              >
-                {stage.name}
-              </span>
+              {/* Centered Milestone Label below Circle with ellipsis tooltip */}
+              <div className="w-full mt-1.5 px-0.5 text-center flex justify-center">
+                <span
+                  className={cn(
+                    "block text-center font-medium leading-tight tracking-tight transition-colors truncate whitespace-nowrap overflow-hidden max-w-full",
+                    isSmall ? "text-[8.5px]" : "text-[10px]",
+                    isCurrent && "text-blue-700 font-bold",
+                    isDone && "text-slate-700",
+                    isUpcoming && "text-slate-400 font-normal"
+                  )}
+                  style={{
+                    wordBreak: "normal",
+                    overflowWrap: "normal",
+                  }}
+                  title={stage.name}
+                >
+                  {stage.name}
+                </span>
+              </div>
             </div>
           );
         })}

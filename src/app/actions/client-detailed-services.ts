@@ -19,6 +19,8 @@ export interface DetailedServiceData {
   notes: string | null;
   vendorDetails: string;
   // Fulfillment progression
+  workflowPreset?: string | null;
+  taxRate?: number;
   fulfillmentStages?: any[] | null;
   currentStageName?: string | null;
   currentStageDescription?: string | null;
@@ -369,6 +371,8 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       expectedCompletionDate: cs.expected_completion_date,
       notes: cs.notes,
       vendorDetails: vendorNames || "None",
+      workflowPreset: cs.workflow_preset || null,
+      taxRate: cs.tax_rate !== undefined && cs.tax_rate !== null ? Number(cs.tax_rate) : 18,
       fulfillmentStages: cs.fulfillment_stages || null,
       currentStageName: cs.current_stage_name || null,
       currentStageDescription: cs.current_stage_description || null,

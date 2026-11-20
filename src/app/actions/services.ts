@@ -8,6 +8,8 @@ import { uploadClientServiceDocumentAction } from "@/app/actions/documents";
 import { syncClientContractValueAction } from "@/app/actions/client-reconciliation";
 import { verifyAdminSession, recordAuditLog } from "@/lib/audit/audit-logger";
 
+import { getServiceFulfillmentPreset, FulfillmentStage } from "@/lib/services/fulfillment-workflows";
+
 export interface ServiceActionState {
   error?: string | null;
   success?: boolean;
@@ -268,12 +270,21 @@ export async function assignClientServiceAction(
   const serviceStatus = (formData.get("service_status") as string) || "Pending";
   const assignedEmployeeId = (formData.get("assigned_employee_id") as string) || null;
   const notes = (formData.get("notes") as string) || null;
+  const workflowPreset = (formData.get("workflow_preset") as string) || null;
+  const taxRate = parseFloat(formData.get("tax_rate") as string) || 18.0;
 
   if (!clientId || !serviceName) {
     return { error: "Client and service name are required." };
   }
 
   const totalAmount = serviceFee + govtFee;
+
+  // Determine initial workflow stages
+  const stageNames = getServiceFulfillmentPreset(serviceName, serviceCategory, workflowPreset);
+  const initialStages: FulfillmentStage[] = stageNames.map((name, idx) => ({
+    name,
+    status: idx === 0 ? "current" : "upcoming",
+  }));
 
   const { data: newClientService, error } = await supabase
     .from("client_services")
@@ -284,6 +295,11 @@ export async function assignClientServiceAction(
       service_fee: serviceFee,
       govt_fee: govtFee,
       total_amount: totalAmount,
+      tax_rate: taxRate,
+      workflow_preset: workflowPreset || (serviceName.toLowerCase().includes("web") ? "website" : serviceName.toLowerCase().includes("gst") ? "gst" : "general"),
+      fulfillment_stages: initialStages,
+      current_stage_name: initialStages[0]?.name || "Onboarding",
+      progress_percentage: 0,
       start_date: startDate,
       expected_completion_date: expectedCompletionDate,
       service_status: serviceStatus,
@@ -484,9 +500,46 @@ export async function editClientServiceAction(
     serviceStatus?: string;
     assignedEmployeeId?: string | null;
     notes?: string | null;
+    taxRate?: number;
+    workflowPreset?: string | null;
+    resetWorkflow?: boolean;
   }
 ): Promise<ServiceActionState> {
   const supabase = await createClient();
+
+  // 1. Fetch current service to verify financial constraints and current workflow state
+  const { data: currentService, error: fetchErr } = await supabase
+    .from("client_services")
+    .select("id, client_id, service_name, service_category, service_fee, govt_fee, total_amount, fulfillment_stages, workflow_preset, current_stage_name, progress_percentage")
+    .eq("id", serviceId)
+    .single();
+
+  if (fetchErr || !currentService) {
+    return { error: "Service record not found." };
+  }
+
+  // 2. Check if an issued invoice exists for this service
+  const { data: linkedInvoiceItems } = await supabase
+    .from("invoice_items")
+    .select("id, invoice:invoices!invoice_id (id, status, invoice_number)")
+    .eq("client_service_id", serviceId);
+
+  const hasIssuedInvoice = (linkedInvoiceItems || []).some((it: any) => {
+    const status = it.invoice?.status;
+    return status && status !== "Draft" && status !== "Cancelled";
+  });
+
+  // Financial editing restrictions:
+  // If an issued invoice exists, do not silently change commercial amounts (serviceFee, govtFee)
+  if (hasIssuedInvoice) {
+    const feeChanged = data.serviceFee !== undefined && Number(data.serviceFee) !== Number(currentService.service_fee);
+    const govtFeeChanged = data.govtFee !== undefined && Number(data.govtFee) !== Number(currentService.govt_fee);
+    if (feeChanged || govtFeeChanged) {
+      return {
+        error: "Commercial fees cannot be altered because this service is already linked to an Issued Tax Invoice. To modify amounts, please create an adjustment invoice or void/cancel the existing invoice.",
+      };
+    }
+  }
 
   const updateData: any = {
     updated_at: new Date().toISOString(),
@@ -494,18 +547,54 @@ export async function editClientServiceAction(
 
   if (data.serviceName !== undefined) updateData.service_name = data.serviceName;
   if (data.serviceCategory !== undefined) updateData.service_category = data.serviceCategory;
-  if (data.serviceFee !== undefined) updateData.service_fee = data.serviceFee;
-  if (data.govtFee !== undefined) updateData.govt_fee = data.govtFee;
-  if (data.serviceFee !== undefined || data.govtFee !== undefined) {
-    const fee = data.serviceFee ?? 0;
-    const govt = data.govtFee ?? 0;
-    updateData.total_amount = fee + govt;
+  if (!hasIssuedInvoice) {
+    if (data.serviceFee !== undefined) updateData.service_fee = data.serviceFee;
+    if (data.govtFee !== undefined) updateData.govt_fee = data.govtFee;
+    if (data.serviceFee !== undefined || data.govtFee !== undefined) {
+      const fee = data.serviceFee ?? Number(currentService.service_fee);
+      const govt = data.govtFee ?? Number(currentService.govt_fee);
+      updateData.total_amount = fee + govt;
+    }
   }
+
+  if (data.taxRate !== undefined) updateData.tax_rate = data.taxRate;
   if (data.startDate !== undefined) updateData.start_date = data.startDate;
-  if (data.expectedCompletionDate !== undefined) updateData.expected_completion_date = data.expectedCompletionDate;
+  if (data.expectedCompletionDate !== undefined) {
+    updateData.expected_completion_date = snapToWorkingDayString(data.expectedCompletionDate);
+  }
   if (data.serviceStatus !== undefined) updateData.service_status = data.serviceStatus;
   if (data.assignedEmployeeId !== undefined) updateData.assigned_employee_id = data.assignedEmployeeId;
   if (data.notes !== undefined) updateData.notes = data.notes;
+
+  // 3. Workflow Preset Update & Intelligent Stage Mapping
+  if (data.workflowPreset !== undefined && data.workflowPreset !== currentService.workflow_preset) {
+    updateData.workflow_preset = data.workflowPreset;
+    const newStageNames = getServiceFulfillmentPreset(
+      data.serviceName || currentService.service_name,
+      data.serviceCategory || currentService.service_category,
+      data.workflowPreset
+    );
+
+    const existingStages: FulfillmentStage[] = currentService.fulfillment_stages || [];
+    const completedNames = new Set(existingStages.filter((s) => s.status === "completed").map((s) => s.name.toLowerCase()));
+
+    // Map stages intelligently
+    const newStages: FulfillmentStage[] = newStageNames.map((name, idx) => {
+      if (completedNames.has(name.toLowerCase())) {
+        return { name, status: "completed" };
+      }
+      return { name, status: idx === 0 ? "current" : "upcoming" };
+    });
+
+    // If first stage wasn't completed, mark it current
+    const currentIdx = newStages.findIndex((s) => s.status === "current");
+    const completedCount = newStages.filter((s) => s.status === "completed").length;
+    const newProgress = Math.round((completedCount / newStages.length) * 100);
+
+    updateData.fulfillment_stages = newStages;
+    updateData.current_stage_name = (currentIdx !== -1 ? newStages[currentIdx]?.name : newStages[0]?.name) || "In Progress";
+    updateData.progress_percentage = newProgress;
+  }
 
   const { error } = await supabase
     .from("client_services")

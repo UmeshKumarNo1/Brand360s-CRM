@@ -47,6 +47,7 @@ import { ServiceFulfillmentTimeline } from "@/components/services/ServiceFulfill
 import { InlineAssignEmployeeCell } from "@/components/services/InlineAssignEmployeeCell";
 import { TargetDateCell } from "@/components/services/TargetDateCell";
 import { PortalDropdown } from "@/components/common/PortalDropdown";
+import { EditServiceModal } from "@/components/services/EditServiceModal";
 
 interface ClientServicesTabProps {
   clientId: string;
@@ -77,6 +78,7 @@ export function ClientServicesTab({
   const [deliverableModalService, setDeliverableModalService] = useState<any | null>(null);
   const [documentsModalService, setDocumentsModalService] = useState<any | null>(null);
   const [stageModalServiceId, setStageModalServiceId] = useState<string | null>(null);
+  const [editingService, setEditingService] = useState<any | null>(null);
 
   const { success, error: toastError } = useToast();
   const requestIdRef = useRef(0);
@@ -464,6 +466,37 @@ export function ClientServicesTab({
                               <span>Manage Fulfillment Stages</span>
                             </button>
 
+                            {canEdit && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOpenActionMenuId(null);
+                                  setEditingService({
+                                    id: s.id,
+                                    clientId,
+                                    serviceName: s.service_name,
+                                    serviceCategory: s.service_category || "General",
+                                    serviceFee: Number(s.service_fee) || 0,
+                                    govtFee: Number(s.govt_fee) || 0,
+                                    taxRate: Number(s.tax_rate) || 18,
+                                    totalAmount: Number(s.contractValue) || 0,
+                                    startDate: s.start_date,
+                                    expectedCompletionDate: s.expected_completion_date,
+                                    serviceStatus: s.service_status || "Pending",
+                                    assignedEmployeeId: s.assigned_employee_id || null,
+                                    notes: s.notes || "",
+                                    workflowPreset: s.workflow_preset || null,
+                                    progressPercentage: s.progress_percentage || 0,
+                                    invoices: [],
+                                  });
+                                }}
+                                className="w-full px-3 py-2 text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
+                              >
+                                <Edit2 size={13} className="text-slate-400" />
+                                <span>Edit Service</span>
+                              </button>
+                            )}
+
                             <button
                               type="button"
                               onClick={() => {
@@ -652,6 +685,19 @@ export function ClientServicesTab({
           loadData(true);
         }}
       />
+
+      {/* Edit Service Modal */}
+      {editingService && (
+        <EditServiceModal
+          isOpen={Boolean(editingService)}
+          onClose={() => setEditingService(null)}
+          service={editingService}
+          onSuccess={() => {
+            setEditingService(null);
+            loadData(true);
+          }}
+        />
+      )}
     </div>
   );
 }

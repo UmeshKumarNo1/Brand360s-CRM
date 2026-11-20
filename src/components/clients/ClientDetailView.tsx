@@ -72,6 +72,7 @@ import {
   ServiceDeletionEligibility,
 } from "@/app/actions/services";
 import { DeleteServiceModal } from "@/components/services/DeleteServiceModal";
+import { EditServiceModal } from "@/components/services/EditServiceModal";
 import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
@@ -111,6 +112,7 @@ export function ClientDetailView({
   const [documentsModalService, setDocumentsModalService] = useState<any | null>(null);
   const [stageModalServiceId, setStageModalServiceId] = useState<string | null>(null);
   const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
+  const [editingService, setEditingService] = useState<DetailedServiceData | null>(null);
 
   // Service Deletion State
   const [serviceToDelete, setServiceToDelete] = useState<DetailedServiceData | null>(null);
@@ -663,6 +665,9 @@ export function ClientDetailView({
                         onManageStage={(svcId) => {
                           setStageModalServiceId(svcId);
                         }}
+                        onEditService={(svc) => {
+                          setEditingService(svc);
+                        }}
                         onDeleteService={(svc) => {
                           handleOpenDeleteService(svc);
                         }}
@@ -1117,6 +1122,20 @@ export function ClientDetailView({
           router.refresh();
         }}
       />
+
+      {/* Edit Service Modal */}
+      {editingService && (
+        <EditServiceModal
+          isOpen={Boolean(editingService)}
+          onClose={() => setEditingService(null)}
+          service={editingService}
+          onSuccess={() => {
+            setEditingService(null);
+            loadDetailedServices(true);
+            router.refresh();
+          }}
+        />
+      )}
 
       {/* Service Deletion Modal */}
       {serviceToDelete && (

@@ -15,6 +15,7 @@ import {
 import { assignClientServiceAction, fetchServicesCatalogAction } from "@/app/actions/services";
 import { fetchSalespeopleAction } from "@/app/actions/clients";
 import { useToast } from "@/components/common/ToastProvider";
+import { WORKFLOW_OPTIONS } from "@/lib/services/fulfillment-workflows";
 
 interface AssignServiceModalProps {
   isOpen: boolean;
@@ -376,6 +377,23 @@ export function AssignServiceModal({
                 <option value="Completed">Completed</option>
               </select>
             </div>
+          </div>
+
+          {/* Fulfillment Workflow Template Selection */}
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">Fulfillment Workflow Template</label>
+            <select
+              name="workflow_preset"
+              defaultValue=""
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2] text-xs font-medium text-slate-800"
+            >
+              <option value="">Auto-Detect from Service Name &amp; Category</option>
+              {WORKFLOW_OPTIONS.map((wf) => (
+                <option key={wf.id} value={wf.id}>
+                  {wf.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

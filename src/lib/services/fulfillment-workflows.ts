@@ -7,31 +7,49 @@ export interface FulfillmentStage {
  * Standard fulfillment stage presets for common service types.
  */
 export const DEFAULT_SERVICE_STAGES: Record<string, string[]> = {
-  compliance: ["Onboarding", "Doc Collection", "Preparation", "Filing", "Completed"],
-  trademark: ["Onboarding", "Search & Check", "Filing", "Examination", "Registration"],
-  incorporation: ["Name Approval", "DSC & DIN", "Spice+ Filing", "Incorporation Cert", "PAN & TAN"],
-  gst: ["Onboarding", "Document Verification", "ARN Generation", "Verification", "GST Certificate"],
   website: ["Requirements", "UI/UX Design", "Development", "Client Review", "Deployment"],
+  gst: ["Onboarding", "Document Verification", "ARN Generation", "Verification", "GST Certificate"],
+  incorporation: ["Name Approval", "DSC & DIN", "Spice+ Filing", "Incorporation Cert", "PAN & TAN"],
+  trademark: ["Onboarding", "Search & Check", "Filing", "Examination", "Registration"],
+  compliance: ["Onboarding", "Doc Collection", "Preparation", "Filing", "Completed"],
   general: ["Onboarding", "Doc Collection", "Preparation", "Filing", "Closure"],
 };
 
+export const WORKFLOW_OPTIONS = [
+  { id: "website", label: "Website Development (5 Stages: Requirements → UI/UX → Development → Client Review → Deployment)" },
+  { id: "gst", label: "GST Registration (5 Stages: Onboarding → Doc Verification → ARN → Verification → Certificate)" },
+  { id: "incorporation", label: "Company Incorporation (5 Stages: Name Approval → DSC/DIN → Spice+ → Cert → PAN/TAN)" },
+  { id: "trademark", label: "Trademark Registration (5 Stages: Onboarding → Search → Filing → Examination → Registration)" },
+  { id: "compliance", label: "Annual Compliance (5 Stages: Onboarding → Doc Collection → Prep → Filing → Completed)" },
+  { id: "general", label: "General Service (5 Stages: Onboarding → Doc Collection → Prep → Filing → Closure)" },
+];
+
 /**
- * Match a service name to the appropriate workflow stage template.
+ * Match a service name or explicit preset key to the appropriate workflow stage template.
  */
-export function getServiceFulfillmentPreset(serviceName: string, serviceCategory?: string): string[] {
+export function getServiceFulfillmentPreset(
+  serviceName: string,
+  serviceCategory?: string,
+  explicitPreset?: string | null
+): string[] {
+  if (explicitPreset && DEFAULT_SERVICE_STAGES[explicitPreset.toLowerCase()]) {
+    return DEFAULT_SERVICE_STAGES[explicitPreset.toLowerCase()];
+  }
+
   const norm = (serviceName + " " + (serviceCategory || "")).toLowerCase();
 
+  // Website & Software first priority check to ensure Web Dev never gets hijacked
+  if (norm.includes("web") || norm.includes("app") || norm.includes("software") || norm.includes("design") || norm.includes("frontend") || norm.includes("backend")) {
+    return DEFAULT_SERVICE_STAGES.website;
+  }
+  if (norm.includes("gst")) {
+    return DEFAULT_SERVICE_STAGES.gst;
+  }
   if (norm.includes("trademark") || norm.includes("ip") || norm.includes("patent") || norm.includes("copyright")) {
     return DEFAULT_SERVICE_STAGES.trademark;
   }
   if (norm.includes("incorporat") || norm.includes("pvt ltd") || norm.includes("llp") || norm.includes("opc") || norm.includes("company reg")) {
     return DEFAULT_SERVICE_STAGES.incorporation;
-  }
-  if (norm.includes("gst")) {
-    return DEFAULT_SERVICE_STAGES.gst;
-  }
-  if (norm.includes("web") || norm.includes("app") || norm.includes("software") || norm.includes("design")) {
-    return DEFAULT_SERVICE_STAGES.website;
   }
   if (norm.includes("compliance") || norm.includes("annual") || norm.includes("roc") || norm.includes("audit")) {
     return DEFAULT_SERVICE_STAGES.compliance;
@@ -69,8 +87,12 @@ export function computeServiceFulfillment(service: any): {
     };
   }
 
-  // Derive intelligently from service status
-  const preset = getServiceFulfillmentPreset(service.service_name || "", service.service_category || "");
+  // Derive intelligently from service status & explicit workflow preset
+  const preset = getServiceFulfillmentPreset(
+    service.service_name || service.serviceName || "",
+    service.service_category || service.serviceCategory || "",
+    service.workflow_preset || service.workflowPreset
+  );
   const status = (service.service_status || "Pending").toLowerCase();
 
   let completedUpTo = 0;

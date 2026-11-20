@@ -27,6 +27,7 @@ import {
   Trash2,
   FolderOpen,
   Award,
+  Edit,
 } from "lucide-react";
 import { formatINR, cn } from "@/lib/utils";
 import { DetailedServiceData } from "@/app/actions/client-detailed-services";
@@ -47,6 +48,7 @@ interface ClientDetailedServiceCardProps {
   onAddDocument?: (serviceId: string) => void;
   onManageService?: (service: DetailedServiceData) => void;
   onManageStage?: (serviceId: string) => void;
+  onEditService?: (service: DetailedServiceData) => void;
   onDeleteService?: (service: DetailedServiceData) => void;
   onRefresh?: () => void;
 }
@@ -62,6 +64,7 @@ export function ClientDetailedServiceCard({
   onAddDocument,
   onManageService,
   onManageStage,
+  onEditService,
   onDeleteService,
   onRefresh,
 }: ClientDetailedServiceCardProps) {
@@ -236,6 +239,20 @@ export function ClientDetailedServiceCard({
                 <FolderOpen size={14} className="text-slate-400" />
                 <span>View Documents &amp; Details</span>
               </button>
+
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onEditService?.(service);
+                  }}
+                  className="w-full px-3.5 py-2 text-left text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer font-medium text-[#0481A2]"
+                >
+                  <Edit size={14} className="text-[#0481A2]" />
+                  <span>Edit Service Deliverable</span>
+                </button>
+              )}
 
               <button
                 type="button"

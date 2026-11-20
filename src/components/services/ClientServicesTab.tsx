@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import Link from "next/link";
 import {
   Plus,
   Layers,
@@ -290,17 +291,16 @@ export function ClientServicesTab({
                               <ServiceIcon size={14} />
                             </div>
                             <div className="min-w-0">
-                              <button
-                                type="button"
-                                onClick={() => setDocumentsModalService(s)}
+                              <Link
+                                href={`/services/${s.id}`}
                                 className="font-bold text-slate-900 block leading-tight text-xs truncate hover:text-[#077EA1] hover:underline cursor-pointer group text-left"
-                                title={`View details for ${s.service_name}`}
+                                title={`Open service details for ${s.service_name}`}
                               >
-                                <span className="inline-flex items-center gap-1">
+                                <span className="inline-flex items-center gap-1.5">
                                   <span>{s.service_name}</span>
-                                  <ExternalLink size={11} className="text-slate-400 group-hover:text-[#077EA1] shrink-0" />
+                                  <ExternalLink size={12} className="text-slate-400 group-hover:text-[#077EA1] shrink-0" />
                                 </span>
-                              </button>
+                              </Link>
                               <span className="text-[10px] text-slate-400 block truncate leading-tight mt-0.5" title={s.service_category || "General"}>
                                 ({s.service_category || "General"})
                               </span>

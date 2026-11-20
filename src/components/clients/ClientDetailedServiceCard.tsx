@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
 import {
   ChevronDown,
   ChevronUp,
@@ -133,18 +134,15 @@ export function ClientDetailedServiceCard({
           {/* Title & Service Sequence Number */}
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onManageService?.(service);
-                }}
+              <Link
+                href={`/services/${service.id}`}
+                onClick={(e) => e.stopPropagation()}
                 className="font-bold text-slate-900 text-sm tracking-tight truncate hover:text-[#0481A2] hover:underline cursor-pointer inline-flex items-center gap-1.5 group text-left"
-                title={`Open ${service.serviceName} service details`}
+                title={`Open ${service.serviceName} service detail page`}
               >
                 <span>{service.serviceName}</span>
                 <ExternalLink size={13} className="text-slate-400 group-hover:text-[#0481A2] shrink-0" />
-              </button>
+              </Link>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-[#0481A2] border border-sky-200 shrink-0">
                 Service {index + 1} of {totalServices}
               </span>

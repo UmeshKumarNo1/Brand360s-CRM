@@ -183,42 +183,6 @@ export default function ClientsPage() {
                   amountPaid: s.amountPaid || 0,
                 };
               });
-            } else if (r.services_purchased) {
-              // Graceful fallback for legacy records
-              const names = r.services_purchased
-                .split(",")
-                .map((s: string) => s.trim())
-                .filter(Boolean);
-              const isClientCompleted = r.client_status === "Completed";
-              const perServiceVal =
-                names.length > 0
-                  ? Math.round((Number(r.contract_value) || 0) / names.length)
-                  : 0;
-
-              servicesList = names.map((name: string, sIdx: number) => ({
-                id: `synth-${r.id}-${sIdx}`,
-                service_name: name,
-                service_category: "General",
-                service_fee: perServiceVal,
-                govt_fee: 0,
-                total_amount: perServiceVal,
-                service_status: isClientCompleted ? "Completed" : "In Progress",
-                expected_completion_date:
-                  r.next_payment_due_date && r.next_payment_due_date !== "-"
-                    ? r.next_payment_due_date
-                    : null,
-                assigned_employee_name: r.assigned_profile?.full_name || null,
-                stage: isClientCompleted
-                  ? "Completed"
-                  : "Preparation (Work in progress)",
-                progressPercent: isClientCompleted ? 100 : 50,
-                paymentStatus: isClientCompleted
-                  ? "Paid"
-                  : Number(r.payments_received) > 0
-                    ? "Partial"
-                    : "Unpaid",
-                amountPaid: isClientCompleted ? perServiceVal : 0,
-              }));
             }
 
             const completedCount = servicesList.filter(
@@ -261,9 +225,9 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
               createdAt: r.created_at || "-",
               salesperson: r.assigned_profile?.full_name || "Unassigned",
               servicesPurchased:
-                r.services_purchased ||
-                (servicesList.map((s) => s.service_name).join(", ") ||
-                  "Company Registration"),
+                servicesList.length > 0
+                  ? servicesList.map((s) => s.service_name).join(", ")
+                  : (r.services_purchased || "-"),
               contractValue: Number(r.contract_value) || 0,
               paymentsReceived: Number(r.payments_received) || 0,
               balanceReceivable: Number(r.balance_receivable) || 0,

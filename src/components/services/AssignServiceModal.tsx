@@ -15,7 +15,13 @@ import {
 import { assignClientServiceAction, fetchServicesCatalogAction } from "@/app/actions/services";
 import { fetchSalespeopleAction } from "@/app/actions/clients";
 import { useToast } from "@/components/common/ToastProvider";
-import { WORKFLOW_OPTIONS } from "@/lib/services/fulfillment-workflows";
+import { WORKFLOW_OPTIONS, getServiceFulfillmentPreset } from "@/lib/services/fulfillment-workflows";
+import {
+  BRAND360_CATEGORIES,
+  detectServiceCategory,
+  Brand360ServiceCategory,
+} from "@/lib/services/service-catalogue-master";
+import { ServiceCombobox, ServiceComboboxItem } from "@/components/services/ServiceCombobox";
 
 interface AssignServiceModalProps {
   isOpen: boolean;
@@ -44,6 +50,15 @@ export function AssignServiceModal({
   const [catalog, setCatalog] = useState<any[]>([]);
   const [salespeople, setSalespeople] = useState<any[]>([]);
   const [selectedCatalogItem, setSelectedCatalogItem] = useState<any>(null);
+
+  // Form field states for automatic category and fee population
+  const [serviceName, setServiceName] = useState<string>("");
+  const [serviceCategory, setServiceCategory] = useState<string>("Business Registration");
+  const [isCategoryManuallyEdited, setIsCategoryManuallyEdited] = useState<boolean>(false);
+  const [serviceFee, setServiceFee] = useState<number | string>(0);
+  const [govtFee, setGovtFee] = useState<number | string>(0);
+  const [taxRate, setTaxRate] = useState<number | string>(18);
+  const [workflowPreset, setWorkflowPreset] = useState<string>("");
 
   // Document Uploads State
   const [attachedFiles, setAttachedFiles] = useState<SelectedDocFile[]>([]);
@@ -109,6 +124,15 @@ export function AssignServiceModal({
       setAttachedFiles([]);
       setExpectedDate(getInitialWorkingDate());
       setWeekendWarning(null);
+      // Reset form states on open
+      setSelectedCatalogItem(null);
+      setServiceName("");
+      setServiceCategory("Business Registration");
+      setIsCategoryManuallyEdited(false);
+      setServiceFee(0);
+      setGovtFee(0);
+      setTaxRate(18);
+      setWorkflowPreset("");
     }
   }, [isOpen]);
 
@@ -134,9 +158,30 @@ export function AssignServiceModal({
     }
   }, [state, onSuccess, onClose, success, toastError]);
 
-  const handleCatalogChange = (serviceName: string) => {
-    const item = catalog.find((c) => c.name === serviceName);
-    setSelectedCatalogItem(item || null);
+  const handleSelectCatalogItem = (item: ServiceComboboxItem | null) => {
+    setSelectedCatalogItem(item);
+    if (item) {
+      setServiceName(item.name);
+      const cat = item.category || detectServiceCategory(item.name);
+      setServiceCategory(cat);
+      setIsCategoryManuallyEdited(false);
+      setServiceFee(item.default_service_fee !== undefined ? item.default_service_fee : 0);
+      setGovtFee(item.default_govt_fee !== undefined ? item.default_govt_fee : 0);
+      setWorkflowPreset(item.workflow_preset || "");
+    }
+  };
+
+  const handleCustomTextChange = (text: string) => {
+    setServiceName(text);
+    if (!isCategoryManuallyEdited && text.trim().length > 0) {
+      const detected = detectServiceCategory(text);
+      setServiceCategory(detected);
+    }
+  };
+
+  const handleCategoryChange = (cat: string) => {
+    setServiceCategory(cat);
+    setIsCategoryManuallyEdited(true);
   };
 
   const handleFilesAdded = (files: FileList | null) => {
@@ -271,20 +316,16 @@ export function AssignServiceModal({
             </div>
           )}
 
-          {/* Quick Select from Catalog */}
+          {/* Quick Select from Catalog with Searchable Combobox */}
           <div>
             <label className="block font-semibold text-slate-700 mb-1">Pick from Services Catalog</label>
-            <select
-              onChange={(e) => handleCatalogChange(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
-            >
-              <option value="">Select a catalog template or enter custom...</option>
-              {catalog.map((c) => (
-                <option key={c.id} value={c.name}>
-                  {c.name} ({c.category})
-                </option>
-              ))}
-            </select>
+            <ServiceCombobox
+              catalog={catalog}
+              selectedItem={selectedCatalogItem}
+              onSelect={handleSelectCatalogItem}
+              onCustomTextChange={handleCustomTextChange}
+              placeholder="Type to search or enter custom service..."
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -294,31 +335,31 @@ export function AssignServiceModal({
                 name="service_name"
                 required
                 type="text"
-                defaultValue={selectedCatalogItem?.name || ""}
+                value={serviceName}
+                onChange={(e) => handleCustomTextChange(e.target.value)}
                 placeholder="e.g. GST Registration"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
               />
             </div>
 
             <div>
-              <label className="block font-semibold text-slate-700 mb-1">Category</label>
+              <label className="block font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                <span>Category</span>
+                {!isCategoryManuallyEdited && serviceName && (
+                  <span className="text-[10px] text-sky-600 font-medium">Auto-detected</span>
+                )}
+              </label>
               <select
                 name="service_category"
-                value={selectedCatalogItem?.category || "General"}
-                onChange={(e) =>
-                  setSelectedCatalogItem({
-                    ...selectedCatalogItem,
-                    category: e.target.value,
-                  })
-                }
+                value={serviceCategory}
+                onChange={(e) => handleCategoryChange(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               >
-                <option value="Company Incorporation">Company Incorporation</option>
-                <option value="GST & Tax Filing">GST & Tax Filing</option>
-                <option value="Intellectual Property">Intellectual Property</option>
-                <option value="Accounting & Audit">Accounting & Audit</option>
-                <option value="Web & Technology">Web & Technology</option>
-                <option value="General">General</option>
+                {BRAND360_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -330,7 +371,8 @@ export function AssignServiceModal({
                 name="service_fee"
                 type="number"
                 step="any"
-                defaultValue={selectedCatalogItem?.default_service_fee || 0}
+                value={serviceFee}
+                onChange={(e) => setServiceFee(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
               />
             </div>
@@ -341,7 +383,8 @@ export function AssignServiceModal({
                 name="govt_fee"
                 type="number"
                 step="any"
-                defaultValue={selectedCatalogItem?.default_govt_fee || 0}
+                value={govtFee}
+                onChange={(e) => setGovtFee(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
               />
             </div>
@@ -352,7 +395,8 @@ export function AssignServiceModal({
                 name="tax_rate"
                 type="number"
                 step="any"
-                defaultValue={18}
+                value={taxRate}
+                onChange={(e) => setTaxRate(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
               />
             </div>
@@ -395,7 +439,8 @@ export function AssignServiceModal({
             <label className="block font-semibold text-slate-700 mb-1">Fulfillment Workflow Template</label>
             <select
               name="workflow_preset"
-              defaultValue=""
+              value={workflowPreset}
+              onChange={(e) => setWorkflowPreset(e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2] text-xs font-medium text-slate-800"
             >
               <option value="">Auto-Detect from Service Name &amp; Category</option>

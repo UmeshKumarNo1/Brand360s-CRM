@@ -16,6 +16,7 @@ import {
 } from "@/lib/validation/client-validation";
 
 import { recordAuditLog } from "@/lib/audit/audit-logger";
+import { calculateClientFinancials, calculateServiceFinancials } from "@/lib/financial/financial-calculator";
 
 export interface CreateClientState {
   error?: string | null;
@@ -444,7 +445,8 @@ export async function fetchClientsAction() {
       return fallbackData || [];
     }
 
-    // Extract all client service IDs to fetch payment allocations
+    // Extract all client IDs and service IDs to fetch invoices, payments and allocations in batch
+    const allClientIds = (data || []).map((c: any) => c.id);
     const allServiceIds: string[] = [];
 
     (data || []).forEach((c: any) => {
@@ -453,104 +455,108 @@ export async function fetchClientsAction() {
       });
     });
 
-    const paidByService: Record<string, number> = {};
+    // Batch fetch issued invoices, payments, and allocations
+    const [invoicesRes, paymentsRes, allocsRes] = await Promise.all([
+      supabase
+        .from("invoices")
+        .select("id, client_id, total_amount, amount_paid, balance_due, status, items:invoice_items(id, total, client_service_id)")
+        .in("client_id", allClientIds)
+        .not("status", "in", '("Draft","Void","Cancelled")'),
+      supabase
+        .from("payments")
+        .select("id, client_id, amount, status")
+        .in("client_id", allClientIds),
+      allServiceIds.length > 0 || allClientIds.length > 0
+        ? supabase
+            .from("invoice_payment_allocations")
+            .select("id, invoice_id, payment_id, allocated_amount, amount, client_service_id")
+        : Promise.resolve({ data: [] }),
+    ]);
 
-    if (allServiceIds.length > 0) {
-      // 1. Direct allocations to client services
-      const { data: directAllocs, error: directError } = await supabase
-        .from("invoice_payment_allocations")
-        .select("client_service_id, invoice_id, allocated_amount")
-        .in("client_service_id", allServiceIds);
+    const invoicesByClient: Record<string, any[]> = {};
+    (invoicesRes.data || []).forEach((inv: any) => {
+      if (!invoicesByClient[inv.client_id]) invoicesByClient[inv.client_id] = [];
+      invoicesByClient[inv.client_id].push(inv);
+    });
 
-      if (directError) {
-        console.error("Direct payment allocation lookup failed:", directError);
-      }
+    const paymentsByClient: Record<string, any[]> = {};
+    (paymentsRes.data || []).forEach((pmt: any) => {
+      if (!paymentsByClient[pmt.client_id]) paymentsByClient[pmt.client_id] = [];
+      paymentsByClient[pmt.client_id].push(pmt);
+    });
 
-      (directAllocs || []).forEach((a: any) => {
-        if (a.client_service_id) {
-          paidByService[a.client_service_id] =
-            (paidByService[a.client_service_id] || 0) +
-            (Number(a.allocated_amount) || 0);
-        }
+    const allocations = allocsRes.data || [];
+
+    // Enrich each client and their services with standardized financial calculations
+    return (data || []).map((client: any) => {
+      const clientInvs = invoicesByClient[client.id] || [];
+      const clientPmts = paymentsByClient[client.id] || [];
+      const clientInvIds = new Set(clientInvs.map((i: any) => i.id));
+      const clientAllocs = allocations.filter((a: any) => clientInvIds.has(a.invoice_id));
+
+      const clientFinancials = calculateClientFinancials({
+        clientId: client.id,
+        services: client.services || [],
+        invoices: clientInvs,
+        payments: clientPmts,
+        allocations: clientAllocs,
+        nextDueDate: client.next_payment_due_date,
       });
 
-      // 2. Find allocations linked through invoice items
-      const { data: invoiceItems, error: invoiceItemsError } = await supabase
-        .from("invoice_items")
-        .select("invoice_id, client_service_id")
-        .in("client_service_id", allServiceIds);
-
-      if (invoiceItemsError) {
-        console.error("Invoice item lookup failed:", invoiceItemsError);
-      }
-
-      if (invoiceItems && invoiceItems.length > 0) {
-        const invoiceToServiceMap: Record<string, string> = {};
-        const relevantInvoiceIds: string[] = [];
-
-        invoiceItems.forEach((item: any) => {
-          if (item.invoice_id && item.client_service_id) {
-            invoiceToServiceMap[item.invoice_id] = item.client_service_id;
-            relevantInvoiceIds.push(item.invoice_id);
-          }
+      const enrichedServices = (client.services || []).map((s: any) => {
+        // Find matching invoices for this service
+        const matchingInvoices = clientInvs.filter((inv: any) => {
+          if (inv.items && inv.items.some((it: any) => it.client_service_id === s.id)) return true;
+          if ((client.services || []).length === 1 && !inv.items?.some((it: any) => it.client_service_id && it.client_service_id !== s.id)) return true;
+          return false;
         });
 
-        if (relevantInvoiceIds.length > 0) {
-          const { data: indirectAllocs, error: indirectError } = await supabase
-            .from("invoice_payment_allocations")
-            .select("invoice_id, client_service_id, allocated_amount")
-            .in("invoice_id", relevantInvoiceIds);
+        // Find service allocations
+        const matchingInvIds = new Set(matchingInvoices.map((i: any) => i.id));
+        let serviceAllocatedAmount = clientAllocs
+          .filter((a: any) => a.client_service_id === s.id || matchingInvIds.has(a.invoice_id))
+          .reduce((sum: number, a: any) => sum + (Number(a.allocated_amount ?? a.amount) || 0), 0);
 
-          if (indirectError) {
-            console.error("Indirect payment allocation lookup failed:", indirectError);
+        // Fallback for single service with invoice paid amount
+        if ((client.services || []).length === 1 && serviceAllocatedAmount === 0) {
+          const invPaid = matchingInvoices.reduce((sum, inv) => sum + (Number(inv.amount_paid) || 0), 0);
+          if (invPaid > 0) {
+            serviceAllocatedAmount = invPaid;
+          } else {
+            serviceAllocatedAmount = clientFinancials.collectedAmount;
           }
-
-          (indirectAllocs || []).forEach((a: any) => {
-            if (
-              !a.client_service_id &&
-              a.invoice_id &&
-              invoiceToServiceMap[a.invoice_id]
-            ) {
-              const resolvedSvcId = invoiceToServiceMap[a.invoice_id];
-
-              // Avoid double-counting when direct allocations exist
-              if (!paidByService[resolvedSvcId]) {
-                paidByService[resolvedSvcId] =
-                  (paidByService[resolvedSvcId] || 0) +
-                  (Number(a.allocated_amount) || 0);
-              }
-            }
-          });
         }
-      }
-    }
 
-    // Enrich each client's services with paymentStatus and amountPaid
-    return (data || []).map((client: any) => {
-      const enrichedServices = (client.services || []).map((s: any) => {
-        const contractVal =
-          Number(s.total_amount) ||
-          (Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0);
-
-        const paid = paidByService[s.id] || 0;
-
-        let paymentStatus: "Paid" | "Partial" | "Unpaid" = "Unpaid";
-
-        if (contractVal > 0 && paid >= contractVal - 0.009) {
-          paymentStatus = "Paid";
-        } else if (paid > 0.009) {
-          paymentStatus = "Partial";
-        }
+        const svcFiancials = calculateServiceFinancials({
+          service: s,
+          serviceInvoices: matchingInvoices,
+          serviceAllocatedAmount,
+        });
 
         return {
           ...s,
-          amountPaid: paid,
-          paymentStatus,
+          contract_value: svcFiancials.contractValue,
+          total_amount: svcFiancials.contractValue,
+          invoicedAmount: svcFiancials.invoicedAmount,
+          amountPaid: svcFiancials.collectedAmount,
+          outstandingAmount: svcFiancials.outstandingAmount,
+          paymentStatus: svcFiancials.paymentStatus,
+          paymentProgress: svcFiancials.paymentProgress,
+          hasCommercialMismatch: svcFiancials.hasCommercialMismatch,
         };
       });
 
       return {
         ...client,
+        contractValue: clientFinancials.contractValue,
+        contract_value: clientFinancials.contractValue,
+        invoicedAmount: clientFinancials.invoicedAmount,
+        paymentsReceived: clientFinancials.collectedAmount,
+        payments_received: clientFinancials.collectedAmount,
+        balanceReceivable: clientFinancials.invoiceOutstanding,
+        balance_receivable: clientFinancials.invoiceOutstanding,
+        contractBalance: clientFinancials.contractBalance,
+        unallocatedAdvance: clientFinancials.unallocatedAdvance,
         services: enrichedServices,
       };
     });
@@ -658,21 +664,26 @@ export async function fetchClientContractSummaryAction(clientId: string) {
 export async function fetchClientsKpiSummaryAction() {
   const supabase = await createClient();
 
-  const { data: clients, error } = await supabase
-    .from("clients")
-    .select("client_status, contract_value, payments_received, balance_receivable");
+  const [clientsRes, servicesRes, invoicesRes, paymentsRes] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("id, client_status, contract_value, payments_received, balance_receivable"),
+    supabase
+      .from("client_services")
+      .select("client_id, total_amount, service_fee, govt_fee, service_status"),
+    supabase
+      .from("invoices")
+      .select("client_id, total_amount, amount_paid, balance_due, status")
+      .not("status", "in", '("Draft","Void","Cancelled")'),
+    supabase
+      .from("payments")
+      .select("client_id, amount, status"),
+  ]);
 
-  if (error || !clients) {
-    console.error("Error fetching clients KPI summary:", error);
-    return {
-      totalNonArchived: 0,
-      activeOperationalCount: 0,
-      archivedCount: 0,
-      totalContractValue: 0,
-      amountCollected: 0,
-      totalOutstanding: 0,
-    };
-  }
+  const clients = clientsRes.data || [];
+  const services = servicesRes.data || [];
+  const invoices = invoicesRes.data || [];
+  const payments = paymentsRes.data || [];
 
   let totalNonArchived = 0;
   let activeOperationalCount = 0;
@@ -684,15 +695,40 @@ export async function fetchClientsKpiSummaryAction() {
   for (const c of clients) {
     if (c.client_status === "Archived") {
       archivedCount++;
-    } else {
-      totalNonArchived++;
-      if (c.client_status === "Active") {
-        activeOperationalCount++;
-      }
-      totalContractValue += Number(c.contract_value) || 0;
-      amountCollected += Number(c.payments_received) || 0;
-      totalOutstanding += Number(c.balance_receivable) || 0;
+      continue;
     }
+
+    totalNonArchived++;
+    if (c.client_status === "Active") {
+      activeOperationalCount++;
+    }
+
+    // Active services for this client
+    const cSvcs = services.filter((s: any) => s.client_id === c.id && s.service_status !== "Cancelled");
+    const cContract = cSvcs.reduce((sum: number, s: any) => {
+      const amt = Number(s.total_amount) || ((Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0));
+      return sum + amt;
+    }, 0);
+
+    // Confirmed payments for this client
+    const cPmts = payments.filter((p: any) =>
+      p.client_id === c.id &&
+      (["Verified", "Completed", "Received"].includes(p.status) || (!["Pending", "Failed", "Cancelled", "Reversed"].includes(p.status) && p.status !== undefined))
+    );
+    const cCollected = cPmts.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+
+    // Issued invoices outstanding for this client
+    const cInvs = invoices.filter((i: any) => i.client_id === c.id);
+    const cOutstanding = cInvs.reduce((sum: number, i: any) => {
+      const bal = i.balance_due !== undefined && i.balance_due !== null
+        ? Number(i.balance_due)
+        : Math.max(0, (Number(i.total_amount) || 0) - (Number(i.amount_paid) || 0));
+      return sum + bal;
+    }, 0);
+
+    totalContractValue += cContract;
+    amountCollected += cCollected;
+    totalOutstanding += cOutstanding;
   }
 
   return {

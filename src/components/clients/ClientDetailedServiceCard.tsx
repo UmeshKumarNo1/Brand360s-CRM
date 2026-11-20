@@ -146,6 +146,14 @@ export function ClientDetailedServiceCard({
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-[#0481A2] border border-sky-200 shrink-0">
                 Service {index + 1} of {totalServices}
               </span>
+              {service.hasCommercialMismatch && (
+                <span
+                  className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 shrink-0"
+                  title={`Commercial Mismatch: Contract Value (${formatINR(service.contractValue)}) differs from Invoiced Amount (${formatINR(service.invoicedAmount)})`}
+                >
+                  Contract/Invoice Mismatch
+                </span>
+              )}
             </div>
             <p className="text-xs text-slate-400 mt-0.5 truncate">{service.serviceCategory}</p>
           </div>
@@ -400,10 +408,21 @@ export function ClientDetailedServiceCard({
                   <span className="text-[11px] text-slate-500 block">Paid Amount</span>
                   <div className="flex items-baseline justify-between">
                     <p className="text-lg font-bold text-slate-900 font-sans font-number">
-                      <span className={service.collectedAmount >= service.contractValue ? "text-emerald-600" : "text-slate-900"}>
-                        {formatINR(service.collectedAmount)}
-                      </span>{" "}
-                      <span className="text-slate-400 text-xs font-normal">/ {formatINR(service.contractValue)}</span>
+                      {service.invoicedAmount > 0 ? (
+                        <>
+                          <span className={service.collectedAmount >= service.invoicedAmount ? "text-emerald-600" : "text-slate-900"}>
+                            {formatINR(service.collectedAmount)}
+                          </span>{" "}
+                          <span className="text-slate-400 text-xs font-normal">/ {formatINR(service.invoicedAmount)}</span>
+                        </>
+                      ) : service.contractValue > 0 ? (
+                        <>
+                          <span className="text-slate-900">{formatINR(service.collectedAmount)}</span>{" "}
+                          <span className="text-slate-400 text-xs font-normal">/ {formatINR(service.contractValue)}</span>
+                        </>
+                      ) : (
+                        <span className="text-slate-500 text-sm font-normal">Not Invoiced</span>
+                      )}
                     </p>
                     <span className="text-xs font-bold text-slate-600 font-sans font-number">{service.paymentProgress}%</span>
                   </div>
@@ -419,7 +438,7 @@ export function ClientDetailedServiceCard({
                           ? "bg-[#0481A2]"
                           : "bg-slate-300"
                       )}
-                      style={{ width: `${Math.min(100, service.paymentProgress)}%` }}
+                      style={{ width: `${Math.min(100, Math.max(0, service.paymentProgress))}%` }}
                     />
                   </div>
                 </div>

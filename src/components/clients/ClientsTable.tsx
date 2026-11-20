@@ -329,7 +329,7 @@ export function ClientsTable({
 
                       {/* 5. Invoiced */}
                       <td className="py-3 px-2 sm:px-3 text-right font-bold text-slate-700 font-sans font-number whitespace-nowrap align-middle">
-                        {formatINR(client.contractValue)}
+                        {formatINR(client.invoicedAmount ?? client.contractValue)}
                       </td>
 
                       {/* 6. Collected */}
@@ -498,7 +498,7 @@ export function ClientsTable({
                                 <span>
                                   Invoiced:{" "}
                                   <strong className="text-slate-900 font-sans font-number font-bold">
-                                    {formatINR(client.contractValue)}
+                                    {formatINR(client.invoicedAmount ?? client.contractValue)}
                                   </strong>
                                 </span>
                                 <span className="text-slate-300">|</span>
@@ -633,7 +633,9 @@ export function ClientsTable({
                                                   ? formatINR(service.total_amount)
                                                   : service.paymentStatus === "Partial"
                                                   ? `${formatINR(service.amountPaid || 0)} / ${formatINR(service.total_amount)}`
-                                                  : `₹0 / ${formatINR(service.total_amount)}`}
+                                                  : service.total_amount > 0
+                                                  ? `₹0 / ${formatINR(service.total_amount)}`
+                                                  : "Not Invoiced"}
                                               </span>
                                             </div>
                                           </td>

@@ -237,12 +237,13 @@ export function ClientDetailView({
   // - Contract Value = Sum of active service contract values
   // - Invoiced = Sum of issued invoices across services
   // - Collected = Verified payments collected
-  // - Invoice Outstanding = Invoiced - Collected (or Sum of unpaid balances of issued invoices)
-  // - Yet to Invoice = Contract Value - Invoiced
+  // - Invoice Outstanding = Sum of unpaid balance_due of issued invoices (or Invoiced - Collected)
+  // - Contract Receivable = Math.max(0, Contract Value - Collected)
   const totalContract = detailedServices.reduce((sum, s) => sum + (Number(s.contractValue) || 0), 0);
   const totalInvoiced = detailedServices.reduce((sum, s) => sum + (Number(s.invoicedAmount) || 0), 0);
   const totalCollected = detailedServices.reduce((sum, s) => sum + (Number(s.collectedAmount) || 0), 0);
-  const totalOutstanding = Math.max(0, totalInvoiced - totalCollected);
+  const totalOutstanding = detailedServices.reduce((sum, s) => sum + (Number(s.outstandingAmount) || 0), 0);
+  const contractBalance = Math.max(0, totalContract - totalCollected);
 
   return (
     <div className="relative space-y-6 font-sans">
@@ -388,7 +389,7 @@ export function ClientDetailView({
           <div>
             <span className="text-xs text-slate-500 font-medium">Payments Received</span>
             <p className="text-2xl font-bold text-[#16A34A] mt-0.5 font-sans font-number">
-              {formatINR(client.paymentsReceived)}
+              {formatINR(totalCollected > 0 ? totalCollected : client.paymentsReceived)}
             </p>
           </div>
           <svg
@@ -415,7 +416,7 @@ export function ClientDetailView({
           <div>
             <span className="text-xs text-slate-500 font-medium">Balance Receivable</span>
             <p className="text-2xl font-bold text-slate-900 mt-0.5 font-sans font-number">
-              {formatINR(totalContract > 0 ? Math.max(0, totalContract - client.paymentsReceived) : client.balanceReceivable)}
+              {formatINR(detailedServices.length > 0 ? totalOutstanding : client.balanceReceivable)}
             </p>
           </div>
           <svg

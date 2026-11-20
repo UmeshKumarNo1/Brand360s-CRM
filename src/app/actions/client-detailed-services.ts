@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { calculateServiceFinancials } from "@/lib/financial/financial-calculator";
 
 export interface DetailedServiceData {
   id: string;
@@ -25,13 +26,15 @@ export interface DetailedServiceData {
   currentStageName?: string | null;
   currentStageDescription?: string | null;
   progressPercentage?: number | null;
-  // Financial metrics
+  // Financial metrics (Standardized)
   contractValue: number;
   invoicedAmount: number;
   collectedAmount: number;
   outstandingAmount: number;
   paymentProgress: number;
   paymentStatus: "Paid" | "Partially Paid" | "Unpaid" | "Overdue";
+  hasCommercialMismatch?: boolean;
+  hasIssuedInvoice?: boolean;
   // Invoices & Payments linked to this service
   invoices: {
     id: string;
@@ -137,7 +140,7 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
     .eq("client_id", clientId)
     .order("issue_date", { ascending: false });
 
-  // 3. Fetch all verified payments and allocations for this client
+  // 3. Fetch all payments and allocations for this client
   const { data: clientPayments } = await supabase
     .from("payments")
     .select(`
@@ -152,6 +155,7 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
         id,
         invoice_id,
         allocated_amount,
+        amount,
         client_service_id,
         invoice_item_id,
         created_at
@@ -160,20 +164,36 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
     .eq("client_id", clientId)
     .order("payment_date", { ascending: false });
 
-  // 4. Map each service with its isolated financials, invoices, payments, docs, and timeline
-  return clientServices.map((cs: any, idx: number) => {
-    const csId = cs.id;
-    const contractVal = Number(cs.total_amount) || (Number(cs.service_fee) || 0) + (Number(cs.govt_fee) || 0);
+  const activeServices = (clientServices || []).filter(
+    (s: any) => (s.service_status || s.status) !== "Cancelled"
+  );
 
-    // Filter invoices matching this service (via invoice_items.client_service_id)
+  // 4. Map each service with its standardized financials
+  return clientServices.map((cs: any) => {
+    const csId = cs.id;
+
+    // Filter invoices matching this service (via invoice_items.client_service_id, or single service fallback)
     const matchingInvoices: any[] = [];
     (clientInvoices || []).forEach((inv: any) => {
+      // Exclude void or cancelled invoices
+      if (["Void", "Cancelled"].includes(inv.status)) return;
+
       const matchingItems = (inv.items || []).filter((item: any) => item.client_service_id === csId);
-      if (matchingItems.length > 0 || (clientServices.length === 1 && !inv.items?.some((i: any) => i.client_service_id && i.client_service_id !== csId))) {
-        // Calculate service portion of invoice
+      const isSoleServiceFallback =
+        clientServices.length === 1 &&
+        !inv.items?.some((i: any) => i.client_service_id && i.client_service_id !== csId);
+
+      if (matchingItems.length > 0 || isSoleServiceFallback) {
         const serviceItemTotal = matchingItems.length > 0
           ? matchingItems.reduce((sum: number, it: any) => sum + (Number(it.total) || 0), 0)
           : Number(inv.total_amount) || 0;
+
+        // Ratio of service to total invoice for allocating paid amount if multiple items exist
+        const invTotal = Number(inv.total_amount) || 1;
+        const serviceRatio = matchingItems.length > 0 ? serviceItemTotal / invTotal : 1;
+        const invAmountPaid = Number(inv.amount_paid) || 0;
+        const proportionalPaid = Math.min(serviceItemTotal, Math.round(invAmountPaid * serviceRatio * 100) / 100);
+        const itemBalanceDue = Math.max(0, serviceItemTotal - proportionalPaid);
 
         matchingInvoices.push({
           id: inv.id,
@@ -181,31 +201,29 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
           issueDate: inv.issue_date,
           dueDate: inv.due_date,
           totalAmount: serviceItemTotal,
-          amountPaid: Number(inv.amount_paid) || 0,
-          balanceDue: Math.max(0, serviceItemTotal - (Number(inv.amount_paid) || 0)),
+          amountPaid: proportionalPaid,
+          balanceDue: itemBalanceDue,
           status: inv.status,
           createdAt: inv.created_at,
+          items: matchingItems.length > 0 ? matchingItems : inv.items,
         });
       }
     });
-
-    const invoicedTotal = matchingInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
 
     // Calculate collected amount specifically allocated to this service
     let serviceAllocatedAmount = 0;
     const matchingPayments: any[] = [];
 
     (clientPayments || []).forEach((p: any, pIdx: number) => {
-      if (p.status === "Reversed") return;
+      if (p.status === "Reversed" || p.status === "Cancelled" || p.status === "Failed") return;
 
       const matchingAllocs = (p.allocations || []).filter((a: any) => {
         if (a.client_service_id === csId) return true;
-        // Check if invoice belongs to matching invoices
         return matchingInvoices.some((inv) => inv.id === a.invoice_id);
       });
 
       const allocForThisService = matchingAllocs.reduce(
-        (sum: number, a: any) => sum + (Number(a.allocated_amount) || 0),
+        (sum: number, a: any) => sum + (Number(a.allocated_amount ?? a.amount) || 0),
         0
       );
 
@@ -218,22 +236,48 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
           amount: Number(p.amount) || 0,
           allocatedAmount: allocForThisService,
           paymentMethod: p.payment_method || "UPI / QR",
-          status: "Received",
+          status: p.status || "Received",
           createdAt: p.created_at,
         });
       }
     });
 
-    // If only one service exists and payment was verified without explicit item link, attribute it accurately
-    if (clientServices.length === 1 && serviceAllocatedAmount === 0 && (clientPayments || []).length > 0) {
-      const verifiedNonReversed = (clientPayments || []).filter((p: any) => p.status === "Verified");
-      serviceAllocatedAmount = verifiedNonReversed.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+    // Fallback: If only one service exists, and payments exist but allocations table was empty
+    if (clientServices.length === 1 && serviceAllocatedAmount === 0) {
+      // Check if invoice itself has amount_paid
+      const invoicePaidSum = matchingInvoices.reduce((sum, inv) => sum + (Number(inv.amountPaid) || 0), 0);
+      if (invoicePaidSum > 0) {
+        serviceAllocatedAmount = invoicePaidSum;
+      } else {
+        const verifiedPayments = (clientPayments || []).filter((p: any) =>
+          ["Verified", "Completed", "Received"].includes(p.status) ||
+          (!["Pending", "Failed", "Cancelled", "Reversed"].includes(p.status) && p.status !== undefined)
+        );
+        serviceAllocatedAmount = verifiedPayments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+      }
     }
 
-    // In the ex-GST service convention, service contract outstanding is contractVal - serviceAllocatedAmount
-    // while gross invoice balance is tracked separately on the invoice cards.
-    const outstanding = Math.max(0, contractVal - serviceAllocatedAmount);
-    const paymentProgress = contractVal > 0 ? Math.min(100, Math.round((serviceAllocatedAmount / contractVal) * 100)) : 0;
+    // Call Central Financial Calculator for this service
+    const metrics = calculateServiceFinancials({
+      service: cs,
+      serviceInvoices: matchingInvoices,
+      serviceAllocatedAmount,
+    });
+
+    // Check overdue status on invoices
+    const nowStr = new Date().toISOString().split("T")[0];
+    const hasOverdueInvoice = matchingInvoices.some(
+      (inv) => inv.balanceDue > 0 && inv.dueDate && inv.dueDate < nowStr && inv.status !== "Paid"
+    );
+
+    let displayPaymentStatus: "Paid" | "Partially Paid" | "Unpaid" | "Overdue" = "Unpaid";
+    if (metrics.paymentStatus === "Paid") {
+      displayPaymentStatus = "Paid";
+    } else if (metrics.paymentStatus === "Partial") {
+      displayPaymentStatus = hasOverdueInvoice ? "Overdue" : "Partially Paid";
+    } else {
+      displayPaymentStatus = hasOverdueInvoice ? "Overdue" : "Unpaid";
+    }
 
     // Vendor info
     const vendorNames = (cs.vendor_assignments || [])
@@ -251,46 +295,14 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       status: "Received",
     }));
 
-    // Calculate service-level payment status based on associated invoices and payments
-    // Rules:
-    // - PAID: Total outstanding invoice balance = 0 and invoiced/contract total > 0.
-    // - PARTIALLY PAID: Amount paid > 0 but outstanding balance remains.
-    // - UNPAID: No payment has been allocated.
-    // - OVERDUE: When an unpaid/partially paid invoice has passed its due date.
-    let servicePaymentStatus: "Paid" | "Partially Paid" | "Unpaid" | "Overdue" = "Unpaid";
-    const nowStr = new Date().toISOString().split("T")[0];
-
-    const serviceTotalBillable = invoicedTotal > 0 ? invoicedTotal : contractVal;
-    const effectiveOutstanding = invoicedTotal > 0
-      ? matchingInvoices.reduce((sum, inv) => sum + (Number(inv.balanceDue) || 0), 0)
-      : outstanding;
-
-    const hasOverdueInvoice = matchingInvoices.some(
-      (inv) => inv.balanceDue > 0 && inv.dueDate && inv.dueDate < nowStr && inv.status !== "Paid"
-    );
-
-    if (serviceAllocatedAmount >= serviceTotalBillable - 0.01 && serviceTotalBillable > 0) {
-      servicePaymentStatus = "Paid";
-    } else if (serviceAllocatedAmount > 0.01) {
-      if (hasOverdueInvoice) {
-        servicePaymentStatus = "Overdue";
-      } else {
-        servicePaymentStatus = "Partially Paid";
-      }
-    } else {
-      if (hasOverdueInvoice) {
-        servicePaymentStatus = "Overdue";
-      } else {
-        servicePaymentStatus = "Unpaid";
-      }
-    }
-
     // Next Action
     const isCompleted = cs.service_status === "Completed";
     let nextAction = {
-      title: "Collect payment of " + formatINR(outstanding),
+      title: metrics.outstandingAmount > 0
+        ? "Collect payment of " + formatINR(metrics.outstandingAmount)
+        : "Complete service filing and document submission",
       dueDate: cs.expected_completion_date || "2026-12-01",
-      status: "Due Soon",
+      status: metrics.outstandingAmount > 0 ? "Due Soon" : "In Progress",
       isCompleted: false,
     };
 
@@ -301,13 +313,6 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
         status: "Completed",
         isCompleted: true,
       };
-    } else if (outstanding === 0) {
-      nextAction = {
-        title: "Complete service filing and document submission",
-        dueDate: cs.expected_completion_date || "2026-12-01",
-        status: "In Progress",
-        isCompleted: false,
-      };
     }
 
     // Chronological Activity Timeline
@@ -317,7 +322,7 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
         id: `act-create-${cs.id}`,
         timestamp: cs.created_at,
         title: "Service created",
-        description: `${cs.service_name} service created by Admin.`,
+        description: `${cs.service_name} service created.`,
         type: "create",
       });
     }
@@ -352,7 +357,6 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       });
     }
 
-    // Sort timeline ascending
     activities.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
     return {
@@ -365,7 +369,7 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       assignedEmployeeName: cs.assigned_profile?.full_name || "Unassigned",
       serviceFee: Number(cs.service_fee) || 0,
       govtFee: Number(cs.govt_fee) || 0,
-      totalAmount: contractVal,
+      totalAmount: metrics.contractValue,
       paymentTerms: "Due on Receipt",
       startDate: cs.start_date,
       expectedCompletionDate: cs.expected_completion_date,
@@ -377,12 +381,14 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       currentStageName: cs.current_stage_name || null,
       currentStageDescription: cs.current_stage_description || null,
       progressPercentage: cs.progress_percentage !== undefined && cs.progress_percentage !== null ? Number(cs.progress_percentage) : null,
-      contractValue: contractVal,
-      invoicedAmount: invoicedTotal,
-      collectedAmount: serviceAllocatedAmount,
-      outstandingAmount: effectiveOutstanding,
-      paymentProgress,
-      paymentStatus: servicePaymentStatus,
+      contractValue: metrics.contractValue,
+      invoicedAmount: metrics.invoicedAmount,
+      collectedAmount: metrics.collectedAmount,
+      outstandingAmount: metrics.outstandingAmount,
+      paymentProgress: metrics.paymentProgress,
+      paymentStatus: displayPaymentStatus,
+      hasCommercialMismatch: metrics.hasCommercialMismatch,
+      hasIssuedInvoice: metrics.hasIssuedInvoice,
       invoices: matchingInvoices,
       payments: matchingPayments,
       documents: docs,
@@ -391,6 +397,7 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
     };
   });
 }
+
 function formatINR(val: number): string {
   return "₹" + (val || 0).toLocaleString("en-IN");
 }

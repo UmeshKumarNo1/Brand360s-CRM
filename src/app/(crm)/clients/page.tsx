@@ -229,9 +229,10 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
                 servicesList.length > 0
                   ? servicesList.map((s) => s.service_name).join(", ")
                   : (r.services_purchased || "-"),
-              contractValue: Number(r.contract_value) || 0,
-              paymentsReceived: Number(r.payments_received) || 0,
-              balanceReceivable: Number(r.balance_receivable) || 0,
+              contractValue: Number(r.contractValue ?? r.contract_value) || 0,
+              invoicedAmount: Number(r.invoicedAmount) || 0,
+              paymentsReceived: Number(r.paymentsReceived ?? r.payments_received) || 0,
+              balanceReceivable: Number(r.balanceReceivable ?? r.balance_receivable) || 0,
               nextPaymentDueAmount: Number(r.next_payment_due_amount) || 0,
               nextPaymentDueDate: r.next_payment_due_date || "-",
               paymentStatus: r.payment_status || "Upcoming",

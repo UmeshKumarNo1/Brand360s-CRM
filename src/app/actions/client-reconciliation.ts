@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { calculateClientFinancials } from "@/lib/financial/financial-calculator";
 
 export interface ReconciliationResult {
   success: boolean;
@@ -17,10 +18,10 @@ export interface ReconciliationResult {
 }
 
 /**
- * Reconciles a client's Contract Value and Balance Receivable strictly from active client services.
- * Active services = client_services where service_status <> 'Cancelled'
- * Contract Value = SUM(COALESCE(total_amount, service_fee + govt_fee, 0))
- * Balance Receivable = GREATEST(0, Contract Value - payments_received)
+ * Reconciles a client's Contract Value and Balance Receivable strictly using the centralized financial calculator.
+ * - Contract Value = SUM of active services
+ * - Payments Received = SUM of verified payments
+ * - Balance Receivable = Sum of unpaid balance_due of issued valid invoices (Invoice Outstanding)
  */
 export async function syncClientContractValueAction(clientId: string): Promise<{ success: boolean; error?: string | null; contractValue?: number }> {
   try {
@@ -29,7 +30,7 @@ export async function syncClientContractValueAction(clientId: string): Promise<{
     // 1. Fetch active client services
     const { data: services, error: sErr } = await supabase
       .from("client_services")
-      .select("id, total_amount, service_fee, govt_fee, service_status")
+      .select("id, total_amount, service_fee, govt_fee, additional_fee, discount, service_status")
       .eq("client_id", clientId);
 
     if (sErr) {
@@ -37,27 +38,37 @@ export async function syncClientContractValueAction(clientId: string): Promise<{
       return { success: false, error: sErr.message };
     }
 
-    const activeServices = (services || []).filter((s: any) => s.service_status !== "Cancelled");
-    const newContractValue = activeServices.reduce((sum: number, s: any) => {
-      const amt = Number(s.total_amount) || ((Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0));
-      return sum + amt;
-    }, 0);
-
-    // 2. Fetch verified payments
-    const { data: payments, error: pErr } = await supabase
-      .from("payments")
-      .select("amount")
+    // 2. Fetch issued invoices
+    const { data: invoices } = await supabase
+      .from("invoices")
+      .select("id, total_amount, amount_paid, balance_due, status")
       .eq("client_id", clientId)
-      .eq("status", "Verified");
+      .not("status", "in", '("Draft","Void","Cancelled")');
 
-    const totalVerifiedReceived = (payments || []).reduce(
-      (sum: number, p: any) => sum + (Number(p.amount) || 0),
-      0
+    // 3. Fetch verified payments
+    const { data: payments } = await supabase
+      .from("payments")
+      .select("id, amount, status")
+      .eq("client_id", clientId);
+
+    const confirmedPayments = (payments || []).filter(
+      (p: any) =>
+        ["Verified", "Completed", "Received"].includes(p.status) ||
+        (!["Pending", "Failed", "Cancelled", "Reversed"].includes(p.status) && p.status !== undefined)
     );
 
-    const newBalanceReceivable = Math.max(0, newContractValue - totalVerifiedReceived);
+    // 4. Fetch allocations
+    const invoiceIds = (invoices || []).map((i: any) => i.id);
+    let allocations: any[] = [];
+    if (invoiceIds.length > 0) {
+      const { data: allocs } = await supabase
+        .from("invoice_payment_allocations")
+        .select("id, invoice_id, payment_id, allocated_amount, amount, client_service_id")
+        .in("invoice_id", invoiceIds);
+      allocations = allocs || [];
+    }
 
-    // 3. Find earliest pending/overdue installment
+    // 5. Find earliest pending/overdue installment
     const { data: installments } = await supabase
       .from("payment_schedules")
       .select("amount, amount_paid, due_date")
@@ -67,27 +78,27 @@ export async function syncClientContractValueAction(clientId: string): Promise<{
       .limit(1);
 
     const nextInst = installments && installments.length > 0 ? installments[0] : null;
-    const todayStr = new Date().toISOString().split("T")[0];
 
-    let paymentStatus: "Paid in full" | "Upcoming" | "Overdue" | "Partially Paid" = "Upcoming";
-    if (newContractValue > 0 && newBalanceReceivable === 0) {
-      paymentStatus = "Paid in full";
-    } else if (nextInst?.due_date && nextInst.due_date < todayStr) {
-      paymentStatus = "Overdue";
-    } else if (totalVerifiedReceived > 0) {
-      paymentStatus = "Partially Paid";
-    }
+    // Use Centralized Calculator
+    const clientFinancials = calculateClientFinancials({
+      clientId,
+      services: services || [],
+      invoices: invoices || [],
+      payments: confirmedPayments,
+      allocations,
+      nextDueDate: nextInst?.due_date,
+    });
 
-    // 4. Update the client
+    // Update the client record
     const { error: updateErr } = await supabase
       .from("clients")
       .update({
-        contract_value: newContractValue,
-        payments_received: totalVerifiedReceived,
-        balance_receivable: newBalanceReceivable,
-        next_payment_due_amount: nextInst ? Math.max(0, Number(nextInst.amount) - Number(nextInst.amount_paid)) : newBalanceReceivable,
+        contract_value: clientFinancials.contractValue,
+        payments_received: clientFinancials.collectedAmount,
+        balance_receivable: clientFinancials.invoiceOutstanding,
+        next_payment_due_amount: nextInst ? Math.max(0, Number(nextInst.amount) - Number(nextInst.amount_paid)) : clientFinancials.invoiceOutstanding,
         next_payment_due_date: nextInst?.due_date || null,
-        payment_status: paymentStatus,
+        payment_status: clientFinancials.paymentStatus,
         updated_at: new Date().toISOString(),
       })
       .eq("id", clientId);
@@ -102,7 +113,7 @@ export async function syncClientContractValueAction(clientId: string): Promise<{
     revalidatePath("/dashboard");
     revalidatePath("/payments");
 
-    return { success: true, contractValue: newContractValue };
+    return { success: true, contractValue: clientFinancials.contractValue };
   } catch (err: any) {
     console.error("Exception in syncClientContractValueAction:", err);
     return { success: false, error: err.message };
@@ -153,4 +164,3 @@ export async function reconcileAllClientsContractValuesAction(): Promise<Reconci
     return { success: false, error: err.message };
   }
 }
-

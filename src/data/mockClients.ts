@@ -33,6 +33,7 @@ export interface ClientRecord {
   salesperson: string;
   servicesPurchased: string;
   contractValue: number;
+  invoicedAmount?: number;
   paymentsReceived: number;
   balanceReceivable: number;
   nextPaymentDueAmount: number;

@@ -532,15 +532,26 @@ export async function editClientServiceAction(
   });
 
   // Financial editing restrictions:
-  // If an issued invoice exists, do not silently change commercial amounts (serviceFee, govtFee)
-  if (hasIssuedInvoice) {
-    const feeChanged = data.serviceFee !== undefined && Number(data.serviceFee) !== Number(currentService.service_fee);
-    const govtFeeChanged = data.govtFee !== undefined && Number(data.govtFee) !== Number(currentService.govt_fee);
-    if (feeChanged || govtFeeChanged) {
-      return {
-        error: "Commercial fees cannot be altered because this service is already linked to an Issued Tax Invoice. To modify amounts, please create an adjustment invoice or void/cancel the existing invoice.",
-      };
-    }
+  // If an issued invoice exists, allow authorized admin revision of service contract value
+  // while recording previous & revised values in the audit log and preserving issued invoices.
+  const feeChanged = data.serviceFee !== undefined && Number(data.serviceFee) !== Number(currentService.service_fee);
+  const govtFeeChanged = data.govtFee !== undefined && Number(data.govtFee) !== Number(currentService.govt_fee);
+
+  if (hasIssuedInvoice && (feeChanged || govtFeeChanged)) {
+    await recordAuditLog({
+      action: "UPDATE",
+      entityType: "client_service",
+      entityId: serviceId,
+      entityName: currentService.service_name,
+      details: {
+        reason: "Contract value revision while issued invoices exist",
+        previousServiceFee: currentService.service_fee,
+        newServiceFee: data.serviceFee ?? currentService.service_fee,
+        previousGovtFee: currentService.govt_fee,
+        newGovtFee: data.govtFee ?? currentService.govt_fee,
+        note: "Issued invoices and payment allocations preserved without silent overwrite.",
+      },
+    });
   }
 
   const updateData: any = {
@@ -549,14 +560,12 @@ export async function editClientServiceAction(
 
   if (data.serviceName !== undefined) updateData.service_name = data.serviceName;
   if (data.serviceCategory !== undefined) updateData.service_category = data.serviceCategory;
-  if (!hasIssuedInvoice) {
-    if (data.serviceFee !== undefined) updateData.service_fee = data.serviceFee;
-    if (data.govtFee !== undefined) updateData.govt_fee = data.govtFee;
-    if (data.serviceFee !== undefined || data.govtFee !== undefined) {
-      const fee = data.serviceFee ?? Number(currentService.service_fee);
-      const govt = data.govtFee ?? Number(currentService.govt_fee);
-      updateData.total_amount = fee + govt;
-    }
+  if (data.serviceFee !== undefined) updateData.service_fee = data.serviceFee;
+  if (data.govtFee !== undefined) updateData.govt_fee = data.govtFee;
+  if (data.serviceFee !== undefined || data.govtFee !== undefined) {
+    const fee = data.serviceFee ?? Number(currentService.service_fee);
+    const govt = data.govtFee ?? Number(currentService.govt_fee);
+    updateData.total_amount = fee + govt;
   }
 
   if (data.taxRate !== undefined) updateData.tax_rate = data.taxRate;

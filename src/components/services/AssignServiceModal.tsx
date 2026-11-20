@@ -323,7 +323,7 @@ export function AssignServiceModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block font-semibold text-slate-700 mb-1">Professional / Service Fee (₹)</label>
               <input
@@ -342,6 +342,17 @@ export function AssignServiceModal({
                 type="number"
                 step="any"
                 defaultValue={selectedCatalogItem?.default_govt_fee || 0}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
+              />
+            </div>
+
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">GST Rate (%)</label>
+              <input
+                name="tax_rate"
+                type="number"
+                step="any"
+                defaultValue={18}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2]"
               />
             </div>

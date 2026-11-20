@@ -407,6 +407,8 @@ export async function fetchClientsAction() {
           service_fee,
           govt_fee,
           total_amount,
+          tax_rate,
+          tax_amount,
           start_date,
           expected_completion_date,
           service_status,

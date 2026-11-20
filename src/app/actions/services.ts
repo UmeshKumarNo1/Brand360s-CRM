@@ -278,6 +278,7 @@ export async function assignClientServiceAction(
   }
 
   const totalAmount = serviceFee + govtFee;
+  const taxAmount = Math.round(((serviceFee * taxRate) / 100) * 100) / 100;
 
   // Determine initial workflow stages
   const stageNames = getServiceFulfillmentPreset(serviceName, serviceCategory, workflowPreset);
@@ -294,6 +295,7 @@ export async function assignClientServiceAction(
       service_category: serviceCategory,
       service_fee: serviceFee,
       govt_fee: govtFee,
+      tax_amount: taxAmount,
       total_amount: totalAmount,
       tax_rate: taxRate,
       workflow_preset: workflowPreset || (serviceName.toLowerCase().includes("web") ? "website" : serviceName.toLowerCase().includes("gst") ? "gst" : "general"),
@@ -510,7 +512,7 @@ export async function editClientServiceAction(
   // 1. Fetch current service to verify financial constraints and current workflow state
   const { data: currentService, error: fetchErr } = await supabase
     .from("client_services")
-    .select("id, client_id, service_name, service_category, service_fee, govt_fee, total_amount, fulfillment_stages, workflow_preset, current_stage_name, progress_percentage")
+    .select("id, client_id, service_name, service_category, service_fee, govt_fee, total_amount, tax_rate, tax_amount, fulfillment_stages, workflow_preset, current_stage_name, progress_percentage")
     .eq("id", serviceId)
     .single();
 
@@ -558,6 +560,13 @@ export async function editClientServiceAction(
   }
 
   if (data.taxRate !== undefined) updateData.tax_rate = data.taxRate;
+  
+  // Recalculate tax_amount if serviceFee or taxRate was updated and no issued invoice exists
+  if (!hasIssuedInvoice && (data.serviceFee !== undefined || data.taxRate !== undefined)) {
+    const fee = data.serviceFee ?? Number(currentService.service_fee);
+    const rate = data.taxRate ?? (Number(currentService.tax_rate) || 18.0);
+    updateData.tax_amount = Math.round(((fee * rate) / 100) * 100) / 100;
+  }
   if (data.startDate !== undefined) updateData.start_date = data.startDate;
   if (data.expectedCompletionDate !== undefined) {
     updateData.expected_completion_date = snapToWorkingDayString(data.expectedCompletionDate);

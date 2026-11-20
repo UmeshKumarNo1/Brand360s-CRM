@@ -551,16 +551,30 @@ export function ClientsTable({
                                           key={service.id || sIdx}
                                           className="hover:bg-slate-50/60 transition-colors"
                                         >
-                                          {/* SERVICE: Minimal icon + Name & Category */}
+                                          {/* SERVICE: Minimal icon + Name & Category with Direct Link */}
                                           <td className="py-2.5 px-3.5 align-middle">
                                             <div className="flex items-center gap-2.5">
                                               <div className="w-7 h-7 rounded-lg bg-sky-50 text-[#0481A2] flex items-center justify-center shrink-0">
                                                 <FileText size={14} />
                                               </div>
                                               <div className="min-w-0">
-                                                <p className="font-semibold text-slate-900 text-xs leading-tight truncate">
-                                                  {service.service_name}
-                                                </p>
+                                                {service.id ? (
+                                                  <Link
+                                                    href={`/services/${service.id}`}
+                                                    className="font-semibold text-slate-900 text-xs leading-tight truncate hover:text-[#0481A2] hover:underline inline-flex items-center gap-1 group transition-colors"
+                                                    title={`View details for ${service.service_name}`}
+                                                  >
+                                                    <span className="truncate">{service.service_name}</span>
+                                                    <ArrowUpRight
+                                                      size={11}
+                                                      className="opacity-0 group-hover:opacity-100 transition-opacity text-[#0481A2] shrink-0"
+                                                    />
+                                                  </Link>
+                                                ) : (
+                                                  <p className="font-semibold text-slate-900 text-xs leading-tight truncate">
+                                                    {service.service_name}
+                                                  </p>
+                                                )}
                                                 <p className="text-[10.5px] text-slate-400 mt-0.5 leading-tight truncate">
                                                   {service.service_category || "Company Incorporation"}
                                                 </p>

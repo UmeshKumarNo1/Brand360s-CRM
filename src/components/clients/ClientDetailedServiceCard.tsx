@@ -287,18 +287,217 @@ export function ClientDetailedServiceCard({
 
       {/* 2. Expanded Body Section */}
       {isExpanded && (
-        <div className="pt-7 px-8 pb-9 space-y-7 bg-white">
-          {/* Top 3-Column Layout: Commercial Details, Fulfillment Progress, Payment Summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div className="pt-4 px-4 sm:px-6 pb-6 space-y-3.5 bg-white">
+          {/* Row 1: Fulfillment Progress (Compact Height, Full Width) */}
+          <div
+            onClick={() => onManageStage?.(service.id)}
+            className="w-full bg-slate-50/70 border border-slate-200/80 rounded-xl p-3 sm:p-3.5 shadow-2xs cursor-pointer hover:border-sky-300 hover:shadow-xs transition-all group space-y-2"
+            title="Click to manage fulfillment stages"
+          >
+            <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/80">
+              <div className="flex items-center gap-2">
+                <TrendingUp size={14} className="text-[#0481A2]" />
+                <h4 className="font-bold text-slate-900 text-xs group-hover:text-[#0481A2] transition-colors">
+                  Fulfilment Progress
+                </h4>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] text-slate-500 font-semibold">
+                  Progress: <strong className="text-slate-900 font-sans font-number">{fulfillment.progressPercentage}%</strong>
+                </span>
+                <span className="text-[10px] text-[#0481A2] font-semibold underline ml-1">Manage</span>
+              </div>
+            </div>
+
+            {/* Horizontal Milestone Tracker */}
+            <div className="py-1 px-1 sm:px-3">
+              <ServiceFulfillmentTimeline
+                stages={fulfillment.stages}
+                currentStageName={fulfillment.currentStageName}
+                progressPercentage={fulfillment.progressPercentage}
+                size="md"
+              />
+            </div>
+
+            {/* Progress Summary Footer Bar */}
+            <div className="pt-1.5 border-t border-slate-200/80 flex items-center justify-between text-[10.5px]">
+              <span className="text-slate-500">
+                Current Stage: <strong className="text-slate-800">{fulfillment.currentStageName}</strong>
+              </span>
+              <span className="text-emerald-700 font-semibold">{fulfillment.currentStageDescription}</span>
+            </div>
+          </div>
+
+          {/* Row 2: Invoice & Payment History & Documents */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5">
+            {/* D. Invoice & Payment History (7 Cols) */}
+            <div className="lg:col-span-7 bg-white border border-slate-200/80 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-2.5">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <FileText size={14} className="text-[#0481A2]" />
+                  <h4 className="font-bold text-slate-900 text-xs">Invoice &amp; Payment History</h4>
+                </div>
+                <button
+                  type="button"
+                  className="text-[10.5px] text-[#0481A2] hover:underline font-semibold cursor-pointer flex items-center gap-0.5"
+                >
+                  <span>View All</span>
+                  <ArrowRight size={10} />
+                </button>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                {service.invoices.length === 0 && service.payments.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-2.5 text-center">No invoices or payments logged for this service yet.</p>
+                ) : (
+                  <>
+                    {service.invoices.map((inv) => (
+                      <div
+                        key={inv.id}
+                        className="py-1.5 px-2.5 rounded-lg border border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2.5 text-xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText size={14} className="text-[#0481A2] shrink-0" />
+                          <div className="min-w-0">
+                            <span className="font-bold text-slate-900 block truncate text-[11px]">{inv.invoiceNumber}</span>
+                            <span className="text-[9.5px] text-slate-400 block truncate">
+                              Issued: {inv.issueDate} • Due: {inv.dueDate}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <strong className="font-bold text-slate-900 font-sans font-number text-[11.5px]">{formatINR(inv.totalAmount)}</strong>
+                          <span
+                            className={cn(
+                              "px-2 py-0.5 rounded-full text-[9.5px] font-semibold",
+                              inv.status === "Paid"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : "bg-rose-50 text-rose-700 border border-rose-200"
+                            )}
+                          >
+                            {inv.status}
+                          </span>
+                          {onPreviewInvoice && (
+                            <button
+                              type="button"
+                              onClick={() => onPreviewInvoice(inv.id)}
+                              className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+                              title="Preview Invoice"
+                            >
+                              <Eye size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {service.payments.map((p) => (
+                      <div
+                        key={p.id}
+                        className="py-1.5 px-2.5 rounded-lg border border-emerald-100 bg-emerald-50/30 flex items-center justify-between gap-2.5 text-xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CreditCard size={14} className="text-emerald-600 shrink-0" />
+                          <div className="min-w-0">
+                            <span className="font-bold text-slate-900 block truncate text-[11px]">{p.paymentNumber}</span>
+                            <span className="text-[9.5px] text-slate-400 block truncate">
+                              Date: {p.paymentDate} • {p.paymentMethod}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <strong className="font-bold text-emerald-700 font-sans font-number text-[11.5px]">{formatINR(p.allocatedAmount)}</strong>
+                          <span className="px-2 py-0.5 rounded-full text-[9.5px] font-semibold bg-emerald-100 text-emerald-800">
+                            Received
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* E. Documents (5 Cols) */}
+            <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-2.5">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div className="flex items-center gap-2">
+                  <FileText size={14} className="text-[#0481A2]" />
+                  <h4 className="font-bold text-slate-900 text-xs">Documents ({service.documents.length})</h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onAddDocument?.(service.id)}
+                  className="text-[10.5px] text-[#0481A2] hover:underline font-semibold cursor-pointer flex items-center gap-0.5"
+                >
+                  <Plus size={11} />
+                  <span>Add Document</span>
+                </button>
+              </div>
+
+              <div className="space-y-2 pt-1">
+                {service.documents.length === 0 ? (
+                  <div className="py-2.5 px-3 border border-dashed border-slate-200 rounded-lg text-center space-y-1 bg-slate-50/50">
+                    <p className="text-[11px] text-slate-400">No documents uploaded yet.</p>
+                    <button
+                      type="button"
+                      onClick={() => onAddDocument?.(service.id)}
+                      className="inline-flex items-center gap-1 text-[10.5px] text-[#0481A2] hover:underline font-semibold cursor-pointer"
+                    >
+                      <Plus size={10} />
+                      <span>Upload Document</span>
+                    </button>
+                  </div>
+                ) : (
+                  service.documents.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className="py-1.5 px-2.5 rounded-lg border border-slate-100 bg-slate-50/60 flex items-center justify-between gap-2 text-xs"
+                    >
+                      <div className="min-w-0">
+                        <span className="font-semibold text-slate-900 block truncate text-[11px]" title={doc.fileName}>
+                          {doc.fileName}
+                        </span>
+                        <span className="text-[9.5px] text-slate-400 block truncate">
+                          Uploaded: {new Date(doc.uploadedAt).toLocaleDateString("en-IN")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="px-2 py-0.5 rounded-full text-[9.5px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Received
+                        </span>
+                        {doc.fileUrl && (
+                          <a
+                            href={doc.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 text-slate-400 hover:text-slate-700"
+                            title="Download"
+                          >
+                            <Download size={12} />
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Section 3: Commercial & Operational Details (3 Columns) */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-stretch">
             {/* A. Service & Commercial Details (4 Cols) */}
-            <div className="lg:col-span-4 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-6 shadow-2xs space-y-4 text-xs flex flex-col justify-between">
+            <div className="md:col-span-4 bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-3 text-xs flex flex-col justify-between">
               <div>
-                <div className="flex items-center gap-2 pb-3 border-b border-slate-200/80">
-                  <Briefcase size={15} className="text-[#0481A2]" />
-                  <h4 className="font-bold text-slate-900">Service &amp; Commercial Details</h4>
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-200/80">
+                  <Briefcase size={14} className="text-[#0481A2]" />
+                  <h4 className="font-bold text-slate-900 text-xs">Service &amp; Commercial Details</h4>
                 </div>
 
-                <div className="space-y-3 pt-3">
+                <div className="space-y-2 pt-2 text-[11px]">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Service Name</span>
                     <strong className="text-slate-900 font-semibold">{service.serviceName}</strong>
@@ -315,14 +514,14 @@ export function ClientDetailedServiceCard({
                     <span className="text-slate-500">Government Fee</span>
                     <span className="font-semibold text-slate-800 font-sans font-number">{formatINR(service.govtFee)}</span>
                   </div>
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-200">
+                  <div className="flex items-center justify-between pt-1.5 border-t border-slate-200">
                     <span className="font-bold text-slate-900">Total Service Value</span>
-                    <strong className="font-bold text-slate-900 text-sm font-sans font-number">{formatINR(service.totalAmount)}</strong>
+                    <strong className="font-bold text-slate-900 text-xs font-sans font-number">{formatINR(service.totalAmount)}</strong>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-2 pt-2 border-t border-slate-200/60">
+              <div className="space-y-1.5 pt-2 border-t border-slate-200/60 text-[11px]">
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500">Assigned To</span>
                   <InlineAssignEmployeeCell
@@ -348,58 +547,18 @@ export function ClientDetailedServiceCard({
               </div>
             </div>
 
-            {/* B. Fulfillment Progress (5 Cols) */}
-            <div
-              onClick={() => onManageStage?.(service.id)}
-              className="lg:col-span-5 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-6 shadow-2xs flex flex-col justify-between cursor-pointer hover:border-sky-300 hover:shadow-xs transition-all group"
-              title="Click to manage fulfillment stages"
-            >
+            {/* C. Payment Summary (4 Cols) */}
+            <div className="md:col-span-4 bg-slate-50/70 border border-slate-200/80 rounded-xl p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between pb-3 border-b border-slate-200/80">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp size={15} className="text-[#0481A2]" />
-                    <h4 className="font-bold text-slate-900 text-xs group-hover:text-[#0481A2] transition-colors">Fulfilment Progress</h4>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-slate-500 font-semibold">
-                      Progress: <strong className="text-slate-900 font-sans font-number">{fulfillment.progressPercentage}%</strong>
-                    </span>
-                    <span className="text-[10px] text-[#0481A2] font-semibold underline ml-1">Manage</span>
-                  </div>
-                </div>
-
-                {/* Horizontal Milestone Tracker */}
-                <div className="py-7 px-2">
-                  <ServiceFulfillmentTimeline
-                    stages={fulfillment.stages}
-                    currentStageName={fulfillment.currentStageName}
-                    progressPercentage={fulfillment.progressPercentage}
-                    size="md"
-                  />
-                </div>
-              </div>
-
-              {/* Progress Summary Footer Bar */}
-              <div className="pt-3 border-t border-slate-200/80 flex items-center justify-between text-[11px]">
-                <span className="text-slate-500">
-                  Current Stage: <strong className="text-slate-800">{fulfillment.currentStageName}</strong>
-                </span>
-                <span className="text-emerald-700 font-semibold">{fulfillment.currentStageDescription}</span>
-              </div>
-            </div>
-
-            {/* C. Payment Summary (3 Cols) */}
-            <div className="lg:col-span-3 bg-slate-50/70 border border-slate-200/80 rounded-2xl p-6 shadow-2xs flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 pb-3 border-b border-slate-200/80">
-                  <CreditCard size={15} className="text-[#0481A2]" />
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-200/80">
+                  <CreditCard size={14} className="text-[#0481A2]" />
                   <h4 className="font-bold text-slate-900 text-xs">Payment Summary</h4>
                 </div>
 
-                <div className="pt-4 space-y-2.5">
-                  <span className="text-[11px] text-slate-500 block">Paid Amount</span>
+                <div className="pt-2.5 space-y-2">
+                  <span className="text-[10.5px] text-slate-500 block">Paid Amount</span>
                   <div className="flex items-baseline justify-between">
-                    <p className="text-lg font-bold text-slate-900 font-sans font-number">
+                    <p className="text-base font-bold text-slate-900 font-sans font-number">
                       <span className={service.collectedAmount >= service.contractValue ? "text-emerald-600" : "text-slate-900"}>
                         {formatINR(service.collectedAmount)}
                       </span>{" "}
@@ -409,7 +568,7 @@ export function ClientDetailedServiceCard({
                   </div>
 
                   {/* Progress Bar */}
-                  <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden mt-2">
+                  <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden mt-1.5">
                     <div
                       className={cn(
                         "h-full rounded-full transition-all duration-500",
@@ -425,232 +584,69 @@ export function ClientDetailedServiceCard({
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-200/80 flex items-center justify-between text-xs">
-                <span className="text-slate-500">Outstanding:</span>
-                <strong className={cn("font-bold font-sans font-number", service.outstandingAmount > 0 ? "text-rose-600" : "text-emerald-700")}>
+              <div className="pt-2 border-t border-slate-200/80 flex items-center justify-between text-xs">
+                <span className="text-slate-500 text-[11px]">Outstanding:</span>
+                <strong className={cn("font-bold font-sans font-number text-[11.5px]", service.outstandingAmount > 0 ? "text-rose-600" : "text-emerald-700")}>
                   {formatINR(service.outstandingAmount)}
                 </strong>
               </div>
             </div>
-          </div>
 
-          {/* Middle Row: Invoice & Payment History, Documents, Next Action */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
-            {/* D. Invoice & Payment History (5 Cols) */}
-            <div className="md:col-span-5 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xs space-y-4 flex flex-col justify-between">
+            {/* F. Next Action (4 Cols) */}
+            <div className="md:col-span-4 bg-white border border-slate-200/80 rounded-xl p-3.5 sm:p-4 shadow-2xs flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <FileText size={15} className="text-[#0481A2]" />
-                    <h4 className="font-bold text-slate-900 text-xs">Invoice &amp; Payment History</h4>
-                  </div>
-                  <button
-                    type="button"
-                    className="text-[11px] text-[#0481A2] hover:underline font-semibold cursor-pointer flex items-center gap-0.5"
-                  >
-                    <span>View All</span>
-                    <ArrowRight size={11} />
-                  </button>
-                </div>
-
-                <div className="space-y-2.5 pt-3">
-                  {service.invoices.length === 0 && service.payments.length === 0 ? (
-                    <p className="text-xs text-slate-400 py-3 text-center">No invoices or payments logged for this service yet.</p>
-                  ) : (
-                    <>
-                      {service.invoices.map((inv) => (
-                        <div
-                          key={inv.id}
-                          className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 flex items-center justify-between gap-3 text-xs"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <FileText size={16} className="text-[#0481A2] shrink-0" />
-                            <div className="min-w-0">
-                              <span className="font-bold text-slate-900 block truncate">{inv.invoiceNumber}</span>
-                              <span className="text-[10px] text-slate-400 block truncate">
-                                Issued: {inv.issueDate} • Due: {inv.dueDate}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2.5 shrink-0">
-                            <strong className="font-bold text-slate-900 font-sans font-number">{formatINR(inv.totalAmount)}</strong>
-                            <span
-                              className={cn(
-                                "px-2.5 py-0.5 rounded-full text-[10px] font-semibold",
-                                inv.status === "Paid"
-                                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                                  : "bg-rose-50 text-rose-700 border border-rose-200"
-                              )}
-                            >
-                              {inv.status}
-                            </span>
-                            {onPreviewInvoice && (
-                              <button
-                                type="button"
-                                onClick={() => onPreviewInvoice(inv.id)}
-                                className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                                title="Preview Invoice"
-                              >
-                                <Eye size={13} />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-
-                      {service.payments.map((p) => (
-                        <div
-                          key={p.id}
-                          className="p-3 rounded-xl border border-emerald-100 bg-emerald-50/30 flex items-center justify-between gap-3 text-xs"
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <CreditCard size={16} className="text-emerald-600 shrink-0" />
-                            <div className="min-w-0">
-                              <span className="font-bold text-slate-900 block truncate">{p.paymentNumber}</span>
-                              <span className="text-[10px] text-slate-400 block truncate">
-                                Date: {p.paymentDate} • {p.paymentMethod}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2.5 shrink-0">
-                            <strong className="font-bold text-emerald-700 font-sans font-number">{formatINR(p.allocatedAmount)}</strong>
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-100 text-emerald-800">
-                              Received
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* E. Documents (4 Cols) */}
-            <div className="md:col-span-4 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xs space-y-4 flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <FileText size={15} className="text-[#0481A2]" />
-                    <h4 className="font-bold text-slate-900 text-xs">Documents ({service.documents.length})</h4>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => onAddDocument?.(service.id)}
-                    className="text-[11px] text-[#0481A2] hover:underline font-semibold cursor-pointer flex items-center gap-0.5"
-                  >
-                    <Plus size={12} />
-                    <span>Add Document</span>
-                  </button>
-                </div>
-
-                <div className="space-y-2.5 pt-3">
-                  {service.documents.length === 0 ? (
-                    <div className="py-7 px-3 border border-dashed border-slate-200 rounded-xl text-center space-y-2 bg-slate-50/50">
-                      <p className="text-xs text-slate-400">No documents uploaded yet.</p>
-                      <button
-                        type="button"
-                        onClick={() => onAddDocument?.(service.id)}
-                        className="inline-flex items-center gap-1 text-[11px] text-[#0481A2] hover:underline font-semibold cursor-pointer"
-                      >
-                        <Plus size={11} />
-                        <span>Upload Document</span>
-                      </button>
-                    </div>
-                  ) : (
-                    service.documents.map((doc) => (
-                      <div
-                        key={doc.id}
-                        className="p-3 rounded-xl border border-slate-100 bg-slate-50/60 flex items-center justify-between gap-3 text-xs"
-                      >
-                        <div className="min-w-0">
-                          <span className="font-semibold text-slate-900 block truncate" title={doc.fileName}>
-                            {doc.fileName}
-                          </span>
-                          <span className="text-[10px] text-slate-400 block truncate">
-                            Uploaded: {new Date(doc.uploadedAt).toLocaleDateString("en-IN")}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            Received
-                          </span>
-                          {doc.fileUrl && (
-                            <a
-                              href={doc.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-1 text-slate-400 hover:text-slate-700"
-                              title="Download"
-                            >
-                              <Download size={13} />
-                            </a>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* F. Next Action (3 Cols) */}
-            <div className="md:col-span-3 bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xs flex flex-col justify-between">
-              <div>
-                <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-                  <Clock size={15} className="text-[#0481A2]" />
+                <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+                  <Clock size={14} className="text-[#0481A2]" />
                   <h4 className="font-bold text-slate-900 text-xs">Next Action</h4>
                 </div>
 
-                <div className="pt-4 space-y-2.5">
-                  <div className={cn("p-3.5 rounded-xl border flex items-start gap-2.5", service.nextAction.isCompleted ? "bg-emerald-50/60 border-emerald-200 text-emerald-800" : "bg-amber-50/60 border-amber-200 text-amber-900")}>
+                <div className="pt-2.5 space-y-2">
+                  <div className={cn("p-2.5 rounded-lg border flex items-start gap-2", service.nextAction.isCompleted ? "bg-emerald-50/60 border-emerald-200 text-emerald-800" : "bg-amber-50/60 border-amber-200 text-amber-900")}>
                     {service.nextAction.isCompleted ? (
-                      <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                      <CheckCircle2 size={15} className="text-emerald-600 shrink-0 mt-0.5" />
                     ) : (
-                      <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                      <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
                     )}
                     <div className="text-xs leading-snug">
-                      <p className="font-semibold">{service.nextAction.title}</p>
-                      <p className="text-[10px] text-slate-500 mt-1">Due: {service.nextAction.dueDate}</p>
+                      <p className="font-semibold text-[11px]">{service.nextAction.title}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Due: {service.nextAction.dueDate}</p>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="pt-3 border-t border-slate-100 text-right">
-                <span className="text-[10px] text-slate-400">Action tracked by CRM</span>
+              <div className="pt-2 border-t border-slate-100 text-right">
+                <span className="text-[9.5px] text-slate-400">Action tracked by CRM</span>
               </div>
             </div>
           </div>
 
           {/* G. Service Activity Timeline */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="bg-white border border-slate-200/80 rounded-xl p-3.5 sm:p-4 shadow-2xs space-y-2.5">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <Clock size={15} className="text-[#0481A2]" />
+                <Clock size={14} className="text-[#0481A2]" />
                 <h4 className="font-bold text-slate-900 text-xs">Service Activity</h4>
               </div>
               <button
                 type="button"
-                className="text-[11px] text-[#0481A2] hover:underline font-semibold cursor-pointer flex items-center gap-0.5"
+                className="text-[10.5px] text-[#0481A2] hover:underline font-semibold cursor-pointer flex items-center gap-0.5"
               >
                 <span>View Full Activity</span>
-                <ArrowRight size={11} />
+                <ArrowRight size={10} />
               </button>
             </div>
 
-            <div className="pt-2 space-y-3">
+            <div className="pt-1 space-y-2">
               {service.activities.length === 0 ? (
-                <p className="text-xs text-slate-400 py-3 text-center">No activity recorded for this service yet.</p>
+                <p className="text-xs text-slate-400 py-2.5 text-center">No activity recorded for this service yet.</p>
               ) : (
-                <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-200">
+                <div className="relative pl-5 space-y-3 before:absolute before:left-1.5 before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-200">
                   {service.activities.map((act) => (
-                    <div key={act.id} className="relative text-xs flex items-start gap-4">
+                    <div key={act.id} className="relative text-xs flex items-start gap-3">
                       {/* Node Dot */}
-                      <div className="absolute -left-6 top-1 w-3 h-3 rounded-full bg-emerald-500 ring-4 ring-white" />
-                      <div className="min-w-[130px] text-[11px] text-slate-400 font-sans font-number">
+                      <div className="absolute -left-5 top-1 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-4 ring-white" />
+                      <div className="min-w-[110px] text-[10.5px] text-slate-400 font-sans font-number">
                         {new Date(act.timestamp).toLocaleDateString("en-IN", {
                           day: "2-digit",
                           month: "short",
@@ -658,8 +654,8 @@ export function ClientDetailedServiceCard({
                         })}
                       </div>
                       <div className="flex-1">
-                        <strong className="text-slate-900 font-semibold block">{act.title}</strong>
-                        <p className="text-slate-500 text-[11px] leading-relaxed mt-0.5">{act.description}</p>
+                        <strong className="text-slate-900 font-semibold block text-[11px]">{act.title}</strong>
+                        <p className="text-slate-500 text-[10.5px] leading-relaxed mt-0.5">{act.description}</p>
                       </div>
                     </div>
                   ))}

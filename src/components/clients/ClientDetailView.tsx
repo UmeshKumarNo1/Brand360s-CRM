@@ -41,7 +41,7 @@ import {
   Activity,
   RefreshCw,
 } from "lucide-react";
-import { formatINR } from "@/lib/utils";
+import { formatINR, cn } from "@/lib/utils";
 import { PaymentStatusBadge } from "@/components/clients/PaymentStatusBadge";
 import { ClientPaymentsTab } from "@/components/payments/ClientPaymentsTab";
 import { ClientServicesTab } from "@/components/services/ClientServicesTab";
@@ -95,6 +95,7 @@ export function ClientDetailView({
   const [activeTab, setActiveTab] = useState<"services" | "overview" | "payments" | "followups" | "activity">(
     initialTab === "services" || initialTab === "overview" ? "services" : initialTab
   );
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
   const [depCheck, setDepCheck] = useState<DeleteClientCheckResult | null>(null);
@@ -528,9 +529,34 @@ export function ClientDetailView({
           <div className="space-y-6 pt-1">
             {/* Header Bar matching Reference Image 2 */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-2 pb-2">
-              <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-                Client Services ({detailedServices.length})
-              </h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+                  Client Services ({detailedServices.length})
+                </h2>
+                {/* View Switcher: Cards vs Table */}
+                <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("cards")}
+                    className={cn(
+                      "px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer",
+                      viewMode === "cards" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-900"
+                    )}
+                  >
+                    Detailed Cards
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("table")}
+                    className={cn(
+                      "px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer",
+                      viewMode === "table" ? "bg-white text-slate-900 shadow-2xs" : "text-slate-500 hover:text-slate-900"
+                    )}
+                  >
+                    Expanded Table
+                  </button>
+                </div>
+              </div>
 
               <div className="flex flex-wrap items-center gap-3 text-xs bg-slate-50/90 px-4 py-2 rounded-xl border border-slate-200/80 shadow-2xs">
                 <div className="flex items-center gap-1.5">
@@ -573,13 +599,13 @@ export function ClientDetailView({
               </div>
             </div>
 
-            {/* Stack of Individual Service Detailed Cards */}
+            {/* Stack of Individual Service Detailed Cards or Expanded Table */}
             {servicesError && (
               <ErrorRetryState message={servicesError} onRetry={() => loadDetailedServices()} />
             )}
 
             {!servicesError && (
-              <div className="space-y-5">
+              <div>
                 {isLoadingServices ? (
                   <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center text-slate-400 shadow-2xs">
                     <div className="flex items-center justify-center gap-2">
@@ -607,33 +633,42 @@ export function ClientDetailView({
                       <span>Assign First Service</span>
                     </button>
                   </div>
+                ) : viewMode === "table" ? (
+                  <ClientServicesTab
+                    clientId={client.id}
+                    clientName={client.companyName}
+                    isAdmin={isAdmin}
+                    canEdit={canEdit}
+                  />
                 ) : (
-                  detailedServices.map((service, idx) => (
-                    <ClientDetailedServiceCard
-                      key={service.id}
-                      service={service}
-                      index={idx}
-                      totalServices={detailedServices.length}
-                      defaultExpanded={idx === 0}
-                      canEdit={canEdit}
-                      isAdmin={isAdmin}
-                      onRefresh={() => loadDetailedServices(true)}
-                      onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
-                      onAddDocument={(svcId) => {
-                        const match = detailedServices.find((s) => s.id === svcId);
-                        setDeliverableModalService(match || service);
-                      }}
-                      onManageService={(svc) => {
-                        setDocumentsModalService(svc);
-                      }}
-                      onManageStage={(svcId) => {
-                        setStageModalServiceId(svcId);
-                      }}
-                      onDeleteService={(svc) => {
-                        handleOpenDeleteService(svc);
-                      }}
-                    />
-                  ))
+                  <div className="space-y-5">
+                    {detailedServices.map((service, idx) => (
+                      <ClientDetailedServiceCard
+                        key={service.id}
+                        service={service}
+                        index={idx}
+                        totalServices={detailedServices.length}
+                        defaultExpanded={idx === 0}
+                        canEdit={canEdit}
+                        isAdmin={isAdmin}
+                        onRefresh={() => loadDetailedServices(true)}
+                        onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
+                        onAddDocument={(svcId) => {
+                          const match = detailedServices.find((s) => s.id === svcId);
+                          setDeliverableModalService(match || service);
+                        }}
+                        onManageService={(svc) => {
+                          setDocumentsModalService(svc);
+                        }}
+                        onManageStage={(svcId) => {
+                          setStageModalServiceId(svcId);
+                        }}
+                        onDeleteService={(svc) => {
+                          handleOpenDeleteService(svc);
+                        }}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
             )}

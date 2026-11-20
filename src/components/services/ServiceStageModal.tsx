@@ -148,23 +148,29 @@ export function ServiceStageModal({
     setIsSubmitting(true);
     setErrorMessage(null);
 
+    const isReverting = currentIdx !== -1 && targetIndex < currentIdx;
+    const action = isReverting ? "REVERT" : "SET_STAGE";
+
     try {
       const res = await updateServiceFulfillmentStageAction({
         serviceId,
-        action: "REVERT",
+        action,
         targetStageIndex: targetIndex,
-        notes: notes.trim() || `Stage reverted by administrator`,
+        notes: notes.trim() || (isReverting ? `Stage reverted to ${data?.stages[targetIndex]?.name}` : `Navigated stage to ${data?.stages[targetIndex]?.name}`),
       });
 
       if (res.success) {
-        success("Stage Reverted", "Milestone corrected and stage updated.");
+        success(
+          isReverting ? "Stage Reverted" : "Stage Updated",
+          `Fulfillment milestone updated to "${data?.stages[targetIndex]?.name}".`
+        );
         setSelectedRevertIndex(null);
         setNotes("");
         loadDetails();
         onSuccess?.();
       } else {
-        setErrorMessage(res.error || "Failed to revert stage.");
-        toastError("Reversion Error", res.error || "Failed to revert stage.");
+        setErrorMessage(res.error || "Failed to update stage.");
+        toastError("Stage Update Error", res.error || "Failed to update stage.");
       }
     } catch (err: any) {
       setErrorMessage(err.message || "Network error occurred.");
@@ -290,9 +296,9 @@ export function ServiceStageModal({
                   stages={data?.stages || []}
                   currentStageName={data?.currentStageName}
                   progressPercentage={data?.progressPercentage}
-                  interactive={Boolean(data?.isAdmin)}
+                  interactive={Boolean(data?.canManage)}
                   onStageClick={(idx) => {
-                    if (data?.isAdmin && idx !== currentIdx) {
+                    if (data?.canManage && idx !== currentIdx) {
                       setSelectedRevertIndex(idx);
                     }
                   }}
@@ -300,28 +306,43 @@ export function ServiceStageModal({
                 />
               </div>
 
-              {/* Admin stage correction alert if a stage was clicked */}
-              {selectedRevertIndex !== null && data?.isAdmin && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-900 text-xs flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <ShieldAlert size={15} className="text-amber-600 shrink-0" />
-                    <span>
-                      Set stage directly to: <strong>{data.stages[selectedRevertIndex]?.name}</strong>?
-                    </span>
+              {/* Stage transition confirmation alert if a stage was clicked */}
+              {selectedRevertIndex !== null && data?.canManage && (
+                <div className={cn(
+                  "p-3.5 border rounded-xl text-xs flex items-center justify-between gap-3 shadow-2xs",
+                  selectedRevertIndex < currentIdx
+                    ? "bg-amber-50/90 border-amber-200 text-amber-900"
+                    : "bg-sky-50/90 border-sky-200 text-sky-900"
+                )}>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <ShieldAlert size={16} className={cn("shrink-0", selectedRevertIndex < currentIdx ? "text-amber-600" : "text-[#0481A2]")} />
+                    <div className="leading-snug">
+                      <span className="font-semibold block">
+                        {selectedRevertIndex < currentIdx ? "Revert Stage Confirmation" : "Navigate to Stage"}
+                      </span>
+                      <p className="text-[11px] opacity-90">
+                        {selectedRevertIndex < currentIdx
+                          ? `Are you sure you want to move backwards to "${data.stages[selectedRevertIndex]?.name}"? Previous forward progress will be adjusted.`
+                          : `Navigate service fulfillment directly to "${data.stages[selectedRevertIndex]?.name}"?`}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       type="button"
                       onClick={() => handleRevertStage(selectedRevertIndex)}
                       disabled={isSubmitting}
-                      className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg text-[11px] cursor-pointer"
+                      className={cn(
+                        "px-3 py-1.5 text-white font-semibold rounded-lg text-xs cursor-pointer shadow-2xs transition-colors",
+                        selectedRevertIndex < currentIdx ? "bg-amber-600 hover:bg-amber-700" : "bg-[#0481A2] hover:bg-[#036c88]"
+                      )}
                     >
-                      Confirm Change
+                      Confirm
                     </button>
                     <button
                       type="button"
                       onClick={() => setSelectedRevertIndex(null)}
-                      className="text-slate-500 hover:text-slate-700 text-[11px] cursor-pointer"
+                      className="px-2.5 py-1.5 text-slate-500 hover:text-slate-700 text-xs cursor-pointer hover:bg-slate-100 rounded-lg transition-colors"
                     >
                       Cancel
                     </button>

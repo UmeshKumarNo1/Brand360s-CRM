@@ -173,6 +173,7 @@ export default function ClientsPage() {
                   service_status: status,
                   start_date: s.start_date || null,
                   expected_completion_date: s.expected_completion_date || null,
+                  assigned_employee_id: s.assigned_employee_id || null,
                   assigned_employee_name: s.assigned_profile?.full_name || null,
                   stage: stageText,
                   progressPercent: progress,

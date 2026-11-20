@@ -409,6 +409,7 @@ export async function fetchClientsAction() {
           total_amount,
           tax_rate,
           tax_amount,
+          assigned_employee_id,
           start_date,
           expected_completion_date,
           service_status,

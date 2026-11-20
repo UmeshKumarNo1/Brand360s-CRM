@@ -22,6 +22,7 @@ import { TargetDateCell } from "@/components/services/TargetDateCell";
 import { ServiceStageModal } from "@/components/services/ServiceStageModal";
 import { computeServiceFulfillment } from "@/lib/services/fulfillment-workflows";
 import { ServiceFulfillmentTimeline } from "@/components/services/ServiceFulfillmentTimeline";
+import { InlineAssignEmployeeCell } from "@/components/services/InlineAssignEmployeeCell";
 
 interface ClientsTableProps {
   clients: ClientRecord[];
@@ -665,14 +666,25 @@ export function ClientsTable({
                                             })()}
                                           </td>
 
-                                          {/* ASSIGNED TO: Clean text with user icon */}
+                                          {/* ASSIGNED TO: Interactive inline dropdown */}
                                           <td className="py-2.5 px-3 text-center align-middle whitespace-nowrap">
-                                            <div className="inline-flex items-center gap-1.5 text-xs text-slate-600">
-                                              <User size={12} className="text-slate-400 shrink-0" />
-                                              <span className="font-medium text-slate-700">
-                                                {service.assigned_employee_name || "Unassigned"}
-                                              </span>
-                                            </div>
+                                            {service.id ? (
+                                              <InlineAssignEmployeeCell
+                                                serviceId={service.id}
+                                                clientId={client.id}
+                                                assignedEmployeeId={service.assigned_employee_id}
+                                                assignedEmployeeName={service.assigned_employee_name}
+                                                editable={true}
+                                                onUpdated={() => onRefresh?.()}
+                                              />
+                                            ) : (
+                                              <div className="inline-flex items-center gap-1.5 text-xs text-slate-600">
+                                                <User size={12} className="text-slate-400 shrink-0" />
+                                                <span className="font-medium text-slate-700">
+                                                  {service.assigned_employee_name || "Unassigned"}
+                                                </span>
+                                              </div>
+                                            )}
                                           </td>
 
                                           {/* TARGET DATE: Clean read-only status badge with dynamic green (>3d), orange (1-3d), red (today/overdue) */}

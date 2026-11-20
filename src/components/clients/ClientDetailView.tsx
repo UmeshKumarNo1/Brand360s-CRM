@@ -473,7 +473,7 @@ export function ClientDetailView({
           }`}
         >
           <Layers size={15} />
-          <span>Services ({detailedServices.length || serviceCount})</span>
+          <span>Services ({detailedServices.length})</span>
         </button>
 
         <button

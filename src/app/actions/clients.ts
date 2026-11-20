@@ -105,7 +105,7 @@ export async function createClientAction(
   const notes = (formData.get("notes") as string)?.trim() || null;
 
   // Commercials are derived strictly from active services
-  const services_purchased = (formData.get("services_purchased") as string)?.trim() || "General";
+  const services_purchased = (formData.get("services_purchased") as string)?.trim() || null;
   // Creating a new client without services always results in Contract Value = ₹0
   const contract_value = 0.00;
   const payments_received = 0.00;

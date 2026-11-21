@@ -337,11 +337,11 @@ export async function createInvoiceAction(
     return { error: "Please select a client and add at least one billable item." };
   }
 
-  // Contract Overbilling Validation Check
+  // Contract Overbilling Validation Check (Comparing Taxable Subtotals Excl. GST)
   const { checkInvoiceOverbillingAction } = await import("./invoice-validation");
   const overbillingCheck = await checkInvoiceOverbillingAction({
     clientId: payload.client_id,
-    proposedInvoiceAmount: Number(payload.total_amount) || 0,
+    proposedInvoiceAmount: Number(payload.subtotal) || 0,
   });
 
   if (overbillingCheck.isOverbilling && !payload.allow_overbilling_override) {

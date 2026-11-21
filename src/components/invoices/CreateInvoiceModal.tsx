@@ -168,7 +168,7 @@ export function CreateInvoiceModal({
       return;
     }
 
-    if (calculatedInvoiceTotal <= 0) {
+    if (numericSubtotal <= 0) {
       setValidationResult(null);
       return;
     }
@@ -179,7 +179,7 @@ export function CreateInvoiceModal({
       try {
         const res = await checkInvoiceOverbillingAction({
           clientId: selectedClientId,
-          proposedInvoiceAmount: calculatedInvoiceTotal,
+          proposedInvoiceAmount: numericSubtotal,
         });
         if (isMounted) {
           setValidationResult(res);
@@ -194,7 +194,7 @@ export function CreateInvoiceModal({
       isMounted = false;
       clearTimeout(timer);
     };
-  }, [selectedClientId, calculatedInvoiceTotal]);
+  }, [selectedClientId, numericSubtotal]);
 
   useEffect(() => {
     if (!state || handledStateRef.current === state) return;
@@ -405,23 +405,27 @@ export function CreateInvoiceModal({
                 </div>
               </div>
 
-              {/* Financial comparison grid */}
+              {/* Financial comparison grid (Excl. GST) */}
               <div className="grid grid-cols-2 gap-2 bg-white/70 p-2.5 rounded-lg border border-amber-200 text-[11px]">
                 <div>
-                  <span className="text-slate-500 block">Agreed Contract:</span>
+                  <span className="text-slate-500 block">Agreed Contract (Excl. GST):</span>
                   <span className="font-bold text-slate-800 font-sans font-number">{formatINR(validationResult.contractValue)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Already Invoiced:</span>
+                  <span className="text-slate-500 block">Previously Invoiced (Excl. GST):</span>
                   <span className="font-bold text-slate-800 font-sans font-number">{formatINR(validationResult.existingInvoicedAmount)}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Proposed Invoice:</span>
+                  <span className="text-slate-500 block">Proposed Taxable Subtotal:</span>
                   <span className="font-bold text-[#0481A2] font-sans font-number">{formatINR(validationResult.proposedInvoiceAmount)}</span>
                 </div>
                 <div>
-                  <span className="text-rose-600 font-bold block">Excess Over Contract:</span>
-                  <span className="font-bold text-rose-600 font-sans font-number">+{formatINR(validationResult.excessAmount)}</span>
+                  <span className="text-slate-500 block">Remaining Contract (Excl. GST):</span>
+                  <span className="font-bold text-slate-700 font-sans font-number">{formatINR(validationResult.remainingContractValue)}</span>
+                </div>
+                <div className="col-span-2 pt-1 border-t border-amber-200 flex items-center justify-between">
+                  <span className="text-rose-600 font-bold block">Actual Taxable Excess:</span>
+                  <span className="font-bold text-rose-600 font-sans font-number text-xs">+{formatINR(validationResult.excessAmount)}</span>
                 </div>
               </div>
 

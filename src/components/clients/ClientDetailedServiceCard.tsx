@@ -45,6 +45,7 @@ interface ClientDetailedServiceCardProps {
   index: number;
   totalServices: number;
   defaultExpanded?: boolean;
+  isSelected?: boolean;
   canEdit?: boolean;
   isAdmin?: boolean;
   clientName?: string;
@@ -65,6 +66,7 @@ export function ClientDetailedServiceCard({
   index,
   totalServices,
   defaultExpanded = true,
+  isSelected = false,
   canEdit = true,
   isAdmin = false,
   clientName,
@@ -123,7 +125,14 @@ export function ClientDetailedServiceCard({
     : "bg-amber-50 text-amber-700 border-amber-200";
 
   return (
-    <div className="bg-white border border-slate-200/90 rounded-2xl shadow-xs overflow-hidden transition-all">
+    <div
+      id={`service-${service.id}`}
+      className={`bg-white border rounded-2xl shadow-xs overflow-hidden transition-all duration-300 scroll-mt-24 ${
+        isSelected
+          ? "border-[#0481A2] ring-2 ring-[#0481A2]/20 shadow-md"
+          : "border-slate-200/90"
+      }`}
+    >
       {/* 1. Collapsible Service Header matching Reference Image 2 */}
       <div
         onClick={() => setIsExpanded(!isExpanded)}

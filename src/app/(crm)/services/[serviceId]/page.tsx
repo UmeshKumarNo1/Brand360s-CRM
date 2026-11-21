@@ -66,7 +66,7 @@ export default async function ServiceDetailPage({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
         <div className="flex items-center gap-3">
           <Link
-            href={`/clients/${clientId}?tab=services`}
+            href={`/clients/${clientId}?tab=services&serviceId=${serviceId}`}
             className="p-2 bg-white border border-slate-200 rounded-xl text-slate-600 hover:text-slate-900 transition-colors shadow-2xs hover:bg-slate-50 cursor-pointer"
             title="Back to Client Services"
           >

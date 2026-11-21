@@ -8,12 +8,15 @@ export default async function ClientDetailPage({
   searchParams,
 }: {
   params: Promise<{ clientId: string }>;
-  searchParams?: Promise<{ addService?: string; tab?: string }>;
+  searchParams?: Promise<{ addService?: string; tab?: string; serviceId?: string }>;
 }) {
   const resolvedParams = await params;
   const resolvedSearchParams = searchParams ? await searchParams : {};
   const initialAddService = resolvedSearchParams.addService === "true";
-  const initialTab = (resolvedSearchParams.tab as any) || (initialAddService ? "services" : "overview");
+  const initialServiceId = resolvedSearchParams.serviceId || null;
+  const initialTab =
+    (resolvedSearchParams.tab as any) ||
+    (initialAddService || initialServiceId ? "services" : "overview");
 
   const supabase = await createClient();
   const profile = await getCurrentUserProfileAction();
@@ -85,6 +88,7 @@ export default async function ClientDetailPage({
       canEdit={Boolean(canEdit)}
       initialTab={initialTab}
       initialAddService={initialAddService}
+      initialServiceId={initialServiceId}
     />
   );
 }

@@ -592,7 +592,7 @@ export function ClientsTable({
                                               <div className="min-w-0">
                                                 {service.id ? (
                                                   <Link
-                                                    href={`/clients/${client.id}?tab=services`}
+                                                    href={`/clients/${client.id}?tab=services&serviceId=${service.id}`}
                                                     className="font-semibold text-slate-900 text-xs leading-tight truncate hover:text-[#0481A2] hover:underline inline-flex items-center gap-1 group transition-colors"
                                                     title={`Open ${client.companyName} services`}
                                                   >

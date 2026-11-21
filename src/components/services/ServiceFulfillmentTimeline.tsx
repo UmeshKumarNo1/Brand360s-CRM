@@ -1,5 +1,5 @@
 import React from "react";
-import { Check, CheckCircle2 } from "lucide-react";
+import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FulfillmentStage } from "@/lib/services/fulfillment-workflows";
 
@@ -14,17 +14,12 @@ interface ServiceFulfillmentTimelineProps {
 }
 
 /**
- * ServiceFulfillmentTimeline
- * 
- * Perfectly aligned horizontal milestone timeline:
- * - A single, uninterrupted straight horizontal connecting line directly behind circles.
- * - Every milestone circle is vertically centered on the exact midpoint of the connecting line.
- * - Evenly distributed milestone columns.
- * - Milestone labels centered directly underneath their respective circles with text wrapping.
- * - Completed: Emerald/Green circle with white check icon.
- * - Current Active: Blue circle with subtle outer ring.
- * - Upcoming: White circle with light gray border.
- * - Responsive: Works cleanly across 2, 5, or more stages without shifting.
+ * ServiceFulfillmentTimeline:
+ * - Straight continuous horizontal connecting line passing through center of nodes.
+ * - Completed/Active stages render a teal circle with a crisp white checkmark.
+ * - When size="sm" (e.g. table view): Upcoming stages render as minimal dots on the track.
+ * - When size="md" (e.g. service detail page): Upcoming stages render as clean outlined circles.
+ * - Connecting line fills with teal up to the active milestone and remains light gray for upcoming.
  */
 export function ServiceFulfillmentTimeline({
   stages = [],
@@ -40,36 +35,43 @@ export function ServiceFulfillmentTimeline({
   }
 
   const isSmall = size === "sm";
-  const circleSize = isSmall ? "w-4 h-4" : "w-5 h-5";
-  const checkSize = isSmall ? 10 : 12;
-  const dotSize = isSmall ? "w-1.5 h-1.5" : "w-2 h-2";
-  const lineTop = isSmall ? "top-2" : "top-2.5"; // Center line precisely at 8px (sm) or 10px (md)
-  const lineHeight = "h-[2px]";
+  const totalStages = stages.length;
 
   const completedCount = stages.filter((s) => s.status === "completed").length;
   const currentIdx = stages.findIndex((s) => s.status === "current");
-  const totalStages = stages.length;
 
-  // Compute connecting line progress percentage:
-  // The line starts at the center of the first circle and ends at the center of the last circle.
+  // Determine active reached index
+  let activeIdx = 0;
+  if (completedCount === totalStages) {
+    activeIdx = totalStages - 1;
+  } else if (currentIdx !== -1) {
+    activeIdx = currentIdx;
+  } else if (completedCount > 0) {
+    activeIdx = completedCount - 1;
+  } else {
+    activeIdx = 0;
+  }
+
+  // Calculate line fill percentage between node 0 and node (totalStages - 1)
   let lineFillPercent = 0;
   if (totalStages > 1) {
     if (completedCount === totalStages) {
       lineFillPercent = 100;
-    } else if (currentIdx !== -1) {
-      // Line is filled through completed stages up to the active node
-      lineFillPercent = (currentIdx / (totalStages - 1)) * 100;
     } else {
-      lineFillPercent = (completedCount / (totalStages - 1)) * 100;
+      lineFillPercent = (activeIdx / (totalStages - 1)) * 100;
     }
   }
 
+  const circleSize = isSmall ? "w-4 h-4" : "w-6 h-6";
+  const checkSize = isSmall ? 9 : 13;
+  const checkStrokeWidth = isSmall ? 3 : 2.5;
+  const lineTop = isSmall ? "top-2" : "top-3";
+  const lineHeight = isSmall ? "h-[1.5px]" : "h-[2px]";
+  const themeColor = isSmall ? "bg-[#0481A2]" : "bg-[#005C72]";
+
   return (
     <div className={cn("relative w-full max-w-full select-none", className)}>
-      {/* 
-        1. Straight Continuous Connecting Line
-        Inset by (100% / totalStages / 2) on left & right so line terminates exactly at the first and last node centers!
-      */}
+      {/* 1. Straight Continuous Connecting Line */}
       {totalStages > 1 && (
         <div
           className={cn("absolute left-0 right-0 -translate-y-1/2 z-0", lineTop)}
@@ -78,35 +80,32 @@ export function ServiceFulfillmentTimeline({
             right: `${100 / (totalStages * 2)}%`,
           }}
         >
-          {/* Base track (upcoming light-gray) */}
+          {/* Base track */}
           <div className={cn("w-full bg-slate-200 rounded-full", lineHeight)}>
-            {/* Active/Completed filled track */}
+            {/* Filled track */}
             <div
-              className={cn(
-                "h-full rounded-full transition-all duration-300",
-                completedCount === totalStages
-                  ? "bg-emerald-500"
-                  : "bg-gradient-to-r from-emerald-500 via-blue-500 to-blue-400"
-              )}
+              className={cn("h-full transition-all duration-300 rounded-full", themeColor)}
               style={{ width: `${Math.min(100, Math.max(0, lineFillPercent))}%` }}
             />
           </div>
         </div>
       )}
 
-      {/* 2. Evenly Distributed Node Columns & Centered Labels */}
+      {/* 2. Evenly Distributed Milestone Nodes & Labels */}
       <div className="relative z-10 flex items-start justify-between w-full">
         {stages.map((stage, idx) => {
-          const isDone = stage.status === "completed";
-          const isCurrent = stage.status === "current";
-          const isUpcoming = stage.status === "upcoming";
+          const isReached = idx <= activeIdx;
+          const isCurrent = idx === activeIdx;
 
           return (
             <div
               key={`${stage.name}-${idx}`}
-              className="flex-1 flex flex-col items-center px-0.5 min-w-0"
+              className={cn(
+                "flex-1 flex flex-col items-center min-w-0",
+                isSmall ? "px-0.5" : "px-1"
+              )}
             >
-              {/* Milestone Circle */}
+              {/* Milestone Node Container */}
               <div
                 onClick={() => {
                   if (interactive && onStageClick) {
@@ -115,35 +114,43 @@ export function ServiceFulfillmentTimeline({
                 }}
                 className={cn(
                   circleSize,
-                  "rounded-full flex items-center justify-center shrink-0 transition-all select-none",
-                  interactive && "cursor-pointer hover:scale-110",
-                  isDone && "bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-50",
-                  isCurrent && "bg-white border-2 border-blue-600 text-blue-600 ring-4 ring-blue-100 shadow-xs",
-                  isUpcoming && "bg-white border border-slate-300 text-transparent"
+                  "flex items-center justify-center shrink-0 transition-all select-none",
+                  interactive && "cursor-pointer hover:scale-110"
                 )}
-                title={`${stage.name} (${isDone ? "Completed" : isCurrent ? "Active Milestone" : "Upcoming"})`}
+                title={`${stage.name} (${isReached ? (isCurrent ? "Active Milestone" : "Completed") : "Upcoming"})`}
               >
-                {isDone ? (
-                  <Check size={checkSize} strokeWidth={3} className="text-white shrink-0" />
-                ) : isCurrent ? (
-                  <div className={cn(dotSize, "rounded-full bg-blue-600 shrink-0")} />
-                ) : null}
+                {isReached ? (
+                  <div
+                    className={cn(
+                      circleSize,
+                      "rounded-full flex items-center justify-center shrink-0 text-white shadow-2xs",
+                      themeColor,
+                      !isSmall && "ring-4 ring-sky-100/50"
+                    )}
+                  >
+                    <Check
+                      size={checkSize}
+                      strokeWidth={checkStrokeWidth}
+                      className="text-white shrink-0"
+                    />
+                  </div>
+                ) : isSmall ? (
+                  /* Small dots for upcoming stages when isSmall, matching reference image */
+                  <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                ) : (
+                  /* White circle with border when size is md (service detail page) */
+                  <div className={cn(circleSize, "rounded-full bg-white border-2 border-slate-200 shrink-0")} />
+                )}
               </div>
 
-              {/* Centered Milestone Label below Circle with ellipsis tooltip */}
-              <div className="w-full mt-1.5 px-0.5 text-center flex justify-center">
+              {/* Centered Milestone Label below Circle */}
+              <div className={cn("w-full text-center flex justify-center", isSmall ? "mt-1 px-0.5" : "mt-2 px-1")}>
                 <span
                   className={cn(
-                    "block text-center font-medium leading-tight tracking-tight transition-colors truncate whitespace-nowrap overflow-hidden max-w-full",
-                    isSmall ? "text-[8.5px]" : "text-[10px]",
-                    isCurrent && "text-blue-700 font-bold",
-                    isDone && "text-slate-700",
-                    isUpcoming && "text-slate-400 font-normal"
+                    "block text-center leading-tight tracking-tight transition-colors truncate whitespace-nowrap overflow-hidden max-w-full",
+                    isSmall ? "text-[9px]" : "text-xs",
+                    isReached ? "text-slate-900 font-bold" : "text-slate-400 font-normal"
                   )}
-                  style={{
-                    wordBreak: "normal",
-                    overflowWrap: "normal",
-                  }}
                   title={stage.name}
                 >
                   {stage.name}

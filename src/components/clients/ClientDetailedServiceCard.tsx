@@ -170,7 +170,7 @@ export function ClientDetailedServiceCard({
               {service.hasCommercialMismatch && (
                 <span
                   className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 shrink-0"
-                  title={`Commercial Mismatch: Contract Value (${formatINR(service.contractValue)}) differs from Invoiced Amount (${formatINR(service.invoicedAmount)})`}
+                  title={`Commercial Mismatch: Agreed Contract Value (${formatINR(service.contractValue)}) differs from Taxable Billable Subtotal (${formatINR(service.contractValue)})`}
                 >
                   Contract/Invoice Mismatch
                 </span>

@@ -3,13 +3,14 @@ import { formatINR } from "@/lib/utils";
 export interface ServiceFinancialMetrics {
   serviceId: string;
   contractValue: number;
-  invoicedAmount: number;
+  invoicedAmount: number;    // Invoice Total (Incl. GST) linked to this service
+  invoicedTaxableAmount: number; // Invoice Subtotal (Excl. GST) linked to this service
   collectedAmount: number;
   outstandingAmount: number; // Invoiced - Collected for this service (or 0 if not invoiced)
   paymentProgress: number;   // Paid / Invoiced % (or 0% if Not Invoiced)
   paymentStatus: "Paid" | "Partially Paid" | "Partial" | "Unpaid" | "Not Invoiced";
   hasIssuedInvoice: boolean;
-  hasCommercialMismatch: boolean; // true if contractValue !== invoicedAmount when issued invoices exist
+  hasCommercialMismatch: boolean; // true if taxable invoiced subtotal (excl. GST) > contractValue
 }
 
 export interface ClientFinancialMetrics {
@@ -73,6 +74,37 @@ export function calculateServiceFinancials(params: {
     return sum + (Number(inv.totalAmount ?? inv.total_amount) || 0);
   }, 0);
 
+  // Invoiced Taxable Amount (Subtotal excluding GST)
+  const invoicedTaxableAmount = validIssuedInvoices.reduce((sum: number, inv: any) => {
+    if (inv.items && Array.isArray(inv.items)) {
+      const serviceItems = inv.items.filter(
+        (it: any) => it.client_service_id === service.id
+      );
+      if (serviceItems.length > 0) {
+        return (
+          sum +
+          serviceItems.reduce((iSum: number, it: any) => {
+            const itemSubtotal =
+              (Number(it.unit_price) || 0) * (Number(it.quantity) || 1) -
+              (Number(it.discount_amount) || 0);
+            if (itemSubtotal > 0) return iSum + itemSubtotal;
+            // If unit_price not present, subtract tax_amount from total
+            const itemTotal = Number(it.total) || 0;
+            const itemTax = Number(it.tax_amount) || 0;
+            return iSum + Math.max(0, itemTotal - itemTax);
+          }, 0)
+        );
+      }
+    }
+    // Fallback: Use invoice subtotal or total - tax
+    if (inv.subtotal !== null && inv.subtotal !== undefined && Number(inv.subtotal) > 0) {
+      return sum + Number(inv.subtotal);
+    }
+    const total = Number(inv.totalAmount ?? inv.total_amount) || 0;
+    const tax = Number(inv.tax_amount ?? inv.taxAmount) || 0;
+    return sum + Math.max(0, total - tax);
+  }, 0);
+
   const hasIssuedInvoice = validIssuedInvoices.length > 0;
 
   // 3. Collected Amount
@@ -102,14 +134,16 @@ export function calculateServiceFinancials(params: {
     paymentProgress = 0;
   }
 
-  // 6. Commercial mismatch: contractValue differs from invoiced amount
+  // 6. Commercial mismatch: Taxable billable subtotal (excl. GST) strictly exceeds approved contract value
+  // GST must NOT be counted as contract revenue or overbilling.
   const hasCommercialMismatch =
-    hasIssuedInvoice && Math.abs(contractValue - invoicedAmount) > 0.01;
+    hasIssuedInvoice && contractValue > 0 && invoicedTaxableAmount > contractValue + 0.01;
 
   return {
     serviceId: service.id,
     contractValue,
     invoicedAmount,
+    invoicedTaxableAmount,
     collectedAmount,
     outstandingAmount,
     paymentProgress,

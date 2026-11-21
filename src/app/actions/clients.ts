@@ -457,7 +457,7 @@ export async function fetchClientsAction() {
     const [invoicesRes, paymentsRes, allocsRes] = await Promise.all([
       supabase
         .from("invoices")
-        .select("id, client_id, total_amount, amount_paid, balance_due, status, items:invoice_items(id, total, client_service_id)")
+        .select("id, client_id, subtotal, tax_amount, total_amount, amount_paid, balance_due, status, items:invoice_items(id, unit_price, quantity, tax_amount, total, client_service_id)")
         .in("client_id", allClientIds)
         .not("status", "in", '("Draft","Void","Cancelled")'),
       supabase

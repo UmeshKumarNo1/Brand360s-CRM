@@ -222,13 +222,31 @@ export function calculateClientFinancials(params: {
   // 5. Unallocated Advance = Verified payments received minus total allocated
   const unallocatedAdvance = Math.max(0, collectedAmount - allocatedAmount);
 
-  // 6. Invoice Outstanding = Sum of unpaid balance_due on issued invoices
+  // Group allocations by invoice_id to compute live invoice-level paid amounts
+  const allocationsByInvoice: Record<string, number> = {};
+  validAllocations.forEach((a: any) => {
+    if (a.invoice_id) {
+      allocationsByInvoice[a.invoice_id] =
+        (allocationsByInvoice[a.invoice_id] || 0) + (Number(a.allocated_amount ?? a.amount) || 0);
+    }
+  });
+
+  // 6. Invoice Outstanding = Sum of unpaid balance on issued invoices
+  // Prioritizes live verified payment allocations over potentially desynchronized static invoice fields
   const invoiceOutstanding = issuedInvoices.reduce((sum: number, inv: any) => {
-    // If balance_due exists explicitly on invoice, use it; otherwise total_amount - amount_paid
-    const bal =
-      inv.balance_due !== undefined && inv.balance_due !== null
-        ? Number(inv.balance_due)
-        : Math.max(0, (Number(inv.total_amount) || 0) - (Number(inv.amount_paid) || 0));
+    const invTotal = Number(inv.total_amount ?? inv.totalAmount) || 0;
+    const invAllocated = allocationsByInvoice[inv.id];
+
+    // If allocations exist for this invoice, balance = total - allocated
+    // Otherwise fallback to static balance_due or total_amount - amount_paid
+    let bal: number;
+    if (typeof invAllocated === "number") {
+      bal = Math.max(0, invTotal - invAllocated);
+    } else if (inv.balance_due !== undefined && inv.balance_due !== null) {
+      bal = Number(inv.balance_due);
+    } else {
+      bal = Math.max(0, invTotal - (Number(inv.amount_paid) || 0));
+    }
     return sum + bal;
   }, 0);
 

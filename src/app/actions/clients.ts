@@ -631,7 +631,7 @@ export async function fetchClientContractSummaryAction(clientId: string) {
   if (!clientId) return null;
   const supabase = await createClient();
 
-  const [clientRes, servicesRes, invoicesRes, paymentsRes] = await Promise.all([
+  const [clientRes, servicesRes, invoicesRes, paymentsRes, allocsRes] = await Promise.all([
     supabase
       .from("clients")
       .select("id, company_name, client_code, contract_value, balance_receivable")
@@ -651,6 +651,9 @@ export async function fetchClientContractSummaryAction(clientId: string) {
       .select("amount, status")
       .eq("client_id", clientId)
       .eq("status", "Verified"),
+    supabase
+      .from("invoice_payment_allocations")
+      .select("invoice_id, allocated_amount"),
   ]);
 
   if (clientRes.error || !clientRes.data) return null;
@@ -680,11 +683,26 @@ export async function fetchClientContractSummaryAction(clientId: string) {
     0
   );
 
-  // 4. Remaining Invoice Balance = SUM(balance_due of issued valid invoices)
+  const allocationsByInvoice: Record<string, number> = {};
+  (allocsRes.data || []).forEach((a: any) => {
+    if (a.invoice_id) {
+      allocationsByInvoice[a.invoice_id] =
+        (allocationsByInvoice[a.invoice_id] || 0) + (Number(a.allocated_amount) || 0);
+    }
+  });
+
+  // 4. Remaining Invoice Balance = SUM(balance of issued valid invoices based on live allocations)
   const remainingInvoiceBalance = validInvoices.reduce((sum: number, inv: any) => {
-    const bal = inv.balance_due !== undefined && inv.balance_due !== null
-      ? Number(inv.balance_due)
-      : Math.max(0, (Number(inv.total_amount) || 0) - (Number(inv.amount_paid) || 0));
+    const invTotal = Number(inv.total_amount) || 0;
+    const invAllocated = allocationsByInvoice[inv.id];
+    let bal: number;
+    if (typeof invAllocated === "number") {
+      bal = Math.max(0, invTotal - invAllocated);
+    } else if (inv.balance_due !== undefined && inv.balance_due !== null) {
+      bal = Number(inv.balance_due);
+    } else {
+      bal = Math.max(0, invTotal - (Number(inv.amount_paid) || 0));
+    }
     return sum + bal;
   }, 0);
 
@@ -714,7 +732,7 @@ export async function fetchClientContractSummaryAction(clientId: string) {
 export async function fetchClientsKpiSummaryAction() {
   const supabase = await createClient();
 
-  const [clientsRes, servicesRes, invoicesRes, paymentsRes] = await Promise.all([
+  const [clientsRes, servicesRes, invoicesRes, paymentsRes, allocsRes] = await Promise.all([
     supabase
       .from("clients")
       .select("id, client_status, contract_value, payments_received, balance_receivable"),
@@ -723,17 +741,29 @@ export async function fetchClientsKpiSummaryAction() {
       .select("client_id, total_amount, service_fee, govt_fee, service_status"),
     supabase
       .from("invoices")
-      .select("client_id, total_amount, amount_paid, balance_due, status")
+      .select("id, client_id, total_amount, amount_paid, balance_due, status")
       .not("status", "in", '("Draft","Void","Cancelled")'),
     supabase
       .from("payments")
       .select("client_id, amount, status"),
+    supabase
+      .from("invoice_payment_allocations")
+      .select("invoice_id, allocated_amount"),
   ]);
 
   const clients = clientsRes.data || [];
   const services = servicesRes.data || [];
   const invoices = invoicesRes.data || [];
   const payments = paymentsRes.data || [];
+  const allocations = allocsRes.data || [];
+
+  const allocationsByInvoice: Record<string, number> = {};
+  allocations.forEach((a: any) => {
+    if (a.invoice_id) {
+      allocationsByInvoice[a.invoice_id] =
+        (allocationsByInvoice[a.invoice_id] || 0) + (Number(a.allocated_amount) || 0);
+    }
+  });
 
   let totalNonArchived = 0;
   let activeOperationalCount = 0;
@@ -770,9 +800,16 @@ export async function fetchClientsKpiSummaryAction() {
     // Issued invoices outstanding for this client
     const cInvs = invoices.filter((i: any) => i.client_id === c.id);
     const cOutstanding = cInvs.reduce((sum: number, i: any) => {
-      const bal = i.balance_due !== undefined && i.balance_due !== null
-        ? Number(i.balance_due)
-        : Math.max(0, (Number(i.total_amount) || 0) - (Number(i.amount_paid) || 0));
+      const invTotal = Number(i.total_amount) || 0;
+      const invAllocated = allocationsByInvoice[i.id];
+      let bal: number;
+      if (typeof invAllocated === "number") {
+        bal = Math.max(0, invTotal - invAllocated);
+      } else if (i.balance_due !== undefined && i.balance_due !== null) {
+        bal = Number(i.balance_due);
+      } else {
+        bal = Math.max(0, invTotal - (Number(i.amount_paid) || 0));
+      }
       return sum + bal;
     }, 0);
 

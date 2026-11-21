@@ -650,7 +650,7 @@ export function ClientDetailView({
                         service={service}
                         index={idx}
                         totalServices={detailedServices.length}
-                        defaultExpanded={idx === 0}
+                        defaultExpanded={true}
                         canEdit={canEdit}
                         isAdmin={isAdmin}
                         onRefresh={() => loadDetailedServices(true)}

@@ -118,7 +118,10 @@ export function ClientDetailedServiceCard({
   return (
     <div className="space-y-4">
       {/* 1. Standalone Service Card Header matching Reference Mockup exactly */}
-      <div className="bg-white border border-slate-100 rounded-2xl px-6 py-4 shadow-sm flex flex-wrap items-center justify-between gap-4 select-none">
+      <div
+        onClick={() => setIsExpanded((prev) => !prev)}
+        className="bg-white border border-slate-100 rounded-2xl px-6 py-4 shadow-sm flex flex-wrap items-center justify-between gap-4 select-none cursor-pointer hover:bg-slate-50/40 transition-all"
+      >
         {/* Left Section: Cyan Globe Box, Title with External Link, Service Sequence Pill, Category */}
         <div className="flex items-center gap-3.5 min-w-0">
           <div className="w-11 h-11 rounded-2xl bg-[#E0F7FA] text-[#0481A2] border border-[#B2EBF2]/40 flex items-center justify-center shrink-0 shadow-2xs">
@@ -129,16 +132,25 @@ export function ClientDetailedServiceCard({
             <div className="flex items-center gap-2 flex-wrap">
               <Link
                 href={`/services/${service.id}`}
+                onClick={(e) => e.stopPropagation()}
                 className="font-bold font-serif text-slate-900 text-base tracking-tight truncate hover:text-[#0481A2] hover:underline cursor-pointer inline-flex items-center gap-1.5 group text-left"
                 title={`Open ${service.serviceName} service detail page`}
               >
                 <span>{service.serviceName}</span>
                 <ExternalLink size={13} className="text-slate-400 group-hover:text-[#0481A2] shrink-0" />
               </Link>
-              <span className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-xs font-semibold bg-[#EAF8FA] text-[#0481A2] border border-[#BDE8EF] shrink-0">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded((prev) => !prev);
+                }}
+                className="inline-flex items-center gap-1 px-3 py-0.5 rounded-full text-xs font-semibold bg-[#EAF8FA] text-[#0481A2] border border-[#BDE8EF] shrink-0 hover:bg-[#dcf4f7] transition-colors cursor-pointer"
+                title={isExpanded ? "Collapse service details" : "Expand service details"}
+              >
                 <span>Service {index + 1} of {totalServices}</span>
-                <ChevronDown size={11} className="text-[#0481A2]" />
-              </span>
+                <ChevronDown size={11} className={cn("text-[#0481A2] transition-transform duration-200", !isExpanded && "-rotate-90")} />
+              </button>
             </div>
             <p className="text-xs text-slate-400 mt-0.5 truncate">{service.serviceCategory || "Branding & Web Development"}</p>
           </div>

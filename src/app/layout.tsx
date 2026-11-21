@@ -5,6 +5,19 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://brand360scrm.netlify.app"),
   title: "BRAND 360s CRM",
   description: "Enterprise CRM for BRAND 360s client management, registrations, and billing.",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
   icons: {
     icon: [
       { url: "/avatar.webp", type: "image/webp" },

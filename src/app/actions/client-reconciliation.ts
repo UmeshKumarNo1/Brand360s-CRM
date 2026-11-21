@@ -63,7 +63,7 @@ export async function syncClientContractValueAction(clientId: string): Promise<{
     if (invoiceIds.length > 0) {
       const { data: allocs } = await supabase
         .from("invoice_payment_allocations")
-        .select("id, invoice_id, payment_id, allocated_amount, amount, client_service_id")
+        .select("id, invoice_id, payment_id, allocated_amount, client_service_id")
         .in("invoice_id", invoiceIds);
       allocations = allocs || [];
     }

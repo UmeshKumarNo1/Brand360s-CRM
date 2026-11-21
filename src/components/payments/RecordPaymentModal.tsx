@@ -49,12 +49,16 @@ export function RecordPaymentModal({
   const [selectedClientId, setSelectedClientId] = useState<string>(defaultClientId || "");
   const [selectedInstallmentId, setSelectedInstallmentId] = useState<string>(defaultInstallmentId || "");
   const [amountValue, setAmountValue] = useState<string>(defaultAmount ? String(defaultAmount) : "");
+  const isUserEditedAmountRef = useRef<boolean>(false);
+  const prevClientIdRef = useRef<string>(defaultClientId || "");
 
   // Contract limit commercial summary state
   const [contractSummary, setContractSummary] = useState<{
     contractValue: number;
+    totalInvoiced: number;
     previouslyReceived: number;
     remainingContractBalance: number;
+    remainingInvoiceBalance: number;
     maximumPermittedPayment: number;
   } | null>(null);
   const [isLoadingContract, setIsLoadingContract] = useState(false);
@@ -78,6 +82,13 @@ export function RecordPaymentModal({
     fetchClientContractSummaryAction(selectedClientId)
       .then((summary) => {
         setContractSummary(summary);
+        if (summary) {
+          const eligibleBal = summary.maximumPermittedPayment ?? summary.remainingInvoiceBalance ?? 0;
+          // Auto-fill amount if not manually edited by user, or if client changed
+          if (!isUserEditedAmountRef.current && allocationLines.length === 0) {
+            setAmountValue(eligibleBal > 0 ? String(eligibleBal) : "0");
+          }
+        }
       })
       .catch((err) => {
         console.error("Error loading client contract summary:", err);
@@ -120,9 +131,13 @@ export function RecordPaymentModal({
     }
   }, [defaultClientId, isOpen]);
 
-  // Load client invoices when client changes, clear allocations
+  // Load client invoices when client changes, clear allocations, and reset manual flag on genuine client switch
   useEffect(() => {
-    setAllocationLines([]);
+    if (prevClientIdRef.current !== selectedClientId) {
+      prevClientIdRef.current = selectedClientId;
+      isUserEditedAmountRef.current = false;
+      setAllocationLines([]);
+    }
     loadClientInvoices(selectedClientId);
   }, [selectedClientId]);
 
@@ -196,9 +211,18 @@ export function RecordPaymentModal({
         {
           id: Math.random().toString(36).substring(7),
           invoiceId: nextAvailable.id,
-          amount: suggestedAmount > 0 ? suggestedAmount : 0,
+          amount: suggestedAmount > 0 ? suggestedAmount : (nextAvailable.balanceDue > 0 ? nextAvailable.balanceDue : 0),
         },
       ]);
+
+      // If user hasn't manually edited the overall amount, auto-populate Amount with invoice's balance
+      if (!isUserEditedAmountRef.current && contractSummary) {
+        const clientMax = contractSummary.maximumPermittedPayment ?? contractSummary.remainingInvoiceBalance ?? 0;
+        const targetAmt = Math.min(nextAvailable.balanceDue, clientMax);
+        if (targetAmt > 0) {
+          setAmountValue(String(targetAmt));
+        }
+      }
     }
   };
 
@@ -208,8 +232,34 @@ export function RecordPaymentModal({
     );
   };
 
+  const handleInvoiceSelectionChange = (lineId: string, newInvId: string) => {
+    const inv = clientInvoices.find((i) => i.id === newInvId);
+    let newAmt = 0;
+    if (inv) {
+      if (!isUserEditedAmountRef.current && contractSummary) {
+        // Auto-populate Amount with the selected invoice's remaining balance, capped by client's overall max
+        const clientMax = contractSummary.maximumPermittedPayment ?? contractSummary.remainingInvoiceBalance ?? 0;
+        const targetAmt = Math.min(inv.balanceDue, clientMax);
+        setAmountValue(targetAmt > 0 ? String(targetAmt) : "0");
+        newAmt = targetAmt;
+      } else {
+        newAmt = Math.min(inv.balanceDue, paymentAmountNum);
+      }
+    }
+    handleUpdateLine(lineId, newInvId, newAmt);
+  };
+
   const handleRemoveLine = (lineId: string) => {
-    setAllocationLines((prev) => prev.filter((l) => l.id !== lineId));
+    setAllocationLines((prev) => {
+      const remaining = prev.filter((l) => l.id !== lineId);
+      // If user removed the invoice line and hadn't manually edited the payment amount,
+      // revert amount back to the overall remaining client invoice balance
+      if (remaining.length === 0 && !isUserEditedAmountRef.current && contractSummary) {
+        const eligibleBal = contractSummary.maximumPermittedPayment ?? contractSummary.remainingInvoiceBalance ?? 0;
+        setAmountValue(eligibleBal > 0 ? String(eligibleBal) : "0");
+      }
+      return remaining;
+    });
   };
 
   const totalAllocating = allocationLines.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
@@ -223,9 +273,18 @@ export function RecordPaymentModal({
     paymentAmountNum > 0 &&
     paymentAmountNum > maxPermitted + 0.009;
 
+  // Validation: Check if any allocation line exceeds its invoice balance
+  const exceedingLine = allocationLines.find((l) => {
+    if (!l.invoiceId || !l.amount) return false;
+    const inv = clientInvoices.find((i) => i.id === l.invoiceId);
+    return inv && l.amount > inv.balanceDue + 0.009;
+  });
+
   const isFormBlocked =
     isPending ||
+    paymentAmountNum <= 0 ||
     isExceedingContract ||
+    !!exceedingLine ||
     (contractSummary !== null && maxPermitted <= 0) ||
     (totalAllocating > paymentAmountNum && paymentAmountNum > 0);
 
@@ -305,11 +364,17 @@ export function RecordPaymentModal({
                 <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Client Contract Status</span>
                 {isLoadingContract && <Loader2 size={11} className="animate-spin text-[#077EA1]" />}
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-0.5">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-0.5">
                 <div className="bg-white p-2 rounded-lg border border-slate-200/70">
                   <span className="text-[9px] text-slate-400 font-semibold block uppercase">Contract Value</span>
                   <span className="font-bold text-slate-800 text-xs font-sans font-number">
                     {contractSummary ? formatINR(contractSummary.contractValue) : "—"}
+                  </span>
+                </div>
+                <div className="bg-white p-2 rounded-lg border border-slate-200/70">
+                  <span className="text-[9px] text-slate-400 font-semibold block uppercase">Total Invoiced</span>
+                  <span className="font-bold text-indigo-700 text-xs font-sans font-number">
+                    {contractSummary ? formatINR(contractSummary.totalInvoiced) : "—"}
                   </span>
                 </div>
                 <div className="bg-white p-2 rounded-lg border border-slate-200/70">
@@ -319,9 +384,9 @@ export function RecordPaymentModal({
                   </span>
                 </div>
                 <div className="bg-white p-2 rounded-lg border border-slate-200/70">
-                  <span className="text-[9px] text-slate-400 font-semibold block uppercase">Remaining Contract</span>
+                  <span className="text-[9px] text-slate-400 font-semibold block uppercase">Remaining Invoice</span>
                   <span className="font-bold text-blue-700 text-xs font-sans font-number">
-                    {contractSummary ? formatINR(contractSummary.remainingContractBalance) : "—"}
+                    {contractSummary ? formatINR(contractSummary.remainingInvoiceBalance) : "—"}
                   </span>
                 </div>
                 <div className="bg-white p-2 rounded-lg border border-slate-200/70">
@@ -355,7 +420,10 @@ export function RecordPaymentModal({
                 min="0.01"
                 max={contractSummary ? contractSummary.maximumPermittedPayment : undefined}
                 value={amountValue}
-                onChange={(e) => setAmountValue(e.target.value)}
+                onChange={(e) => {
+                  isUserEditedAmountRef.current = true;
+                  setAmountValue(e.target.value);
+                }}
                 placeholder="25000"
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
                   isExceedingContract
@@ -377,30 +445,45 @@ export function RecordPaymentModal({
             </div>
           </div>
 
-          {/* Contract Overpayment Inline Warning Banner */}
+          {/* Invoice Overpayment Inline Warning Banner */}
           {isExceedingContract && contractSummary && (
             <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl flex items-start gap-2.5 text-rose-800 text-xs">
               <ShieldAlert size={18} className="shrink-0 text-rose-600 mt-0.5" />
               <div>
-                <p className="font-bold text-rose-900">Contract Overpayment Prevented</p>
+                <p className="font-bold text-rose-900">Payment Over-Limit Prevented</p>
                 <p className="mt-0.5 leading-relaxed">
-                  Payment amount (₹{paymentAmountNum.toLocaleString("en-IN")}) exceeds the remaining contract balance (₹{contractSummary.remainingContractBalance.toLocaleString("en-IN")}).
+                  Payment amount (₹{paymentAmountNum.toLocaleString("en-IN")}) exceeds the remaining outstanding invoice balance (₹{contractSummary.remainingInvoiceBalance.toLocaleString("en-IN")}).
                   Maximum permitted payment is <strong>₹{contractSummary.maximumPermittedPayment.toLocaleString("en-IN")}</strong>.
-                  Please update the contract value or add the additional service before recording this payment.
+                  Please generate an invoice for any additional contract scope before recording this payment.
                 </p>
               </div>
             </div>
           )}
 
-          {/* Zero Contract Balance Block Banner */}
+          {/* Allocation Exceeding Invoice Balance Warning Banner */}
+          {exceedingLine && (
+            <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl flex items-start gap-2.5 text-rose-800 text-xs">
+              <ShieldAlert size={18} className="shrink-0 text-rose-600 mt-0.5" />
+              <div>
+                <p className="font-bold text-rose-900">Invoice Allocation Exceeds Remaining Balance</p>
+                <p className="mt-0.5 leading-relaxed">
+                  The allocated amount (₹{(Number(exceedingLine.amount) || 0).toLocaleString("en-IN")}) exceeds the remaining invoice balance (₹{
+                    (clientInvoices.find((i) => i.id === exceedingLine.invoiceId)?.balanceDue || 0).toLocaleString("en-IN")
+                  }). Please adjust the allocated amount to be within the invoice balance.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Zero Invoice Balance Block Banner */}
           {contractSummary && contractSummary.maximumPermittedPayment <= 0 && (
             <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl flex items-start gap-2.5 text-amber-800 text-xs">
               <AlertCircle size={18} className="shrink-0 text-amber-600 mt-0.5" />
               <div>
-                <p className="font-bold text-amber-900">Contract Fully Paid</p>
+                <p className="font-bold text-amber-900">All Issued Invoices Fully Paid</p>
                 <p className="mt-0.5 leading-relaxed">
-                  This client has already fulfilled their contract value of ₹{contractSummary.contractValue.toLocaleString("en-IN")}.
-                  To record additional payments, an Admin must first revise the contract or add a new service.
+                  This client has no open or outstanding invoice balance. Total invoiced amount of ₹{contractSummary.totalInvoiced.toLocaleString("en-IN")} has been fully received.
+                  To record additional payments, please generate an invoice for the service deliverable first.
                 </p>
               </div>
             </div>
@@ -483,12 +566,7 @@ export function RecordPaymentModal({
                         <div className="flex items-center justify-between gap-2">
                           <select
                             value={line.invoiceId}
-                            onChange={(e) => {
-                              const newInvId = e.target.value;
-                              const inv = clientInvoices.find((i) => i.id === newInvId);
-                              const newAmt = inv ? Math.min(inv.balanceDue, paymentAmountNum) : 0;
-                              handleUpdateLine(line.id, newInvId, newAmt);
-                            }}
+                            onChange={(e) => handleInvoiceSelectionChange(line.id, e.target.value)}
                             className="flex-1 px-2.5 py-1.5 border border-slate-200 rounded text-xs bg-white focus:outline-none focus:border-[#077EA1]"
                           >
                             <option value="">Choose Invoice...</option>

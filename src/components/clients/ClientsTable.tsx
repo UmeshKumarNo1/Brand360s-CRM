@@ -21,6 +21,7 @@ import { useState } from "react";
 import { TargetDateCell } from "@/components/services/TargetDateCell";
 import { ServiceStageModal } from "@/components/services/ServiceStageModal";
 import { AssignServiceModal } from "@/components/services/AssignServiceModal";
+import { CreateInvoiceModal } from "@/components/invoices/CreateInvoiceModal";
 import { computeServiceFulfillment } from "@/lib/services/fulfillment-workflows";
 import { ServiceFulfillmentTimeline } from "@/components/services/ServiceFulfillmentTimeline";
 import { InlineAssignEmployeeCell } from "@/components/services/InlineAssignEmployeeCell";
@@ -168,6 +169,13 @@ export function ClientsTable({
 }: ClientsTableProps) {
   const [stageModalServiceId, setStageModalServiceId] = useState<string | null>(null);
   const [assignModalClient, setAssignModalClient] = useState<{ id: string; name: string } | null>(null);
+  const [createInvoiceService, setCreateInvoiceService] = useState<{
+    clientId: string;
+    clientName: string;
+    serviceId: string;
+    serviceName: string;
+    amount: number;
+  } | null>(null);
 
   return (
     <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden w-full max-w-full">
@@ -614,25 +622,51 @@ export function ClientsTable({
                                           {/* PAYMENT: Minimal pill + amount subtext */}
                                           <td className="py-2.5 px-3 text-center align-middle whitespace-nowrap">
                                             <div className="inline-flex flex-col items-center">
-                                              <span
-                                                className={cn(
-                                                  "px-2.5 py-0.5 rounded-full text-[10px] font-bold",
-                                                  service.paymentStatus === "Paid" &&
-                                                    "bg-emerald-50 text-emerald-700 border border-emerald-200",
-                                                  service.paymentStatus === "Partial" &&
-                                                    "bg-amber-50 text-amber-700 border border-amber-200",
-                                                  service.paymentStatus !== "Paid" &&
-                                                    service.paymentStatus !== "Partial" &&
-                                                    "bg-rose-50 text-rose-700 border border-rose-200"
-                                                )}
-                                              >
-                                                {service.paymentStatus || "Unpaid"}
-                                              </span>
+                                              {service.paymentStatus === "Not Invoiced" || (!service.hasIssuedInvoice && (service.invoicedAmount || 0) === 0) ? (
+                                                <button
+                                                  type="button"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setCreateInvoiceService({
+                                                      clientId: client.id,
+                                                      clientName: client.companyName,
+                                                      serviceId: service.id,
+                                                      serviceName: service.service_name,
+                                                      amount: service.total_amount,
+                                                    });
+                                                  }}
+                                                  className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 hover:bg-[#0481A2] hover:text-white hover:border-[#0481A2] transition-colors cursor-pointer group flex items-center gap-1 shadow-2xs"
+                                                  title={`Generate Invoice for ${service.service_name}`}
+                                                >
+                                                  <span>Not Invoiced</span>
+                                                  <Plus size={9} className="opacity-70 group-hover:opacity-100" />
+                                                </button>
+                                              ) : (
+                                                <span
+                                                  className={cn(
+                                                    "px-2.5 py-0.5 rounded-full text-[10px] font-bold",
+                                                    service.paymentStatus === "Paid" &&
+                                                      "bg-emerald-50 text-emerald-700 border border-emerald-200",
+                                                    (service.paymentStatus === "Partially Paid" || service.paymentStatus === "Partial") &&
+                                                      "bg-amber-50 text-amber-700 border border-amber-200",
+                                                    service.paymentStatus !== "Paid" &&
+                                                      service.paymentStatus !== "Partially Paid" &&
+                                                      service.paymentStatus !== "Partial" &&
+                                                      "bg-rose-50 text-rose-700 border border-rose-200"
+                                                  )}
+                                                >
+                                                  {service.paymentStatus || "Unpaid"}
+                                                </span>
+                                              )}
                                               <span className="text-[10px] text-slate-500 font-medium font-sans font-number mt-0.5">
-                                                {service.paymentStatus === "Paid"
-                                                  ? formatINR(service.total_amount)
-                                                  : service.paymentStatus === "Partial"
-                                                  ? `${formatINR(service.amountPaid || 0)} / ${formatINR(service.total_amount)}`
+                                                {service.paymentStatus === "Not Invoiced" || (!service.hasIssuedInvoice && (service.invoicedAmount || 0) === 0)
+                                                  ? "Not Invoiced"
+                                                  : service.paymentStatus === "Paid"
+                                                  ? formatINR(service.invoicedAmount || service.amountPaid || service.total_amount)
+                                                  : service.paymentStatus === "Partially Paid" || service.paymentStatus === "Partial"
+                                                  ? `${formatINR(service.amountPaid || 0)} / ${formatINR(service.invoicedAmount || service.total_amount)}`
+                                                  : (service.invoicedAmount || 0) > 0
+                                                  ? `₹0 / ${formatINR(service.invoicedAmount || 0)}`
                                                   : service.total_amount > 0
                                                   ? `₹0 / ${formatINR(service.total_amount)}`
                                                   : "Not Invoiced"}
@@ -776,6 +810,23 @@ export function ClientsTable({
           }}
           clientId={assignModalClient.id}
           clientName={assignModalClient.name}
+        />
+      )}
+
+      {/* Service-Based GST Invoice Creation Modal */}
+      {createInvoiceService && (
+        <CreateInvoiceModal
+          isOpen={Boolean(createInvoiceService)}
+          onClose={() => setCreateInvoiceService(null)}
+          defaultClientId={createInvoiceService.clientId}
+          defaultClientName={createInvoiceService.clientName}
+          defaultServiceId={createInvoiceService.serviceId}
+          defaultDescription={`${createInvoiceService.serviceName} - Professional Deliverable`}
+          defaultAmount={createInvoiceService.amount}
+          onSuccess={() => {
+            setCreateInvoiceService(null);
+            onRefresh?.();
+          }}
         />
       )}
     </div>

@@ -73,12 +73,30 @@ export function AddCatalogServiceModal({ isOpen, onClose, onSuccess }: AddCatalo
               name="category"
               className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
             >
-              <option value="Company Incorporation">Company Incorporation</option>
-              <option value="GST & Tax Filing">GST & Tax Filing</option>
-              <option value="Intellectual Property">Intellectual Property</option>
-              <option value="Accounting & Audit">Accounting & Audit</option>
-              <option value="Web & Technology">Web & Technology</option>
+              <option value="Business Registration">Business Registration</option>
+              <option value="Compliance & Tax">Compliance & Tax</option>
+              <option value="Intellectual Property & Legal">Intellectual Property & Legal</option>
+              <option value="Branding & Web Development">Branding & Web Development</option>
+              <option value="Digital Growth & Visibility">Digital Growth & Visibility</option>
               <option value="General">General</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block font-semibold text-slate-700 mb-1">Fulfillment Workflow Template</label>
+            <select
+              name="workflow_preset"
+              defaultValue=""
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
+            >
+              <option value="">Auto-Detect from Name &amp; Category</option>
+              <option value="website">Website Development (5 stages)</option>
+              <option value="smm">Social Media Marketing (6 stages)</option>
+              <option value="trademark">Trademark Filing (6 stages)</option>
+              <option value="incorporation">Company Registration (6 stages)</option>
+              <option value="gst">GST Registration (5 stages)</option>
+              <option value="compliance">Annual Compliance (5 stages)</option>
+              <option value="general">General Service (5 stages)</option>
             </select>
           </div>
 

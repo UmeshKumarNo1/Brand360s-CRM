@@ -41,6 +41,9 @@ export interface CreateInvoicePayload {
   notes?: string | null;
   terms?: string | null;
   items: InvoiceItemInput[];
+  // Overbilling override controls
+  allow_overbilling_override?: boolean;
+  overbilling_approval_reason?: string;
 }
 
 /**
@@ -291,6 +294,8 @@ export async function createInvoiceAction(
     const issueDate = (formData.get("issue_date") as string) || new Date().toISOString().split("T")[0];
     const dueDate = formData.get("due_date") as string;
     const notes = formData.get("notes") as string;
+    const allowOverbillingOverride = formData.get("allow_overbilling_override") === "true";
+    const overbillingApprovalReason = (formData.get("overbilling_approval_reason") as string) || "";
 
     payload = {
       client_id: clientId,
@@ -309,6 +314,8 @@ export async function createInvoiceAction(
       total_amount: totalAmount,
       notes,
       terms: "Payment due within terms. Brand 360s Enterprises.",
+      allow_overbilling_override: allowOverbillingOverride,
+      overbilling_approval_reason: overbillingApprovalReason,
       items: [
         {
           client_service_id: clientServiceId,
@@ -328,6 +335,35 @@ export async function createInvoiceAction(
 
   if (!payload || !payload.client_id || !payload.items || payload.items.length === 0) {
     return { error: "Please select a client and add at least one billable item." };
+  }
+
+  // Contract Overbilling Validation Check
+  const { checkInvoiceOverbillingAction } = await import("./invoice-validation");
+  const overbillingCheck = await checkInvoiceOverbillingAction({
+    clientId: payload.client_id,
+    proposedInvoiceAmount: Number(payload.total_amount) || 0,
+  });
+
+  if (overbillingCheck.isOverbilling && !payload.allow_overbilling_override) {
+    return {
+      error: overbillingCheck.warningMessage || "Proposed invoice exceeds approved contract value. Administrator approval required.",
+    };
+  }
+
+  // If overbilling is approved by admin, verify role and log audit trail
+  if (overbillingCheck.isOverbilling && payload.allow_overbilling_override) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, full_name")
+      .eq("id", user.id)
+      .single();
+
+    if (profile?.role !== "admin") {
+      return { error: "Only an authorized Administrator can approve contract overbilling." };
+    }
+    if (!payload.overbilling_approval_reason || payload.overbilling_approval_reason.trim().length < 5) {
+      return { error: "Administrator justification is required to approve billing exceeding the contract." };
+    }
   }
 
   // 1. Generate unique invoice number server-side
@@ -389,6 +425,26 @@ export async function createInvoiceAction(
     return { error: itemsError.message };
   }
 
+  // If created under overbilling override, log into permanent audit log
+  if (overbillingCheck.isOverbilling && payload.allow_overbilling_override) {
+    const { recordAuditLog } = await import("@/lib/audit/audit-logger");
+    await recordAuditLog({
+      actorId: user.id,
+      action: "CREATE",
+      entityType: "invoice",
+      entityId: newInvoice.id,
+      entityName: newInvoice.invoice_number,
+      details: {
+        type: "CONTRACT_OVERBILLING_APPROVED",
+        contractValue: overbillingCheck.contractValue,
+        existingInvoicedAmount: overbillingCheck.existingInvoicedAmount,
+        invoiceAmount: payload.total_amount,
+        excessAmount: overbillingCheck.excessAmount,
+        approvalReason: payload.overbilling_approval_reason,
+      },
+    });
+  }
+
   revalidatePath("/invoices");
   revalidatePath(`/clients/${payload.client_id}`);
   revalidatePath("/dashboard");
@@ -396,7 +452,7 @@ export async function createInvoiceAction(
 }
 
 /**
- * Cancel an invoice with a reason
+ * Cancel an invoice with a reason, releasing any allocated payments back to unallocated status
  */
 export async function cancelInvoiceAction(invoiceId: string, reason: string): Promise<InvoiceActionState> {
   const supabase = await createClient();
@@ -404,11 +460,28 @@ export async function cancelInvoiceAction(invoiceId: string, reason: string): Pr
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Authentication required." };
 
+  // Fetch invoice details
+  const { data: inv, error: fErr } = await supabase
+    .from("invoices")
+    .select("id, client_id, invoice_number, total_amount, amount_paid, status")
+    .eq("id", invoiceId)
+    .single();
+
+  if (fErr || !inv) {
+    return { error: "Invoice not found." };
+  }
+
+  if (inv.status === "Cancelled" || inv.status === "Void") {
+    return { error: `Invoice is already ${inv.status}.` };
+  }
+
+  // Safe invoice cancellation: Mark as Cancelled, release balance_due to 0
   const { error } = await supabase
     .from("invoices")
     .update({
       status: "Cancelled",
-      notes: reason ? `Cancelled reason: ${reason}` : "Cancelled",
+      balance_due: 0,
+      notes: reason ? `Cancelled: ${reason}` : "Cancelled by admin",
       updated_at: new Date().toISOString(),
     })
     .eq("id", invoiceId);
@@ -417,7 +490,90 @@ export async function cancelInvoiceAction(invoiceId: string, reason: string): Pr
     return { error: error.message };
   }
 
+  // Release payment allocations so payments become unallocated advances
+  await supabase
+    .from("invoice_payment_allocations")
+    .delete()
+    .eq("invoice_id", invoiceId);
+
+  // Log in audit log
+  const { recordAuditLog } = await import("@/lib/audit/audit-logger");
+  await recordAuditLog({
+    actorId: user.id,
+    action: "CANCEL",
+    entityType: "invoice",
+    entityId: invoiceId,
+    entityName: inv.invoice_number,
+    details: {
+      reason,
+      totalAmount: inv.total_amount,
+      amountPaid: inv.amount_paid,
+    },
+  });
+
   revalidatePath("/invoices");
+  revalidatePath(`/clients/${inv.client_id}`);
+  revalidatePath("/payments");
+  revalidatePath("/reports");
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+/**
+ * Mark an invoice as Void with a reason
+ */
+export async function voidInvoiceAction(invoiceId: string, reason: string): Promise<InvoiceActionState> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Authentication required." };
+
+  const { data: inv, error: fErr } = await supabase
+    .from("invoices")
+    .select("id, client_id, invoice_number, total_amount, amount_paid, status")
+    .eq("id", invoiceId)
+    .single();
+
+  if (fErr || !inv) {
+    return { error: "Invoice not found." };
+  }
+
+  const { error } = await supabase
+    .from("invoices")
+    .update({
+      status: "Void",
+      balance_due: 0,
+      notes: reason ? `Voided: ${reason}` : "Voided by admin",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", invoiceId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  await supabase
+    .from("invoice_payment_allocations")
+    .delete()
+    .eq("invoice_id", invoiceId);
+
+  const { recordAuditLog } = await import("@/lib/audit/audit-logger");
+  await recordAuditLog({
+    actorId: user.id,
+    action: "VOID",
+    entityType: "invoice",
+    entityId: invoiceId,
+    entityName: inv.invoice_number,
+    details: {
+      reason,
+      totalAmount: inv.total_amount,
+    },
+  });
+
+  revalidatePath("/invoices");
+  revalidatePath(`/clients/${inv.client_id}`);
+  revalidatePath("/payments");
+  revalidatePath("/reports");
   return { success: true };
 }
 
@@ -616,6 +772,10 @@ export async function autoGenerateInvoiceForClientAction(
     serviceName?: string;
     clientServiceId?: string;
     amount?: number;
+    serviceFee?: number;
+    govtFee?: number;
+    taxRate?: number;
+    isEligiblePureAgent?: boolean;
     description?: string;
     dueDate?: string;
   }
@@ -651,7 +811,6 @@ export async function autoGenerateInvoiceForClientAction(
       .neq("status", "Cancelled");
 
     if (existingInvoices && existingInvoices.length > 0) {
-      // Already has active invoice(s); return the existing invoice without duplicating
       return {
         success: true,
         invoiceId: existingInvoices[0].id,
@@ -680,42 +839,53 @@ export async function autoGenerateInvoiceForClientAction(
     }
   }
 
-  // 3. Determine Billable Amount & Description
-  let rawAmount = options?.amount ?? (Number(client.contract_value) || 0);
+  // 3. Determine Taxable Base & GST using the shared GST calculation engine
+  const { calculateGstBreakdown } = await import("@/lib/financial/gst-calculator");
 
-  // If amount is 0 and client has services, check services
-  if (rawAmount <= 0) {
-    const { data: services } = await supabase
+  let svcParamFee = options?.serviceFee;
+  let govtParamFee = options?.govtFee;
+  let taxRateParam = options?.taxRate !== undefined ? options.taxRate : 18;
+
+  // Fallback to fetch from service record or client contract
+  if (svcParamFee === undefined && options?.clientServiceId) {
+    const { data: svcRec } = await supabase
       .from("client_services")
-      .select("id, service_name, total_amount, service_fee, govt_fee")
-      .eq("client_id", cleanClientId);
-
-    if (services && services.length > 0) {
-      rawAmount = services.reduce(
-        (sum, s) => sum + (Number(s.total_amount) || (Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0)),
-        0
-      );
+      .select("service_fee, govt_fee, tax_rate, total_amount")
+      .eq("id", options.clientServiceId)
+      .single();
+    if (svcRec) {
+      svcParamFee = Number(svcRec.service_fee) || 0;
+      govtParamFee = Number(svcRec.govt_fee) || 0;
+      taxRateParam = Number(svcRec.tax_rate) !== undefined ? Number(svcRec.tax_rate) : 18;
     }
   }
 
-  // If still 0 or negative, cannot generate meaningful billing
-  if (rawAmount <= 0) {
-    return { error: "Contract value or service fee must be greater than zero to generate an invoice." };
+  if (svcParamFee === undefined) {
+    // If only total amount was provided
+    svcParamFee = options?.amount ?? (Number(client.contract_value) || 0);
+    govtParamFee = 0;
   }
 
-  // 4. Calculate Tax Details (18% Standard GST)
-  const clientState = String(client.state || "").trim().toLowerCase();
-  const isTamilNadu = clientState.includes("tamil nadu") || clientState.includes("tn");
-  const taxType: "CGST + SGST" | "IGST" = isTamilNadu ? "CGST + SGST" : "IGST";
-  const taxRate = 18;
+  if (svcParamFee <= 0 && (!govtParamFee || govtParamFee <= 0)) {
+    return { error: "Service fee or contract value must be greater than zero to generate an invoice." };
+  }
 
-  const subtotal = Math.round((rawAmount / 1.18) * 100) / 100;
-  const taxAmount = Math.round((rawAmount - subtotal) * 100) / 100;
-  const totalAmount = rawAmount;
+  const gstResult = calculateGstBreakdown({
+    serviceFee: svcParamFee,
+    govtFee: govtParamFee || 0,
+    isEligiblePureAgent: options?.isEligiblePureAgent !== false,
+    taxRate: taxRateParam,
+    clientState: client.state,
+  });
 
-  const cgstAmount = taxType === "CGST + SGST" ? Math.round((taxAmount / 2) * 100) / 100 : 0;
-  const sgstAmount = taxType === "CGST + SGST" ? Math.round((taxAmount / 2) * 100) / 100 : 0;
-  const igstAmount = taxType === "IGST" ? taxAmount : 0;
+  const subtotal = gstResult.taxableAmount;
+  const taxAmount = gstResult.totalTaxAmount;
+  const totalAmount = gstResult.invoiceTotal;
+  const taxRate = gstResult.taxRate;
+  const taxType = gstResult.taxType;
+  const cgstAmount = gstResult.cgstAmount;
+  const sgstAmount = gstResult.sgstAmount;
+  const igstAmount = gstResult.igstAmount;
 
   const todayStr = new Date().toISOString().split("T")[0];
   const dueDate = options?.dueDate || todayStr;
@@ -761,10 +931,9 @@ export async function autoGenerateInvoiceForClientAction(
     return { error: invError?.message || "Failed to auto-generate invoice." };
   }
 
-  // 7. Insert Line Item
-  const { error: itemError } = await supabase
-    .from("invoice_items")
-    .insert({
+  // 7. Insert Line Item(s)
+  const lineItems: any[] = [
+    {
       invoice_id: newInvoice.id,
       client_service_id: options?.clientServiceId || null,
       description: desc,
@@ -773,8 +942,32 @@ export async function autoGenerateInvoiceForClientAction(
       discount_amount: 0,
       tax_rate: taxRate,
       tax_amount: taxAmount,
-      total: totalAmount,
+      total: subtotal + taxAmount,
+    },
+  ];
+
+  // If pure-agent government fee reimbursement is present, record as non-taxable line item
+  if (gstResult.pureAgentReimbursement > 0) {
+    lineItems.push({
+      invoice_id: newInvoice.id,
+      client_service_id: options?.clientServiceId || null,
+      description: "Official Statutory / Government Filing Fee (Pure Agent Reimbursement)",
+      quantity: 1,
+      unit_price: gstResult.pureAgentReimbursement,
+      discount_amount: 0,
+      tax_rate: 0,
+      tax_amount: 0,
+      total: gstResult.pureAgentReimbursement,
     });
+  }
+
+  const { error: itemError } = await supabase
+    .from("invoice_items")
+    .insert(lineItems);
+
+  if (itemError) {
+    console.error("Error creating line item for auto-invoice:", itemError);
+  }
 
   if (itemError) {
     console.error("Error creating line item for auto-invoice:", itemError);

@@ -313,7 +313,7 @@ export function ClientServicesTab({
                           {formatINR(contractAmt)}
                         </td>
 
-                        {/* 3. Payment Column (Paid, Partial, Unpaid with ratios matching Reference Image 2) */}
+                        {/* 3. Payment Column (Paid, Partial, Unpaid, Not Invoiced with invoice denominator) */}
                         <td className="py-3 px-2.5 align-middle text-center whitespace-nowrap">
                           {paymentStatus === "Paid" ? (
                             <div className="space-y-0.5">
@@ -321,16 +321,25 @@ export function ClientServicesTab({
                                 Paid
                               </span>
                               <span className="block text-[10px] text-slate-600 font-semibold font-sans font-number">
-                                {formatINR(paidAmt)}
+                                {formatINR(s.invoicedAmount || paidAmt || contractAmt)}
                               </span>
                             </div>
-                          ) : paymentStatus === "Partial" ? (
+                          ) : paymentStatus === "Partially Paid" || paymentStatus === "Partial" ? (
                             <div className="space-y-0.5">
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                                Partial
+                                Partially Paid
                               </span>
                               <span className="block text-[10px] text-slate-600 font-semibold font-sans font-number">
-                                {formatINR(paidAmt)} / {formatINR(contractAmt)}
+                                {formatINR(paidAmt)} / {formatINR(s.invoicedAmount || contractAmt)}
+                              </span>
+                            </div>
+                          ) : paymentStatus === "Not Invoiced" || (!s.hasIssuedInvoice && (s.invoicedAmount || 0) === 0) ? (
+                            <div className="space-y-0.5">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                Not Invoiced
+                              </span>
+                              <span className="block text-[10px] text-slate-400 font-medium">
+                                Not Invoiced
                               </span>
                             </div>
                           ) : (
@@ -339,7 +348,7 @@ export function ClientServicesTab({
                                 Unpaid
                               </span>
                               <span className="block text-[10px] text-rose-600 font-semibold font-sans font-number">
-                                ₹0 / {formatINR(contractAmt)}
+                                ₹0 / {formatINR(s.invoicedAmount || contractAmt)}
                               </span>
                             </div>
                           )}

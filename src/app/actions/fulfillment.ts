@@ -225,24 +225,31 @@ export async function updateServiceFulfillmentStageAction(params: {
   let newStageDescription = currentFulfillment.currentStageDescription;
 
   if (params.action === "ADVANCE") {
-    if (currentIdx === -1 || currentIdx >= totalStages - 1) {
-      // Already on final stage, mark complete
+    // Sequential stage progression:
+    // When marking current stage as completed, find the active stage (or next incomplete stage)
+    const activeIdx = stages.findIndex((s) => s.status === "current");
+    const targetIdx = activeIdx !== -1 ? activeIdx : stages.findIndex((s) => s.status !== "completed");
+
+    if (targetIdx === -1 || targetIdx >= totalStages - 1) {
+      // All stages are now completed
       stages.forEach((s) => (s.status = "completed"));
       newStageName = "Completed";
       newServiceStatus = "Completed";
-      newStageDescription = "Service deliverable completed";
+      newStageDescription = "Deliverable completed & approved";
     } else {
-      // Mark current stage completed and next stage current
-      stages[currentIdx].status = "completed";
-      const nextIdx = currentIdx + 1;
-      stages[nextIdx].status = "current";
-      for (let i = nextIdx + 1; i < totalStages; i++) {
+      // Mark stage up to targetIdx completed, advance targetIdx + 1 to current
+      for (let i = 0; i <= targetIdx; i++) {
+        stages[i].status = "completed";
+      }
+      const nextActiveIdx = targetIdx + 1;
+      stages[nextActiveIdx].status = "current";
+      for (let i = nextActiveIdx + 1; i < totalStages; i++) {
         stages[i].status = "upcoming";
       }
 
-      newStageName = stages[nextIdx].name;
-      newServiceStatus = nextIdx === totalStages - 1 ? "Completed" : "In Progress";
-      newStageDescription = nextIdx === totalStages - 1 ? "Final stage completed" : "Work in progress";
+      newStageName = stages[nextActiveIdx].name;
+      newServiceStatus = "In Progress";
+      newStageDescription = `Active milestone: ${newStageName}`;
     }
   } else if (params.action === "COMPLETE") {
     // Mark all stages as completed
@@ -253,7 +260,7 @@ export async function updateServiceFulfillmentStageAction(params: {
   } else if (params.action === "SET_STAGE") {
     const targetIdx = params.targetStageIndex !== undefined ? params.targetStageIndex : currentIdx;
     if (targetIdx >= 0 && targetIdx < totalStages) {
-      const isMovingBackwards = targetIdx < currentIdx;
+      const isMovingBackwards = currentIdx !== -1 && targetIdx < currentIdx;
       if (isMovingBackwards && !isAdmin) {
         return {
           success: false,
@@ -261,28 +268,28 @@ export async function updateServiceFulfillmentStageAction(params: {
         };
       }
 
-      // Preserve completion states of stages that were legitimately completed,
-      // and do not automatically mark skipped intermediate stages as completed
+      // Check skipping stages forward:
+      const isSkippingStages = currentIdx !== -1 && targetIdx > currentIdx + 1;
+      if (isSkippingStages && !isAdmin) {
+        return {
+          success: false,
+          error: "Stages must be completed sequentially. Only administrators can use stage override.",
+        };
+      }
+
       for (let i = 0; i < totalStages; i++) {
-        if (i === targetIdx) {
+        if (i < targetIdx) {
+          stages[i].status = "completed";
+        } else if (i === targetIdx) {
           stages[i].status = "current";
-        } else if (i < targetIdx) {
-          // If moving forward, keep previously completed stages completed, or mark prior stages if not skipped
-          if (stages[i].status !== "completed") {
-            // Only stages prior to target keep their state or mark completed up to current
-            if (i < currentIdx) {
-              stages[i].status = "completed";
-            }
-          }
         } else {
-          // Upcoming stages beyond target
           stages[i].status = "upcoming";
         }
       }
 
       newStageName = stages[targetIdx]?.name || "Onboarding";
-      newServiceStatus = targetIdx === totalStages - 1 ? "Completed" : targetIdx === 0 ? "Pending" : "In Progress";
-      newStageDescription = `Stage updated to ${newStageName}`;
+      newServiceStatus = targetIdx === 0 ? "Pending" : "In Progress";
+      newStageDescription = `Stage updated to ${newStageName}${isSkippingStages ? " (Admin Override)" : ""}`;
     }
   } else if (params.action === "REVERT") {
     // Admin correction: target stage index specified or move back 1 stage
@@ -309,12 +316,14 @@ export async function updateServiceFulfillmentStageAction(params: {
     newStageDescription = params.notes?.trim() || currentFulfillment.currentStageDescription;
   }
 
-  // Recalculate progress percentage
+  // Recalculate progress percentage strictly from completedCount / totalStages
   const completedCount = stages.filter((s) => s.status === "completed").length;
   const isFinalComplete = completedCount === totalStages || newServiceStatus === "Completed";
   const progressPercentage = isFinalComplete
     ? 100
-    : Math.min(99, Math.round((completedCount / totalStages) * 100));
+    : totalStages > 0
+    ? Math.round((completedCount / totalStages) * 100)
+    : 0;
 
   // 4. Update client_services persistent columns
   const updatePayload: any = {

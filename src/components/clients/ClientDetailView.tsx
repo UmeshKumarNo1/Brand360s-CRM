@@ -58,6 +58,9 @@ import { UploadServiceDeliverableModal } from "@/components/services/UploadServi
 import { ServiceDocumentsModal } from "@/components/services/ServiceDocumentsModal";
 import { ServiceStageModal } from "@/components/services/ServiceStageModal";
 import { InvoicePreviewModal } from "@/components/invoices/InvoicePreviewModal";
+import { ServiceFinancialHistoryModal } from "@/components/services/ServiceFinancialHistoryModal";
+import { ServiceActivityHistoryModal } from "@/components/services/ServiceActivityHistoryModal";
+import { CreateInvoiceModal } from "@/components/invoices/CreateInvoiceModal";
 import {
   deleteClientAction,
   archiveClientAction,
@@ -113,6 +116,9 @@ export function ClientDetailView({
   const [stageModalServiceId, setStageModalServiceId] = useState<string | null>(null);
   const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
   const [editingService, setEditingService] = useState<DetailedServiceData | null>(null);
+  const [financialHistoryService, setFinancialHistoryService] = useState<DetailedServiceData | null>(null);
+  const [activityHistoryService, setActivityHistoryService] = useState<DetailedServiceData | null>(null);
+  const [createInvoiceService, setCreateInvoiceService] = useState<DetailedServiceData | null>(null);
 
   // Service Deletion State
   const [serviceToDelete, setServiceToDelete] = useState<DetailedServiceData | null>(null);
@@ -672,6 +678,15 @@ export function ClientDetailView({
                         onDeleteService={(svc) => {
                           handleOpenDeleteService(svc);
                         }}
+                        onCreateInvoice={(svc) => {
+                          setCreateInvoiceService(svc);
+                        }}
+                        onViewAllInvoices={(svc) => {
+                          setFinancialHistoryService(svc);
+                        }}
+                        onViewFullActivity={(svc) => {
+                          setActivityHistoryService(svc);
+                        }}
                       />
                     ))}
                   </div>
@@ -1150,6 +1165,48 @@ export function ClientDetailView({
           serviceName={serviceToDelete.serviceName}
           eligibility={serviceEligibility}
           isLoadingCheck={isLoadingServiceCheck}
+        />
+      )}
+
+      {/* Service Financial / Invoices Modal */}
+      {financialHistoryService && (
+        <ServiceFinancialHistoryModal
+          isOpen={Boolean(financialHistoryService)}
+          onClose={() => setFinancialHistoryService(null)}
+          serviceName={financialHistoryService.serviceName}
+          clientName={client.companyName}
+          invoices={financialHistoryService.invoices}
+          payments={financialHistoryService.payments}
+          onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
+        />
+      )}
+
+      {/* Service Activity Modal */}
+      {activityHistoryService && (
+        <ServiceActivityHistoryModal
+          isOpen={Boolean(activityHistoryService)}
+          onClose={() => setActivityHistoryService(null)}
+          serviceName={activityHistoryService.serviceName}
+          clientName={client.companyName}
+          activities={activityHistoryService.activities}
+        />
+      )}
+
+      {/* Create Invoice for Service Modal */}
+      {createInvoiceService && (
+        <CreateInvoiceModal
+          isOpen={Boolean(createInvoiceService)}
+          onClose={() => setCreateInvoiceService(null)}
+          defaultClientId={createInvoiceService.clientId}
+          defaultClientName={client.companyName}
+          defaultServiceId={createInvoiceService.id}
+          defaultDescription={`${createInvoiceService.serviceName} - Professional Deliverable`}
+          defaultAmount={createInvoiceService.contractValue}
+          onSuccess={() => {
+            setCreateInvoiceService(null);
+            loadDetailedServices(true);
+            router.refresh();
+          }}
         />
       )}
     </div>

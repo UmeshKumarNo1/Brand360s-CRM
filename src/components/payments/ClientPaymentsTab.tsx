@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Plus, CreditCard, Calendar, CheckCircle2, Clock, AlertCircle, Edit2, Trash2, RefreshCw, FileText, Eye, Mail, Receipt } from "lucide-react";
+import { Plus, CreditCard, Calendar, CheckCircle2, Clock, AlertCircle, Edit2, Trash2, RefreshCw, FileText, Eye, Mail, Receipt, Ban, FileSignature } from "lucide-react";
 import { fetchClientFinancialsAction, deleteInstallmentAction } from "@/app/actions/payments";
-import { fetchInvoicesAction, sendInvoiceEmailAction } from "@/app/actions/invoices";
+import { fetchInvoicesAction, sendInvoiceEmailAction, cancelInvoiceAction, voidInvoiceAction } from "@/app/actions/invoices";
+import { fetchContractAmendmentsAction, ContractAmendmentRecord } from "@/app/actions/contract-amendments";
+import { ContractAmendmentModal } from "@/components/clients/ContractAmendmentModal";
 import { formatINR } from "@/lib/utils";
 import { RecordPaymentModal } from "./RecordPaymentModal";
 import { CreateInstallmentModal } from "./CreateInstallmentModal";
@@ -32,6 +34,8 @@ export function ClientPaymentsTab({
 }: ClientPaymentsTabProps) {
   const [data, setData] = useState<{ payments: any[]; schedules: any[] }>({ payments: [], schedules: [] });
   const [clientInvoices, setClientInvoices] = useState<any[]>([]);
+  const [amendments, setAmendments] = useState<ContractAmendmentRecord[]>([]);
+  const [isAmendmentModalOpen, setIsAmendmentModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -61,13 +65,15 @@ export function ClientPaymentsTab({
     setErrorMessage(null);
 
     try {
-      const [res, clientInvoicesData] = await Promise.all([
+      const [res, clientInvoicesData, amendmentsData] = await Promise.all([
         fetchClientFinancialsAction(clientId),
         fetchInvoicesAction(clientId),
+        fetchContractAmendmentsAction(clientId),
       ]);
       if (currentReqId === requestIdRef.current) {
         setData(res);
         setClientInvoices(clientInvoicesData || []);
+        setAmendments(amendmentsData || []);
       }
     } catch (err: any) {
       if (currentReqId === requestIdRef.current) {
@@ -370,14 +376,59 @@ export function ClientPaymentsTab({
                 <h4 className="text-sm font-bold text-slate-900">Tax Invoices</h4>
                 <p className="text-xs text-slate-500">Official GST bills generated for this client</p>
               </div>
-              <button
-                onClick={() => setIsInvoiceModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
-              >
-                <Plus size={14} />
-                <span>Issue Invoice</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAmendmentModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
+                  title="Amend agreed contract scope value"
+                >
+                  <FileSignature size={14} />
+                  <span>Contract Amendment</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsInvoiceModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors cursor-pointer"
+                >
+                  <Plus size={14} />
+                  <span>Issue Invoice</span>
+                </button>
+              </div>
             </div>
+
+            {/* Contract Amendments History Sub-card (if any) */}
+            {amendments.length > 0 && (
+              <div className="bg-emerald-50/50 border border-emerald-200 rounded-lg p-3 text-xs space-y-1.5 mb-2">
+                <div className="flex items-center justify-between font-bold text-emerald-900">
+                  <span className="flex items-center gap-1.5">
+                    <FileSignature size={14} className="text-emerald-700" />
+                    Approved Contract Amendments ({amendments.length})
+                  </span>
+                  <span className="text-[11px] text-emerald-800">
+                    Total Additional Scope: +{formatINR(amendments.reduce((sum, a) => sum + a.additionalAmount, 0))}
+                  </span>
+                </div>
+                <div className="divide-y divide-emerald-200/60 max-h-36 overflow-y-auto">
+                  {amendments.map((a) => (
+                    <div key={a.id} className="py-1.5 flex items-center justify-between text-[11.5px]">
+                      <div>
+                        <span className="font-semibold text-emerald-950">{a.reason}</span>
+                        <p className="text-[10px] text-emerald-700 mt-0.5">
+                          Approved by {a.approvedByName} • {new Date(a.approvalDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="font-bold text-emerald-700 font-sans font-number">+{formatINR(a.additionalAmount)}</span>
+                        <p className="text-[10px] text-slate-500 font-mono">
+                          {formatINR(a.previousContractValue)} → {formatINR(a.revisedContractValue)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {clientInvoices.length === 0 ? (
               <div className="py-8 text-center text-slate-400 text-xs">
@@ -393,48 +444,93 @@ export function ClientPaymentsTab({
                       <th className="py-2.5 px-3 text-center">Due Date</th>
                       <th className="py-2.5 px-3 text-center">Taxable</th>
                       <th className="py-2.5 px-3 text-center">Total</th>
+                      <th className="py-2.5 px-3 text-center">Paid</th>
                       <th className="py-2.5 px-3 text-center">Balance</th>
+                      <th className="py-2.5 px-3 text-center">Contract Scope</th>
                       <th className="py-2.5 px-3 text-center">Status</th>
                       <th className="py-2.5 px-3 text-center">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {clientInvoices.map((inv) => (
-                      <tr key={inv.id} className="hover:bg-slate-50/70">
-                        <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{inv.invoiceNumber}</td>
-                        <td className="py-2.5 px-3 text-slate-600">{inv.issueDate}</td>
-                        <td className="py-2.5 px-3 text-slate-600">{inv.dueDate}</td>
-                        <td className="py-2.5 px-3 text-right text-slate-700 font-sans font-number">{formatINR(inv.subtotal)}</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-[#0481A2] font-sans font-number">{formatINR(inv.totalAmount)}</td>
-                        <td className="py-2.5 px-3 text-right font-bold text-rose-600 font-sans font-number">{formatINR(inv.balanceDue)}</td>
-                        <td className="py-2.5 px-3 text-center">
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${
-                            inv.status === "Paid" ? "bg-emerald-50 text-emerald-700" : "bg-sky-50 text-sky-700"
-                          }`}>
-                            {inv.status}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            <button
-                              onClick={() => setPreviewInvoiceId(inv.id)}
-                              className="p-1 text-slate-400 hover:text-[#0481A2] hover:bg-slate-100 rounded transition-colors cursor-pointer"
-                              title="Preview & Download PDF"
-                            >
-                              <Eye size={13} />
-                            </button>
-                            <button
-                              onClick={() => handleSendInvoiceEmail(inv.id)}
-                              disabled={sendingInvoiceId === inv.id}
-                              className="p-1 text-slate-400 hover:text-[#0481A2] hover:bg-slate-100 rounded transition-colors cursor-pointer"
-                              title={inv.emailSentAt ? `Sent to ${inv.emailSentTo}` : "Email Invoice"}
-                            >
-                              <Mail size={13} className={sendingInvoiceId === inv.id ? "animate-pulse text-[#0481A2]" : inv.emailSentAt ? "text-emerald-600" : ""} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {clientInvoices.map((inv) => {
+                      const isOverbilling = contractValue > 0 && Number(inv.totalAmount) > contractValue;
+                      return (
+                        <tr key={inv.id} className="hover:bg-slate-50/70">
+                          <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{inv.invoiceNumber}</td>
+                          <td className="py-2.5 px-3 text-slate-600">{inv.issueDate}</td>
+                          <td className="py-2.5 px-3 text-slate-600">{inv.dueDate}</td>
+                          <td className="py-2.5 px-3 text-right text-slate-700 font-sans font-number">{formatINR(inv.subtotal)}</td>
+                          <td className="py-2.5 px-3 text-right font-bold text-[#0481A2] font-sans font-number">{formatINR(inv.totalAmount)}</td>
+                          <td className="py-2.5 px-3 text-right font-semibold text-emerald-600 font-sans font-number">{formatINR(inv.amountPaid || 0)}</td>
+                          <td className="py-2.5 px-3 text-right font-bold text-rose-600 font-sans font-number">{formatINR(inv.balanceDue)}</td>
+                          <td className="py-2.5 px-3 text-center">
+                            {isOverbilling ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200" title={`Invoice total (${formatINR(inv.totalAmount)}) exceeds agreed contract (${formatINR(contractValue)})`}>
+                                Above Contract
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600">
+                                Within Contract
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${
+                              inv.status === "Paid"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : inv.status === "Cancelled" || inv.status === "Void"
+                                ? "bg-slate-100 text-slate-500 line-through"
+                                : "bg-sky-50 text-sky-700"
+                            }`}>
+                              {inv.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => setPreviewInvoiceId(inv.id)}
+                                className="p-1 text-slate-400 hover:text-[#0481A2] hover:bg-slate-100 rounded transition-colors cursor-pointer"
+                                title="Preview & Download PDF"
+                              >
+                                <Eye size={13} />
+                              </button>
+                              <button
+                                onClick={() => handleSendInvoiceEmail(inv.id)}
+                                disabled={sendingInvoiceId === inv.id}
+                                className="p-1 text-slate-400 hover:text-[#0481A2] hover:bg-slate-100 rounded transition-colors cursor-pointer"
+                                title={inv.emailSentAt ? `Sent to ${inv.emailSentTo}` : "Email Invoice"}
+                              >
+                                <Mail size={13} className={sendingInvoiceId === inv.id ? "animate-pulse text-[#0481A2]" : inv.emailSentAt ? "text-emerald-600" : ""} />
+                              </button>
+                              {inv.status !== "Cancelled" && inv.status !== "Void" && (
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const reason = prompt(`Enter reason to cancel invoice ${inv.invoiceNumber}:`);
+                                    if (!reason) return;
+                                    try {
+                                      const res = await cancelInvoiceAction(inv.id, reason);
+                                      if (res.error) {
+                                        toastError("Cancel failed", res.error);
+                                      } else {
+                                        success("Invoice Cancelled", `Invoice ${inv.invoiceNumber} has been safely cancelled.`);
+                                        loadData(true);
+                                      }
+                                    } catch (err: any) {
+                                      toastError("Cancel error", err.message || "Failed to cancel invoice.");
+                                    }
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
+                                  title="Cancel Invoice (Safe Correction)"
+                                >
+                                  <Ban size={13} />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -479,6 +575,19 @@ export function ClientPaymentsTab({
         onSuccess={() => loadData(true)}
         clientId={clientId}
         clientName={clientName}
+      />
+
+      <ContractAmendmentModal
+        isOpen={isAmendmentModalOpen}
+        onClose={() => setIsAmendmentModalOpen(false)}
+        clientId={clientId}
+        clientName={clientName}
+        currentContractValue={contractValue}
+        onSuccess={(newAmendment) => {
+          setAmendments((prev) => [newAmendment, ...prev]);
+          success("Contract Scope Amended", `Added +${formatINR(newAmendment.additionalAmount)} to contract scope.`);
+          loadData(true);
+        }}
       />
 
       <EditInstallmentModal

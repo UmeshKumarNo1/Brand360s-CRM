@@ -7,7 +7,7 @@ import { ClientStatsCards } from "@/components/clients/ClientStatsCards";
 import { ClientFilters } from "@/components/clients/ClientFilters";
 import { ClientsTable } from "@/components/clients/ClientsTable";
 import { ClientPagination } from "@/components/clients/ClientPagination";
-import { ClientRecord, ClientServiceItem, MOCK_CLIENTS } from "@/data/mockClients";
+import { ClientRecord, ClientServiceItem } from "@/data/mockClients";
 import { fetchClientsAction, fetchSalespeopleAction, fetchClientsKpiSummaryAction } from "@/app/actions/clients";
 import { fetchPendingClientFollowupsAction, fetchPendingFollowupsCountAction } from "@/app/actions/followups";
 import { fetchActiveServicesCountAction } from "@/app/actions/services";
@@ -33,7 +33,7 @@ import { computeServiceFulfillment } from "@/lib/services/fulfillment-workflows"
 
 export default function ClientsPage() {
   const router = useRouter();
-  const [dbClients, setDbClients] = useState<ClientRecord[]>(MOCK_CLIENTS);
+  const [dbClients, setDbClients] = useState<ClientRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -180,8 +180,11 @@ export default function ClientsPage() {
                   fulfillment_stages: s.fulfillment_stages || fulfillment.stages,
                   current_stage_name: s.current_stage_name || fulfillment.currentStageName,
                   current_stage_description: s.current_stage_description || fulfillment.currentStageDescription,
-                  paymentStatus: s.paymentStatus || (status === "Completed" ? "Paid" : "Unpaid"),
-                  amountPaid: s.amountPaid || 0,
+                  paymentStatus: s.paymentStatus || (s.hasIssuedInvoice === false ? "Not Invoiced" : status === "Completed" ? "Paid" : "Unpaid"),
+                  amountPaid: Number(s.amountPaid) || 0,
+                  invoicedAmount: Number(s.invoicedAmount) || 0,
+                  outstandingAmount: Number(s.outstandingAmount) || 0,
+                  hasIssuedInvoice: Boolean(s.hasIssuedInvoice),
                 };
               });
             }
@@ -251,7 +254,7 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
           });
           setDbClients(mapped);
         } else {
-          setDbClients(MOCK_CLIENTS);
+          setDbClients([]);
         }
       }
     } catch (err: any) {

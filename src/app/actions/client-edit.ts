@@ -214,8 +214,6 @@ export async function updateClientAction(
   }
   if (isNaN(payments_received) || payments_received < 0) {
     fieldErrors.payments_received = "Payments received cannot be negative.";
-  } else if (contract_value > 0 && payments_received > contract_value) {
-    fieldErrors.payments_received = `Payments received (₹${payments_received.toLocaleString()}) cannot exceed total contract value (₹${contract_value.toLocaleString()}).`;
   }
 
   if (Object.keys(fieldErrors).length > 0) {

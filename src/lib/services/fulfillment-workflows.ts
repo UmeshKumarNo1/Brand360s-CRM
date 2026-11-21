@@ -3,25 +3,71 @@ export interface FulfillmentStage {
   status: "completed" | "current" | "upcoming";
 }
 
+export interface WorkflowTemplateItem {
+  id: string;
+  name: string;
+  description?: string;
+  stages: string[];
+  is_active?: boolean;
+}
+
 /**
  * Standard fulfillment stage presets for common service types.
+ * Initial templates matching the BRAND 360s CRM specification:
+ * - Website Development (5 stages)
+ * - Social Media Marketing (6 stages)
+ * - Trademark Filing (6 stages)
+ * - Company Registration (6 stages)
+ * - GST Registration (5 stages)
+ * - Annual Compliance (5 stages)
+ * - General Service (5 stages)
  */
 export const DEFAULT_SERVICE_STAGES: Record<string, string[]> = {
   website: ["Requirements", "UI/UX Design", "Development", "Client Review", "Deployment"],
-  gst: ["Onboarding", "Document Verification", "ARN Generation", "Verification", "GST Certificate"],
-  incorporation: ["Name Approval", "DSC & DIN", "Spice+ Filing", "Incorporation Cert", "PAN & TAN"],
-  trademark: ["Onboarding", "Search & Check", "Filing", "Examination", "Registration"],
+  smm: ["Client Onboarding", "Strategy & Planning", "Content Creation", "Client Approval", "Publishing", "Performance Reporting"],
+  trademark: ["Client Onboarding", "Document Collection", "Trademark Search", "Application Filing", "Examination", "Registration"],
+  incorporation: ["Document Collection", "Name Approval", "Application Preparation", "Government Filing", "Government Processing", "Certificate Issued"],
+  gst: ["Document Collection", "Application Preparation", "Application Submission", "Verification", "GSTIN Issued"],
   compliance: ["Onboarding", "Doc Collection", "Preparation", "Filing", "Completed"],
   general: ["Onboarding", "Doc Collection", "Preparation", "Filing", "Closure"],
 };
 
-export const WORKFLOW_OPTIONS = [
-  { id: "website", label: "Website Development (5 Stages: Requirements → UI/UX → Development → Client Review → Deployment)" },
-  { id: "gst", label: "GST Registration (5 Stages: Onboarding → Doc Verification → ARN → Verification → Certificate)" },
-  { id: "incorporation", label: "Company Incorporation (5 Stages: Name Approval → DSC/DIN → Spice+ → Cert → PAN/TAN)" },
-  { id: "trademark", label: "Trademark Registration (5 Stages: Onboarding → Search → Filing → Examination → Registration)" },
-  { id: "compliance", label: "Annual Compliance (5 Stages: Onboarding → Doc Collection → Prep → Filing → Completed)" },
-  { id: "general", label: "General Service (5 Stages: Onboarding → Doc Collection → Prep → Filing → Closure)" },
+export const WORKFLOW_OPTIONS: { id: string; label: string; stages: string[] }[] = [
+  {
+    id: "website",
+    label: "Website Development (5 Stages: Requirements → UI/UX Design → Development → Client Review → Deployment)",
+    stages: DEFAULT_SERVICE_STAGES.website,
+  },
+  {
+    id: "smm",
+    label: "Social Media Marketing (6 Stages: Onboarding → Strategy → Content → Approval → Publishing → Reporting)",
+    stages: DEFAULT_SERVICE_STAGES.smm,
+  },
+  {
+    id: "trademark",
+    label: "Trademark Filing (6 Stages: Onboarding → Document Collection → Search → Filing → Examination → Registration)",
+    stages: DEFAULT_SERVICE_STAGES.trademark,
+  },
+  {
+    id: "incorporation",
+    label: "Company Registration (6 Stages: Document Collection → Name Approval → Application Prep → Filing → Processing → Certificate)",
+    stages: DEFAULT_SERVICE_STAGES.incorporation,
+  },
+  {
+    id: "gst",
+    label: "GST Registration (5 Stages: Document Collection → Prep → Submission → Verification → GSTIN Issued)",
+    stages: DEFAULT_SERVICE_STAGES.gst,
+  },
+  {
+    id: "compliance",
+    label: "Annual Compliance (5 Stages: Onboarding → Doc Collection → Preparation → Filing → Completed)",
+    stages: DEFAULT_SERVICE_STAGES.compliance,
+  },
+  {
+    id: "general",
+    label: "General Service (5 Stages: Onboarding → Doc Collection → Preparation → Filing → Closure)",
+    stages: DEFAULT_SERVICE_STAGES.general,
+  },
 ];
 
 /**
@@ -38,20 +84,68 @@ export function getServiceFulfillmentPreset(
 
   const norm = (serviceName + " " + (serviceCategory || "")).toLowerCase();
 
-  // Website & Software first priority check to ensure Web Dev never gets hijacked
-  if (norm.includes("web") || norm.includes("app") || norm.includes("software") || norm.includes("design") || norm.includes("frontend") || norm.includes("backend")) {
+  // 1. Social Media Marketing
+  if (
+    norm.includes("social media") ||
+    norm.includes("smm") ||
+    norm.includes("marketing") ||
+    norm.includes("campaign") ||
+    norm.includes("content creation") ||
+    norm.includes("publishing") ||
+    norm.includes("growth & visibility")
+  ) {
+    return DEFAULT_SERVICE_STAGES.smm;
+  }
+
+  // 2. Website & Software
+  if (
+    norm.includes("web") ||
+    norm.includes("app") ||
+    norm.includes("software") ||
+    norm.includes("design") ||
+    norm.includes("frontend") ||
+    norm.includes("backend") ||
+    norm.includes("ui/ux")
+  ) {
     return DEFAULT_SERVICE_STAGES.website;
   }
+
+  // 3. GST Registration & Tax
   if (norm.includes("gst")) {
     return DEFAULT_SERVICE_STAGES.gst;
   }
-  if (norm.includes("trademark") || norm.includes("ip") || norm.includes("patent") || norm.includes("copyright")) {
+
+  // 4. Trademark Filing & IP
+  if (
+    norm.includes("trademark") ||
+    norm.includes("ip") ||
+    norm.includes("patent") ||
+    norm.includes("copyright")
+  ) {
     return DEFAULT_SERVICE_STAGES.trademark;
   }
-  if (norm.includes("incorporat") || norm.includes("pvt ltd") || norm.includes("llp") || norm.includes("opc") || norm.includes("company reg")) {
+
+  // 5. Company Registration & Incorporation
+  if (
+    norm.includes("incorporat") ||
+    norm.includes("pvt ltd") ||
+    norm.includes("llp") ||
+    norm.includes("opc") ||
+    norm.includes("company reg") ||
+    norm.includes("registration")
+  ) {
     return DEFAULT_SERVICE_STAGES.incorporation;
   }
-  if (norm.includes("compliance") || norm.includes("annual") || norm.includes("roc") || norm.includes("audit")) {
+
+  // 6. Annual Compliance & ROC
+  if (
+    norm.includes("compliance") ||
+    norm.includes("annual") ||
+    norm.includes("roc") ||
+    norm.includes("audit") ||
+    norm.includes("itr") ||
+    norm.includes("tds")
+  ) {
     return DEFAULT_SERVICE_STAGES.compliance;
   }
 
@@ -60,7 +154,14 @@ export function getServiceFulfillmentPreset(
 
 /**
  * Derives the active stages, current stage name/description, and progress %
- * from the service's current status and any custom stage configuration.
+ * from the service's current status and persistent stage configuration.
+ *
+ * Rules:
+ * - Completed stages remain marked as "completed" (green checkmark).
+ * - The first incomplete stage is automatically the active milestone ("current", blue).
+ * - All subsequent stages are "upcoming" (neutral).
+ * - Progress is calculated strictly as completed stages / total stages.
+ * - When all stages are completed, progress is 100% and currentStageName is "Completed".
  */
 export function computeServiceFulfillment(service: any): {
   stages: FulfillmentStage[];
@@ -68,79 +169,105 @@ export function computeServiceFulfillment(service: any): {
   currentStageName: string;
   currentStageDescription: string;
 } {
-  // If stored in DB, use it
-  if (Array.isArray(service.fulfillment_stages) && service.fulfillment_stages.length > 0) {
-    const stages: FulfillmentStage[] = service.fulfillment_stages;
-    const completedCount = stages.filter((s) => s.status === "completed").length;
-    const currentIdx = stages.findIndex((s) => s.status === "current");
-    const progress =
-      service.progress_percentage !== undefined && service.progress_percentage !== null
-        ? Number(service.progress_percentage)
-        : Math.round(((completedCount + (currentIdx !== -1 ? 0.5 : 0)) / stages.length) * 100);
+  const status = (service.service_status || service.serviceStatus || "Pending").toLowerCase();
+  const isServiceCompleted = status === "completed";
 
-    const currentStage = stages.find((s) => s.status === "current") || stages[stages.length - 1];
+  // If persistent fulfillment_stages are stored in the database, use them
+  if (Array.isArray(service.fulfillment_stages) && service.fulfillment_stages.length > 0) {
+    const rawStages: FulfillmentStage[] = service.fulfillment_stages;
+    const totalStages = rawStages.length;
+
+    // Sequential stage progression repair & normalization:
+    // Find the first stage that is not completed
+    const firstIncompleteIdx = rawStages.findIndex((s) => s.status !== "completed");
+    const completedCount = rawStages.filter((s) => s.status === "completed").length;
+
+    const normalizedStages: FulfillmentStage[] = rawStages.map((stage, idx) => {
+      if (isServiceCompleted || firstIncompleteIdx === -1) {
+        return { name: stage.name, status: "completed" };
+      }
+      if (idx < firstIncompleteIdx) {
+        return { name: stage.name, status: "completed" };
+      }
+      if (idx === firstIncompleteIdx) {
+        return { name: stage.name, status: "current" };
+      }
+      return { name: stage.name, status: "upcoming" };
+    });
+
+    const isAllComplete = isServiceCompleted || completedCount === totalStages || firstIncompleteIdx === -1;
+    const activeStage = isAllComplete
+      ? null
+      : normalizedStages.find((s) => s.status === "current");
+
+    const progressPercentage = isAllComplete
+      ? 100
+      : totalStages > 0
+      ? Math.round((completedCount / totalStages) * 100)
+      : 0;
+
+    const currentStageName = isAllComplete
+      ? "Completed"
+      : activeStage?.name || service.current_stage_name || normalizedStages[0]?.name || "In Progress";
+
     return {
-      stages,
-      progressPercentage: Math.min(100, Math.max(0, progress)),
-      currentStageName: service.current_stage_name || currentStage?.name || "In Progress",
-      currentStageDescription: service.current_stage_description || "",
+      stages: normalizedStages,
+      progressPercentage,
+      currentStageName,
+      currentStageDescription: service.current_stage_description || (isAllComplete ? "Deliverable completed & approved" : "Work in progress"),
     };
   }
 
-  // Derive intelligently from service status & explicit workflow preset
+  // Derive intelligently from explicit workflow preset or service name/category
   const preset = getServiceFulfillmentPreset(
     service.service_name || service.serviceName || "",
     service.service_category || service.serviceCategory || "",
     service.workflow_preset || service.workflowPreset
   );
-  const status = (service.service_status || "Pending").toLowerCase();
 
   let completedUpTo = 0;
-  let currentStageIndex = 0;
   let stageDescription = "Work in progress";
 
-  if (status === "completed") {
+  if (isServiceCompleted) {
     completedUpTo = preset.length;
-    currentStageIndex = -1;
     stageDescription = "Deliverable completed & approved";
   } else if (status === "processing" || status === "in progress") {
     completedUpTo = Math.max(1, Math.floor(preset.length / 2));
-    currentStageIndex = completedUpTo;
     stageDescription = "Work in progress";
   } else if (status === "waiting for approval" || status === "documents pending") {
     completedUpTo = 1;
-    currentStageIndex = 1;
     stageDescription = "Documents under verification";
   } else if (status === "on hold") {
     completedUpTo = 1;
-    currentStageIndex = 1;
     stageDescription = "On hold by client";
   } else {
     // Pending / New
     completedUpTo = 0;
-    currentStageIndex = 0;
     stageDescription = "Awaiting kick-off";
   }
 
   const stages: FulfillmentStage[] = preset.map((name, idx) => {
+    if (completedUpTo === preset.length) {
+      return { name, status: "completed" };
+    }
     if (idx < completedUpTo) {
       return { name, status: "completed" };
     }
-    if (idx === currentStageIndex) {
+    if (idx === completedUpTo) {
       return { name, status: "current" };
     }
     return { name, status: "upcoming" };
   });
 
   const progressPercentage =
-    status === "completed"
+    isServiceCompleted || completedUpTo === preset.length
       ? 100
       : Math.round((completedUpTo / preset.length) * 100);
 
   const currentStageName =
-    status === "completed"
+    isServiceCompleted || completedUpTo === preset.length
       ? "Completed"
-      : stages[currentStageIndex]?.name || "Onboarding";
+      : stages.find((s) => s.status === "current")?.name || preset[0] || "Onboarding";
 
   return {
     stages,
@@ -149,4 +276,3 @@ export function computeServiceFulfillment(service: any): {
     currentStageDescription: stageDescription,
   };
 }
-

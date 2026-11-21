@@ -350,11 +350,11 @@ export async function recordPaymentAction(
     return { error: "Please enter a valid client, positive payment amount, date, and payment method." };
   }
 
-  // 0. Contract-Level Payment Limit Validation
-  // Validate that the new payment does not exceed the remaining contract value
+  // 0. Invoice-Based Payment Limit Validation
+  // Validate that payment does not exceed the remaining outstanding balance of issued invoices (including GST)
   const { data: client, error: clientErr } = await supabase
     .from("clients")
-    .select("id, contract_value, assigned_salesperson, created_by")
+    .select("id, company_name, assigned_salesperson, created_by")
     .eq("id", clientId)
     .single();
 
@@ -362,76 +362,96 @@ export async function recordPaymentAction(
     return { error: "Client record not found." };
   }
 
-  const { data: verifiedPayments, error: paymentsSumErr } = await supabase
-    .from("payments")
-    .select("amount")
+  // Fetch issued, eligible invoices (excluding Draft, Void, Cancelled)
+  const { data: clientInvoices } = await supabase
+    .from("invoices")
+    .select("id, total_amount, amount_paid, balance_due, status")
     .eq("client_id", clientId)
-    .eq("status", "Verified");
+    .not("status", "in", '("Draft","Void","Cancelled")');
 
-  const totalVerifiedReceived = (verifiedPayments || []).reduce(
-    (sum, p) => sum + (Number(p.amount) || 0),
-    0
-  );
+  const remainingInvoiceBalance = (clientInvoices || []).reduce((sum, inv) => {
+    const bal = inv.balance_due !== undefined && inv.balance_due !== null
+      ? Number(inv.balance_due)
+      : Math.max(0, (Number(inv.total_amount) || 0) - (Number(inv.amount_paid) || 0));
+    return sum + bal;
+  }, 0);
 
-  const contractValue = Number(client.contract_value) || 0;
-  const remainingContractBalance = Math.max(0, contractValue - totalVerifiedReceived);
-
-  if (status === "Verified" && amount > remainingContractBalance + 0.009) {
-    return {
-      error: `Payment amount (₹${amount.toLocaleString("en-IN")}) exceeds the remaining contract balance (₹${remainingContractBalance.toLocaleString("en-IN")}). Maximum permitted payment: ₹${remainingContractBalance.toLocaleString("en-IN")}. Please update the contract value or add the additional service before recording this payment.`,
-    };
-  }
-
-  // 1. Try atomic database RPC record_client_payment if available, fallback to transactional insert
-  let newPaymentId: string | null = null;
-  const { data: rpcResult, error: rpcErr } = await supabase.rpc("record_client_payment", {
-    p_client_id: clientId,
-    p_amount: amount,
-    p_payment_date: paymentDate,
-    p_payment_method: paymentMethod,
-    p_transaction_ref: transactionRef,
-    p_notes: notes,
-    p_status: status,
-    p_installment_id: installmentId,
-  });
-
-  if (!rpcErr && rpcResult?.success && rpcResult?.payment_id) {
-    newPaymentId = rpcResult.payment_id;
-  } else if (!rpcErr && rpcResult?.success === false) {
-    return { error: rpcResult.error || "Payment rejected by database validation." };
-  } else {
-    // Direct insert fallback with contract limit check already verified
-    const { data: newPayment, error: paymentError } = await supabase
-      .from("payments")
-      .insert({
-        client_id: clientId,
-        amount,
-        payment_date: paymentDate,
-        payment_method: paymentMethod,
-        transaction_ref: transactionRef,
-        status,
-        recorded_by: user.id,
-        verified_by: status === "Verified" ? user.id : null,
-        notes,
-      })
-      .select("id")
-      .single();
-
-    if (paymentError || !newPayment) {
-      return { error: paymentError?.message || "Failed to record payment transaction." };
+  if (status === "Verified") {
+    if (remainingInvoiceBalance <= 0) {
+      return {
+        error: `This client has no outstanding invoice balance. All issued invoices have been fully paid. Please generate an invoice before recording additional payments.`,
+      };
     }
-    newPaymentId = newPayment.id;
+
+    if (amount > remainingInvoiceBalance + 0.009) {
+      return {
+        error: `Payment amount (₹${amount.toLocaleString("en-IN")}) exceeds the remaining outstanding invoice balance (₹${remainingInvoiceBalance.toLocaleString("en-IN")}). Maximum permitted payment: ₹${remainingInvoiceBalance.toLocaleString("en-IN")}. Please generate an invoice for any additional contract scope before recording this payment.`,
+      };
+    }
   }
+
+  // 0b. Pre-validate invoice allocations if provided
+  const allocationsJson = formData.get("invoice_allocations") as string;
+  let parsedAllocations: { invoiceId: string; amount: number }[] = [];
+  if (allocationsJson && status === "Verified") {
+    try {
+      const parsed = JSON.parse(allocationsJson);
+      if (Array.isArray(parsed)) {
+        parsedAllocations = parsed.filter((l: any) => l.invoiceId && Number(l.amount) > 0);
+      }
+    } catch {
+      return { error: "Invalid invoice allocation format." };
+    }
+
+    // Verify each allocation against invoice's live balance
+    const totalAlloc = parsedAllocations.reduce((sum, l) => sum + (Number(l.amount) || 0), 0);
+    if (totalAlloc > amount + 0.009) {
+      return { error: `Total allocated to invoices (₹${totalAlloc.toLocaleString("en-IN")}) exceeds payment amount (₹${amount.toLocaleString("en-IN")}).` };
+    }
+
+    for (const alloc of parsedAllocations) {
+      const invMatch = (clientInvoices || []).find((i: any) => i.id === alloc.invoiceId);
+      if (invMatch) {
+        const invBal = invMatch.balance_due !== undefined && invMatch.balance_due !== null
+          ? Number(invMatch.balance_due)
+          : Math.max(0, (Number(invMatch.total_amount) || 0) - (Number(invMatch.amount_paid) || 0));
+        if (Number(alloc.amount) > invBal + 0.009) {
+          return {
+            error: `Allocated amount ₹${Number(alloc.amount).toLocaleString("en-IN")} exceeds invoice balance ₹${invBal.toLocaleString("en-IN")}.`,
+          };
+        }
+      }
+    }
+  }
+
+  // 1. Record payment transaction atomically directly in the payments table
+  let newPaymentId: string | null = null;
+  const { data: newPayment, error: paymentError } = await supabase
+    .from("payments")
+    .insert({
+      client_id: clientId,
+      amount,
+      payment_date: paymentDate,
+      payment_method: paymentMethod,
+      transaction_ref: transactionRef,
+      status,
+      recorded_by: user.id,
+      verified_by: status === "Verified" ? user.id : null,
+      notes,
+    })
+    .select("id")
+    .single();
+
+  if (paymentError || !newPayment) {
+    return { error: paymentError?.message || "Failed to record payment transaction." };
+  }
+  newPaymentId = newPayment.id;
 
   // 1b. Check if invoice allocations were passed with this payment
-  const allocationsJson = formData.get("invoice_allocations") as string;
-  if (allocationsJson && status === "Verified" && newPaymentId) {
+  if (parsedAllocations.length > 0 && status === "Verified" && newPaymentId) {
     try {
-      const parsedAllocations: { invoiceId: string; amount: number }[] = JSON.parse(allocationsJson);
-      if (Array.isArray(parsedAllocations) && parsedAllocations.length > 0) {
-        // Run allocation action for this new payment
-        await allocatePaymentToInvoicesAction(newPaymentId, parsedAllocations);
-      }
+      // Run allocation action for this new payment
+      await allocatePaymentToInvoicesAction(newPaymentId, parsedAllocations);
     } catch (allocErr: any) {
       console.error("Error processing initial invoice allocations:", allocErr);
     }

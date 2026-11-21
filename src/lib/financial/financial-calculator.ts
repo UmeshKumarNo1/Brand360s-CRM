@@ -7,7 +7,7 @@ export interface ServiceFinancialMetrics {
   collectedAmount: number;
   outstandingAmount: number; // Invoiced - Collected for this service (or 0 if not invoiced)
   paymentProgress: number;   // Paid / Invoiced % (or 0% if Not Invoiced)
-  paymentStatus: "Paid" | "Partial" | "Unpaid" | "Not Invoiced";
+  paymentStatus: "Paid" | "Partially Paid" | "Partial" | "Unpaid" | "Not Invoiced";
   hasIssuedInvoice: boolean;
   hasCommercialMismatch: boolean; // true if contractValue !== invoicedAmount when issued invoices exist
 }
@@ -83,7 +83,7 @@ export function calculateServiceFinancials(params: {
 
   // 5. Payment Status & Progress
   let paymentProgress = 0;
-  let paymentStatus: "Paid" | "Partial" | "Unpaid" | "Not Invoiced" = "Not Invoiced";
+  let paymentStatus: "Paid" | "Partially Paid" | "Partial" | "Unpaid" | "Not Invoiced" = "Not Invoiced";
 
   if (!hasIssuedInvoice || invoicedAmount === 0) {
     paymentStatus = "Not Invoiced";
@@ -92,7 +92,7 @@ export function calculateServiceFinancials(params: {
     paymentStatus = "Paid";
     paymentProgress = 100;
   } else if (collectedAmount > 0.009) {
-    paymentStatus = "Partial";
+    paymentStatus = "Partially Paid";
     paymentProgress = Math.min(
       99,
       Math.max(1, Math.round((collectedAmount / invoicedAmount) * 100))

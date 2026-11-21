@@ -87,6 +87,7 @@ export async function createCatalogServiceAction(
   const description = (formData.get("description") as string) || null;
   const default_service_fee = parseFloat(formData.get("default_service_fee") as string) || 0;
   const default_govt_fee = parseFloat(formData.get("default_govt_fee") as string) || 0;
+  const workflow_preset = (formData.get("workflow_preset") as string) || null;
 
   if (!name) {
     return { error: "Service name is required." };
@@ -100,6 +101,7 @@ export async function createCatalogServiceAction(
       description,
       default_service_fee,
       default_govt_fee,
+      workflow_preset: workflow_preset || undefined,
       is_active: true,
     });
 
@@ -171,70 +173,114 @@ export async function fetchClientServicesAction(clientId: string) {
     return [];
   }
 
-  // 2. Fetch invoice allocations mapped to client services (or invoice items linked to services)
+  // 2. Fetch all invoices with items and allocations for this client's services
   const serviceIds = (data || []).map((s: any) => s.id);
   const paidByService: Record<string, number> = {};
   const invoicedByService: Record<string, number> = {};
+  const invoicesByService: Record<string, any[]> = {};
 
   if (serviceIds.length > 0) {
-    // Check direct allocations to client_service_id
-    const { data: directAllocs } = await supabase
-      .from("invoice_payment_allocations")
-      .select("client_service_id, allocated_amount")
-      .in("client_service_id", serviceIds);
+    // Fetch valid issued invoices for this client
+    const { data: clientInvoices } = await supabase
+      .from("invoices")
+      .select(`
+        id,
+        invoice_number,
+        total_amount,
+        amount_paid,
+        balance_due,
+        status,
+        items:invoice_items (
+          id,
+          description,
+          total,
+          client_service_id
+        )
+      `)
+      .eq("client_id", clientId)
+      .not("status", "in", '("Draft","Void","Cancelled")');
 
-    (directAllocs || []).forEach((a: any) => {
-      if (a.client_service_id) {
-        paidByService[a.client_service_id] =
-          (paidByService[a.client_service_id] || 0) + (Number(a.allocated_amount) || 0);
-      }
-    });
+    // Fetch verified payments and their allocations for this client
+    const { data: clientPayments } = await supabase
+      .from("payments")
+      .select(`
+        id,
+        amount,
+        status,
+        allocations:invoice_payment_allocations (
+          id,
+          invoice_id,
+          allocated_amount,
+          amount,
+          client_service_id
+        )
+      `)
+      .eq("client_id", clientId)
+      .not("status", "in", '("Pending","Failed","Cancelled","Reversed")');
 
-    // Also fetch invoice items linked to client services
-    const { data: invoiceItems } = await supabase
-      .from("invoice_items")
-      .select("id, invoice_id, client_service_id, total");
+    // Organize invoices by service
+    (data || []).forEach((s: any) => {
+      const matchingInvs = (clientInvoices || []).filter((inv: any) => {
+        if (inv.items && inv.items.some((it: any) => it.client_service_id === s.id)) return true;
+        if ((data || []).length === 1 && !inv.items?.some((it: any) => it.client_service_id && it.client_service_id !== s.id)) return true;
+        return false;
+      });
+      invoicesByService[s.id] = matchingInvs;
 
-    const invoiceToServiceMap: Record<string, string> = {};
-    (invoiceItems || []).forEach((item: any) => {
-      if (item.client_service_id && serviceIds.includes(item.client_service_id)) {
-        invoicedByService[item.client_service_id] =
-          (invoicedByService[item.client_service_id] || 0) + (Number(item.total) || 0);
-        if (item.invoice_id) {
-          invoiceToServiceMap[item.invoice_id] = item.client_service_id;
-        }
-      }
-    });
-
-    // Check allocations where client_service_id might be null but invoice has a linked service
-    const { data: allClientAllocs } = await supabase
-      .from("invoice_payment_allocations")
-      .select("invoice_id, client_service_id, allocated_amount");
-
-    (allClientAllocs || []).forEach((a: any) => {
-      if (!a.client_service_id && a.invoice_id && invoiceToServiceMap[a.invoice_id]) {
-        const resolvedSvcId = invoiceToServiceMap[a.invoice_id];
-        if (serviceIds.includes(resolvedSvcId)) {
-          const currentDirect = paidByService[resolvedSvcId] || 0;
-          if (currentDirect === 0) {
-            paidByService[resolvedSvcId] = (paidByService[resolvedSvcId] || 0) + (Number(a.allocated_amount) || 0);
+      // Calculate invoiced total for this service
+      const invTotal = matchingInvs.reduce((sum: number, inv: any) => {
+        if (inv.items && Array.isArray(inv.items)) {
+          const sItems = inv.items.filter((it: any) => it.client_service_id === s.id);
+          if (sItems.length > 0) {
+            return sum + sItems.reduce((iSum: number, it: any) => iSum + (Number(it.total) || 0), 0);
           }
         }
+        return sum + (Number(inv.total_amount) || 0);
+      }, 0);
+      invoicedByService[s.id] = invTotal;
+
+      // Calculate verified payment allocations for this service
+      const matchingInvIds = new Set(matchingInvs.map((i: any) => i.id));
+      let allocTotal = 0;
+      (clientPayments || []).forEach((p: any) => {
+        (p.allocations || []).forEach((a: any) => {
+          if (a.client_service_id === s.id || matchingInvIds.has(a.invoice_id)) {
+            allocTotal += Number(a.allocated_amount ?? a.amount) || 0;
+          }
+        });
+      });
+
+      // Fallback for single service if allocation table was empty
+      if ((data || []).length === 1 && allocTotal === 0) {
+        const invPaidSum = matchingInvs.reduce((sum: number, inv: any) => sum + (Number(inv.amount_paid) || 0), 0);
+        if (invPaidSum > 0) {
+          allocTotal = invPaidSum;
+        } else {
+          allocTotal = (clientPayments || []).reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+        }
       }
+
+      paidByService[s.id] = allocTotal;
     });
   }
 
   return (data || []).map((s: any) => {
     const contractVal = Number(s.total_amount) || (Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0);
+    const matchingInvs = invoicesByService[s.id] || [];
+    const hasIssuedInvoice = matchingInvs.length > 0;
     const amountPaid = paidByService[s.id] || 0;
-    const invoicedAmt = invoicedByService[s.id] || contractVal;
+    const invoicedAmt = invoicedByService[s.id] || 0;
+    const outstandingAmt = Math.max(0, invoicedAmt - amountPaid);
 
-    let paymentStatus: "Paid" | "Partial" | "Unpaid" = "Unpaid";
-    const billableTarget = invoicedAmt > 0 ? invoicedAmt : contractVal;
-    if (billableTarget > 0 && amountPaid >= billableTarget - 0.009) {
+    let paymentStatus: "Paid" | "Partially Paid" | "Partial" | "Unpaid" | "Not Invoiced" = "Not Invoiced";
+    if (!hasIssuedInvoice || invoicedAmt === 0) {
+      paymentStatus = "Not Invoiced";
+    } else if (amountPaid >= invoicedAmt - 0.009) {
       paymentStatus = "Paid";
     } else if (amountPaid > 0.009) {
-      paymentStatus = "Partial";
+      paymentStatus = "Partially Paid";
+    } else {
+      paymentStatus = "Unpaid";
     }
 
     return {
@@ -242,7 +288,9 @@ export async function fetchClientServicesAction(clientId: string) {
       contractValue: contractVal,
       amountPaid,
       invoicedAmount: invoicedAmt,
+      outstandingAmount: outstandingAmt,
       paymentStatus,
+      hasIssuedInvoice,
       vendor_assignments: (s.vendor_assignments || []).map((va: any) => ({
         ...va,
         vendor: Array.isArray(va.vendor) ? va.vendor[0] : va.vendor,
@@ -287,6 +335,14 @@ export async function assignClientServiceAction(
     status: idx === 0 ? "current" : "upcoming",
   }));
 
+  const resolvedWorkflowPreset = workflowPreset || (
+    serviceName.toLowerCase().includes("social media") || serviceCategory?.toLowerCase().includes("growth") ? "smm" :
+    serviceName.toLowerCase().includes("web") ? "website" :
+    serviceName.toLowerCase().includes("trademark") ? "trademark" :
+    serviceName.toLowerCase().includes("incorporat") || serviceName.toLowerCase().includes("company reg") ? "incorporation" :
+    serviceName.toLowerCase().includes("gst") ? "gst" : "general"
+  );
+
   const { data: newClientService, error } = await supabase
     .from("client_services")
     .insert({
@@ -298,7 +354,7 @@ export async function assignClientServiceAction(
       tax_amount: taxAmount,
       total_amount: totalAmount,
       tax_rate: taxRate,
-      workflow_preset: workflowPreset || (serviceName.toLowerCase().includes("web") ? "website" : serviceName.toLowerCase().includes("gst") ? "gst" : "general"),
+      workflow_preset: resolvedWorkflowPreset,
       fulfillment_stages: initialStages,
       current_stage_name: initialStages[0]?.name || "Onboarding",
       progress_percentage: 0,
@@ -329,13 +385,16 @@ export async function assignClientServiceAction(
       .eq("id", clientId);
   }
 
-  // Feature: Auto-generate invoice for this service deliverable if not already covered
+  // Feature: Auto-generate invoice for this service deliverable with correct GST-exclusive billing
   if (totalAmount > 0 && newClientService?.id) {
     try {
       await autoGenerateInvoiceForClientAction(clientId, {
         serviceName,
         clientServiceId: newClientService.id,
-        amount: totalAmount,
+        serviceFee,
+        govtFee,
+        taxRate,
+        isEligiblePureAgent: true,
         description: `${serviceName} - Professional Deliverable`,
         dueDate: expectedCompletionDate || undefined,
       });
@@ -597,21 +656,34 @@ export async function editClientServiceAction(
     const completedNames = new Set(existingStages.filter((s) => s.status === "completed").map((s) => s.name.toLowerCase()));
 
     // Map stages intelligently
-    const newStages: FulfillmentStage[] = newStageNames.map((name, idx) => {
+    const newStages: FulfillmentStage[] = newStageNames.map((name) => {
       if (completedNames.has(name.toLowerCase())) {
         return { name, status: "completed" };
       }
-      return { name, status: idx === 0 ? "current" : "upcoming" };
+      return { name, status: "upcoming" };
     });
 
-    // If first stage wasn't completed, mark it current
-    const currentIdx = newStages.findIndex((s) => s.status === "current");
-    const completedCount = newStages.filter((s) => s.status === "completed").length;
-    const newProgress = Math.round((completedCount / newStages.length) * 100);
+    // The first incomplete stage automatically becomes current
+    const firstIncompleteIdx = newStages.findIndex((s) => s.status !== "completed");
+    if (firstIncompleteIdx !== -1) {
+      newStages[firstIncompleteIdx].status = "current";
+    }
 
+    const completedCount = newStages.filter((s) => s.status === "completed").length;
+    const isAllComplete = completedCount === newStages.length;
+    const newProgress = isAllComplete
+      ? 100
+      : newStages.length > 0
+      ? Math.round((completedCount / newStages.length) * 100)
+      : 0;
+
+    const currentIdx = newStages.findIndex((s) => s.status === "current");
     updateData.fulfillment_stages = newStages;
-    updateData.current_stage_name = (currentIdx !== -1 ? newStages[currentIdx]?.name : newStages[0]?.name) || "In Progress";
+    updateData.current_stage_name = isAllComplete ? "Completed" : (currentIdx !== -1 ? newStages[currentIdx]?.name : newStages[0]?.name) || "In Progress";
     updateData.progress_percentage = newProgress;
+    if (isAllComplete) {
+      updateData.service_status = "Completed";
+    }
   }
 
   const { error } = await supabase

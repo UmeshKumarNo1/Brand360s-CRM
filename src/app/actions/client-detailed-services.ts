@@ -32,7 +32,7 @@ export interface DetailedServiceData {
   collectedAmount: number;
   outstandingAmount: number;
   paymentProgress: number;
-  paymentStatus: "Paid" | "Partially Paid" | "Unpaid" | "Overdue";
+  paymentStatus: "Paid" | "Partially Paid" | "Unpaid" | "Not Invoiced" | "Overdue";
   hasCommercialMismatch?: boolean;
   hasIssuedInvoice?: boolean;
   // Invoices & Payments linked to this service
@@ -270,10 +270,12 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       (inv) => inv.balanceDue > 0 && inv.dueDate && inv.dueDate < nowStr && inv.status !== "Paid"
     );
 
-    let displayPaymentStatus: "Paid" | "Partially Paid" | "Unpaid" | "Overdue" = "Unpaid";
-    if (metrics.paymentStatus === "Paid") {
+    let displayPaymentStatus: "Paid" | "Partially Paid" | "Unpaid" | "Not Invoiced" | "Overdue" = "Unpaid";
+    if (metrics.paymentStatus === "Not Invoiced" || !metrics.hasIssuedInvoice) {
+      displayPaymentStatus = "Not Invoiced";
+    } else if (metrics.paymentStatus === "Paid") {
       displayPaymentStatus = "Paid";
-    } else if (metrics.paymentStatus === "Partial") {
+    } else if (metrics.paymentStatus === "Partial" || metrics.paymentStatus === "Partially Paid") {
       displayPaymentStatus = hasOverdueInvoice ? "Overdue" : "Partially Paid";
     } else {
       displayPaymentStatus = hasOverdueInvoice ? "Overdue" : "Unpaid";

@@ -313,26 +313,28 @@ export function TargetDateCell({
         disabled={isCompleted}
         title={isCompleted ? "Service is completed" : `${meta.title} — Click to update target date`}
         className={cn(
-          "group inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold font-sans font-number transition-all duration-150 shadow-2xs select-none",
+          "group inline-flex flex-col items-center justify-center py-1 px-2.5 rounded-md text-xs font-semibold font-sans font-number transition-all duration-150 shadow-2xs select-none leading-tight",
           isCompleted ? "cursor-default" : "cursor-pointer hover:shadow-xs",
           meta.badgeClass
         )}
       >
-        <Calendar size={12} className={cn("shrink-0", meta.iconClass)} />
-        <span>{meta.text}</span>
+        <div className="inline-flex items-center gap-1.5">
+          <Calendar size={12} className={cn("shrink-0", meta.iconClass)} />
+          <span>{meta.text}</span>
+          {!isCompleted && (
+            <Edit3
+              size={10}
+              className="opacity-0 group-hover:opacity-70 transition-opacity ml-0.5 text-slate-500"
+            />
+          )}
+        </div>
         {meta.indicatorLabel && (
           <span className={cn(
-            "text-[9px] font-bold px-1 py-0.2 rounded uppercase tracking-wider shrink-0",
+            "text-[9px] font-bold px-1.5 py-0.2 rounded uppercase tracking-wider shrink-0 mt-0.5",
             meta.color === "red" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"
           )}>
             {meta.indicatorLabel}
           </span>
-        )}
-        {!isCompleted && (
-          <Edit3
-            size={10}
-            className="opacity-0 group-hover:opacity-70 transition-opacity ml-0.5 text-slate-500"
-          />
         )}
       </button>
 

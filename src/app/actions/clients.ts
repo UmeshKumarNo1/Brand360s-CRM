@@ -185,8 +185,6 @@ export async function createClientAction(
   }
   if (isNaN(payments_received) || payments_received < 0) {
     fieldErrors.payments_received = "Payments received cannot be negative.";
-  } else if (contract_value > 0 && payments_received > contract_value) {
-    fieldErrors.payments_received = `Payments received (₹${payments_received.toLocaleString()}) cannot exceed total contract value (₹${contract_value.toLocaleString()}).`;
   }
 
   if (Object.keys(fieldErrors).length > 0) {
@@ -543,6 +541,7 @@ export async function fetchClientsAction() {
           paymentStatus: svcFiancials.paymentStatus,
           paymentProgress: svcFiancials.paymentProgress,
           hasCommercialMismatch: svcFiancials.hasCommercialMismatch,
+          hasIssuedInvoice: svcFiancials.hasIssuedInvoice,
         };
       });
 
@@ -617,43 +616,94 @@ export async function fetchClientsDropdownAction() {
 }
 
 /**
- * Fetch client commercial summary including contract value, verified payments,
- * and remaining contract balance for real-time validation.
+ * Fetch client commercial and billing summary including contract value (excl. GST),
+ * total invoiced (incl. GST), verified payments received, remaining invoice balance,
+ * and maximum permitted payment for real-time validation.
+ *
+ * Source of truth:
+ * - Contract Value = agreed value of active services (excl. GST)
+ * - Total Invoiced = SUM(total_amount) of issued valid invoices (incl. GST)
+ * - Previously Received = SUM(verified non-reversed payments)
+ * - Remaining Invoice Balance = SUM(balance_due of issued valid invoices)
+ * - Maximum Permitted = Remaining Invoice Balance (Total eligible outstanding to be paid)
  */
 export async function fetchClientContractSummaryAction(clientId: string) {
   if (!clientId) return null;
   const supabase = await createClient();
 
-  const { data: client, error: clientError } = await supabase
-    .from("clients")
-    .select("id, company_name, client_code, contract_value, balance_receivable")
-    .eq("id", clientId)
-    .single();
+  const [clientRes, servicesRes, invoicesRes, paymentsRes] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("id, company_name, client_code, contract_value, balance_receivable")
+      .eq("id", clientId)
+      .single(),
+    supabase
+      .from("client_services")
+      .select("id, total_amount, service_fee, govt_fee, additional_fee, discount, service_status")
+      .eq("client_id", clientId),
+    supabase
+      .from("invoices")
+      .select("id, total_amount, amount_paid, balance_due, status")
+      .eq("client_id", clientId)
+      .not("status", "in", '("Draft","Void","Cancelled")'),
+    supabase
+      .from("payments")
+      .select("amount, status")
+      .eq("client_id", clientId)
+      .eq("status", "Verified"),
+  ]);
 
-  if (clientError || !client) return null;
+  if (clientRes.error || !clientRes.data) return null;
+  const client = clientRes.data;
 
-  const { data: verifiedPayments } = await supabase
-    .from("payments")
-    .select("amount")
-    .eq("client_id", clientId)
-    .eq("status", "Verified");
+  // 1. Contract Value = active services contract fees (excl GST)
+  const activeServices = (servicesRes.data || []).filter(
+    (s: any) => s.service_status !== "Cancelled"
+  );
+  const contractValue = activeServices.length > 0
+    ? activeServices.reduce((sum: number, s: any) => {
+        const amt = Number(s.total_amount) || ((Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0) + (Number(s.additional_fee) || 0) - (Number(s.discount) || 0));
+        return sum + amt;
+      }, 0)
+    : Number(client.contract_value) || 0;
 
-  const totalVerifiedReceived = (verifiedPayments || []).reduce(
-    (sum, p) => sum + (Number(p.amount) || 0),
+  // 2. Total Invoiced = eligible issued invoices (incl GST)
+  const validInvoices = invoicesRes.data || [];
+  const totalInvoiced = validInvoices.reduce(
+    (sum: number, inv: any) => sum + (Number(inv.total_amount) || 0),
     0
   );
 
-  const contractValue = Number(client.contract_value) || 0;
+  // 3. Previously Received = verified payments
+  const totalVerifiedReceived = (paymentsRes.data || []).reduce(
+    (sum: number, p: any) => sum + (Number(p.amount) || 0),
+    0
+  );
+
+  // 4. Remaining Invoice Balance = SUM(balance_due of issued valid invoices)
+  const remainingInvoiceBalance = validInvoices.reduce((sum: number, inv: any) => {
+    const bal = inv.balance_due !== undefined && inv.balance_due !== null
+      ? Number(inv.balance_due)
+      : Math.max(0, (Number(inv.total_amount) || 0) - (Number(inv.amount_paid) || 0));
+    return sum + bal;
+  }, 0);
+
+  // Remaining contract balance (for informational tracking)
   const remainingContractBalance = Math.max(0, contractValue - totalVerifiedReceived);
+
+  // Payment Limit: Maximum Permitted is the outstanding balance of issued invoices
+  const maximumPermittedPayment = Math.max(0, remainingInvoiceBalance);
 
   return {
     clientId: client.id,
     companyName: client.company_name,
     clientCode: client.client_code,
     contractValue,
+    totalInvoiced,
     previouslyReceived: totalVerifiedReceived,
     remainingContractBalance,
-    maximumPermittedPayment: remainingContractBalance,
+    remainingInvoiceBalance,
+    maximumPermittedPayment,
   };
 }
 

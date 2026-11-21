@@ -4,7 +4,7 @@ import { ArrowLeft, Briefcase, Building2, Calendar, FileText, CheckCircle2, Cloc
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { fetchClientDetailedServicesAction } from "@/app/actions/client-detailed-services";
-import { ClientDetailedServiceCard } from "@/components/clients/ClientDetailedServiceCard";
+import { ServiceDetailInteractiveView } from "@/components/services/ServiceDetailInteractiveView";
 import { formatINR } from "@/lib/utils";
 
 export default async function ServiceDetailPage({
@@ -117,14 +117,12 @@ export default async function ServiceDetailPage({
         </div>
       </div>
 
-      {/* Main Detailed Service View */}
-      <ClientDetailedServiceCard
+      {/* Main Detailed Service View with interactive modals */}
+      <ServiceDetailInteractiveView
         service={matchedService}
-        index={0}
-        totalServices={1}
-        defaultExpanded={true}
         canEdit={canEdit}
         isAdmin={isAdmin}
+        clientName={client?.company_name || ""}
       />
     </div>
   );

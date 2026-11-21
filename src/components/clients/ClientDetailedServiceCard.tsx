@@ -37,6 +37,8 @@ import { ServiceFulfillmentTimeline } from "@/components/services/ServiceFulfill
 import { InlineAssignEmployeeCell } from "@/components/services/InlineAssignEmployeeCell";
 import { TargetDateCell } from "@/components/services/TargetDateCell";
 import { PortalDropdown } from "@/components/common/PortalDropdown";
+import { ServiceFinancialHistoryModal } from "@/components/services/ServiceFinancialHistoryModal";
+import { ServiceActivityHistoryModal } from "@/components/services/ServiceActivityHistoryModal";
 
 interface ClientDetailedServiceCardProps {
   service: DetailedServiceData;
@@ -45,12 +47,16 @@ interface ClientDetailedServiceCardProps {
   defaultExpanded?: boolean;
   canEdit?: boolean;
   isAdmin?: boolean;
+  clientName?: string;
   onPreviewInvoice?: (invoiceId: string) => void;
   onAddDocument?: (serviceId: string) => void;
   onManageService?: (service: DetailedServiceData) => void;
   onManageStage?: (serviceId: string) => void;
   onEditService?: (service: DetailedServiceData) => void;
   onDeleteService?: (service: DetailedServiceData) => void;
+  onCreateInvoice?: (service: DetailedServiceData) => void;
+  onViewAllInvoices?: (service: DetailedServiceData) => void;
+  onViewFullActivity?: (service: DetailedServiceData) => void;
   onRefresh?: () => void;
 }
 
@@ -61,17 +67,23 @@ export function ClientDetailedServiceCard({
   defaultExpanded = true,
   canEdit = true,
   isAdmin = false,
+  clientName,
   onPreviewInvoice,
   onAddDocument,
   onManageService,
   onManageStage,
   onEditService,
   onDeleteService,
+  onCreateInvoice,
+  onViewAllInvoices,
+  onViewFullActivity,
   onRefresh,
 }: ClientDetailedServiceCardProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
 
   // Compute fulfillment milestone stages from actual persisted service stages and progress
   const fulfillment = computeServiceFulfillment({
@@ -193,6 +205,11 @@ export function ClientDetailedServiceCard({
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 shadow-2xs">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                 <span>PARTIALLY PAID</span>
+              </span>
+            ) : service.paymentStatus === "Not Invoiced" || !service.hasIssuedInvoice ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200 shadow-2xs">
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-400 shrink-0" />
+                <span>NOT INVOICED</span>
               </span>
             ) : service.paymentStatus === "Overdue" ? (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200 shadow-2xs">
@@ -465,6 +482,13 @@ export function ClientDetailedServiceCard({
                   </div>
                   <button
                     type="button"
+                    onClick={() => {
+                      if (onViewAllInvoices) {
+                        onViewAllInvoices(service);
+                      } else {
+                        setIsHistoryModalOpen(true);
+                      }
+                    }}
                     className="text-[11px] text-[#0481A2] hover:underline font-semibold cursor-pointer flex items-center gap-0.5"
                   >
                     <span>View All</span>
@@ -653,6 +677,13 @@ export function ClientDetailedServiceCard({
               </div>
               <button
                 type="button"
+                onClick={() => {
+                  if (onViewFullActivity) {
+                    onViewFullActivity(service);
+                  } else {
+                    setIsActivityModalOpen(true);
+                  }
+                }}
                 className="text-[11px] text-[#0481A2] hover:underline font-semibold cursor-pointer flex items-center gap-0.5"
               >
                 <span>View Full Activity</span>
@@ -687,6 +718,30 @@ export function ClientDetailedServiceCard({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Embedded Fallback Financial History Modal */}
+      {isHistoryModalOpen && (
+        <ServiceFinancialHistoryModal
+          isOpen={isHistoryModalOpen}
+          onClose={() => setIsHistoryModalOpen(false)}
+          serviceName={service.serviceName}
+          clientName={clientName || ""}
+          invoices={service.invoices}
+          payments={service.payments}
+          onPreviewInvoice={onPreviewInvoice}
+        />
+      )}
+
+      {/* Embedded Fallback Activity History Modal */}
+      {isActivityModalOpen && (
+        <ServiceActivityHistoryModal
+          isOpen={isActivityModalOpen}
+          onClose={() => setIsActivityModalOpen(false)}
+          serviceName={service.serviceName}
+          clientName={clientName || ""}
+          activities={service.activities}
+        />
       )}
     </div>
   );

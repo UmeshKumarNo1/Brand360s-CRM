@@ -155,7 +155,6 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
         id,
         invoice_id,
         allocated_amount,
-        amount,
         client_service_id,
         invoice_item_id,
         created_at

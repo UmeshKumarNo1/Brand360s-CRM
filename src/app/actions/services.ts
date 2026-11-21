@@ -211,7 +211,6 @@ export async function fetchClientServicesAction(clientId: string) {
           id,
           invoice_id,
           allocated_amount,
-          amount,
           client_service_id
         )
       `)

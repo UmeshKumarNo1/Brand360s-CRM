@@ -467,7 +467,7 @@ export async function fetchClientsAction() {
       allServiceIds.length > 0 || allClientIds.length > 0
         ? supabase
             .from("invoice_payment_allocations")
-            .select("id, invoice_id, payment_id, allocated_amount, amount, client_service_id")
+            .select("id, invoice_id, payment_id, allocated_amount, client_service_id")
         : Promise.resolve({ data: [] }),
     ]);
 

@@ -584,9 +584,9 @@ export function ClientsTable({
                                               <div className="min-w-0">
                                                 {service.id ? (
                                                   <Link
-                                                    href={`/services/${service.id}`}
+                                                    href={`/clients/${client.id}?tab=services`}
                                                     className="font-semibold text-slate-900 text-xs leading-tight truncate hover:text-[#0481A2] hover:underline inline-flex items-center gap-1 group transition-colors"
-                                                    title={`View details for ${service.service_name}`}
+                                                    title={`Open ${client.companyName} services`}
                                                   >
                                                     <span className="truncate">{service.service_name}</span>
                                                     <ArrowUpRight

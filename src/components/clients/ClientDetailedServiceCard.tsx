@@ -130,15 +130,9 @@ export function ClientDetailedServiceCard({
 
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <Link
-                href={`/services/${service.id}`}
-                onClick={(e) => e.stopPropagation()}
-                className="font-bold font-serif text-slate-900 text-base tracking-tight truncate hover:text-[#0481A2] hover:underline cursor-pointer inline-flex items-center gap-1.5 group text-left"
-                title={`Open ${service.serviceName} service detail page`}
-              >
-                <span>{service.serviceName}</span>
-                <ExternalLink size={13} className="text-slate-400 group-hover:text-[#0481A2] shrink-0" />
-              </Link>
+              <span className="font-bold font-serif text-slate-900 text-base tracking-tight truncate">
+                {service.serviceName}
+              </span>
               <button
                 type="button"
                 onClick={(e) => {

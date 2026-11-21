@@ -1,18 +1,6 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
-import {
-  FileText,
-  CheckCircle2,
-  Clock,
-  Sparkles,
-  Home,
-  Layers,
-} from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
-import { fetchClientDetailedServicesAction } from "@/app/actions/client-detailed-services";
-import { ClientDetailedServiceCard } from "@/components/clients/ClientDetailedServiceCard";
-import { formatINR } from "@/lib/utils";
 
 export default async function ServiceDetailPage({
   params,
@@ -28,156 +16,17 @@ export default async function ServiceDetailPage({
     redirect("/login");
   }
 
-  // 1. Fetch client_service to resolve client_id
+  // Fetch client_service to resolve client_id
   const { data: serviceRecord, error: svcErr } = await supabase
     .from("client_services")
-    .select(`
-      id,
-      client_id,
-      service_name,
-      service_category,
-      service_status,
-      client:clients!client_id (
-        id,
-        company_name,
-        client_code,
-        assigned_salesperson,
-        created_by
-      )
-    `)
+    .select("id, client_id")
     .eq("id", serviceId)
     .single();
 
-  if (svcErr || !serviceRecord) {
+  if (svcErr || !serviceRecord?.client_id) {
     notFound();
   }
 
-  const client = Array.isArray(serviceRecord.client) ? serviceRecord.client[0] : serviceRecord.client;
-  const clientId = serviceRecord.client_id;
-
-  // 2. Permission check
-  const isAdmin = profile.role === "admin";
-  const canEdit = isAdmin || (client && (client.assigned_salesperson === profile.id || client.created_by === profile.id));
-
-  // 3. Fetch detailed services for this client to get full financial breakdown & progress
-  const detailedServices = await fetchClientDetailedServicesAction(clientId);
-  const matchedService = detailedServices.find((s) => s.id === serviceId);
-
-  if (!matchedService) {
-    notFound();
-  }
-
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-[#EBF5FB]/80 via-[#F4F9FD] to-[#FFFFFF] -m-6 sm:-m-8 p-6 sm:p-8 space-y-6">
-      <div className="max-w-[1400px] mx-auto space-y-6">
-        {/* 1. Page Header matching Reference Image 1 exactly */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          {/* Left: Dark Blue </> Square, Title, Sparkle Tag, Breadcrumb */}
-          <div className="flex items-center gap-3.5 min-w-0">
-            <Link
-              href={`/clients/${clientId}?tab=services`}
-              className="w-12 h-12 rounded-2xl bg-[#1E293B] hover:bg-[#0F172A] text-white flex items-center justify-center shrink-0 shadow-sm transition-all group"
-              title="Back to Client Services"
-            >
-              <span className="font-mono font-bold text-lg text-white group-hover:scale-105 transition-transform">
-                &lt;/&gt;
-              </span>
-            </Link>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-2xl font-bold font-serif text-slate-900 tracking-tight truncate">
-                  {matchedService.serviceName}
-                </h1>
-                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-semibold bg-[#E0F7FA] text-[#0481A2] border border-[#B2EBF2] shrink-0">
-                  <Sparkles size={11} className="text-[#0481A2]" />
-                  <span>{matchedService.serviceCategory || "Branding & Web Development"}</span>
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
-                <Home size={13} className="text-slate-400 shrink-0" />
-                <span className="text-slate-400">&gt;</span>
-                <Link
-                  href={`/clients/${clientId}`}
-                  className="font-medium text-slate-700 hover:text-[#0481A2] hover:underline truncate"
-                >
-                  {client?.company_name} ({client?.client_code || "N/A"})
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          {/* Right: 4 Financial Metric Highlights matching Reference Image 1 */}
-          <div className="flex flex-wrap items-center gap-5 sm:gap-7 text-xs bg-white px-6 py-3.5 rounded-2xl border border-slate-100 shadow-sm shrink-0">
-            {/* Contract Value */}
-            <div className="flex items-center gap-2.5">
-              <div className="text-slate-400">
-                <Layers size={18} />
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] font-medium leading-none mb-1">Contract Value</span>
-                <strong className="text-slate-900 font-bold text-sm font-sans font-number block leading-none">
-                  {formatINR(matchedService.contractValue)}
-                </strong>
-              </div>
-            </div>
-
-            <div className="hidden sm:block h-7 w-[1px] bg-slate-100" />
-
-            {/* Invoiced (Incl. GST) */}
-            <div className="flex items-center gap-2.5">
-              <div className="text-[#0481A2]">
-                <FileText size={18} />
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] font-medium leading-none mb-1">Invoiced (Incl. GST)</span>
-                <strong className="text-slate-900 font-bold text-sm font-sans font-number block leading-none">
-                  {formatINR(matchedService.invoicedAmount)}
-                </strong>
-              </div>
-            </div>
-
-            <div className="hidden sm:block h-7 w-[1px] bg-slate-100" />
-
-            {/* Collected */}
-            <div className="flex items-center gap-2.5">
-              <div className="text-emerald-500">
-                <CheckCircle2 size={18} />
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] font-medium leading-none mb-1">Collected</span>
-                <strong className="text-emerald-600 font-bold text-sm font-sans font-number block leading-none">
-                  {formatINR(matchedService.collectedAmount)}
-                </strong>
-              </div>
-            </div>
-
-            <div className="hidden sm:block h-7 w-[1px] bg-slate-100" />
-
-            {/* Outstanding */}
-            <div className="flex items-center gap-2.5">
-              <div className="text-rose-500">
-                <Clock size={18} />
-              </div>
-              <div>
-                <span className="text-slate-400 block text-[10px] font-medium leading-none mb-1">Outstanding</span>
-                <strong className="text-rose-600 font-bold text-sm font-sans font-number block leading-none">
-                  {formatINR(matchedService.outstandingAmount)}
-                </strong>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 2. Main Detailed Service Card Component */}
-        <ClientDetailedServiceCard
-          service={matchedService}
-          index={0}
-          totalServices={1}
-          defaultExpanded={true}
-          canEdit={canEdit}
-          isAdmin={isAdmin}
-        />
-      </div>
-    </div>
-  );
+  // Service details are displayed directly in the client page services tab
+  redirect(`/clients/${serviceRecord.client_id}?tab=services`);
 }

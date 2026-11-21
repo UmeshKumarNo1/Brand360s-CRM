@@ -70,7 +70,13 @@ export async function checkInvoiceOverbillingAction(params: {
     }, 0);
 
     const clientStoredContract = Number(client?.contract_value) || 0;
-    const contractValue = Math.max(clientStoredContract, serviceContractSum);
+    const baseContractValue = Math.max(clientStoredContract, serviceContractSum);
+
+    // Calculate maximum allowable GST-inclusive contract value (Contract Excl. GST + 18% GST ceiling)
+    // Invoices store total_amount INCLUSIVE of GST (e.g. ₹67,000 + 18% GST = ₹79,060).
+    // Comparing a GST-inclusive invoice total to a GST-exclusive contract value produces false overbilling warnings.
+    const gstMultiplier = 1.18;
+    const contractValue = Math.round(baseContractValue * gstMultiplier * 100) / 100;
 
     // Existing valid issued invoices
     const existingInvoicedAmount = invoices.reduce(

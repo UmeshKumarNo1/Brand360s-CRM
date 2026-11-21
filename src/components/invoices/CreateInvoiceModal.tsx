@@ -214,30 +214,32 @@ export function CreateInvoiceModal({
   const selectedServiceObj = services.find((s) => s.id === selectedServiceId);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full overflow-hidden my-6">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#0481A2] flex items-center justify-center font-bold">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        {/* Header - Sticky at top */}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-sky-50 text-[#0481A2] flex items-center justify-center font-bold shadow-2xs">
               <FileText size={16} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Generate GST Invoice</h3>
-              <p className="text-[11px] text-slate-500">Create official tax bill with contract overbilling checks</p>
+              <h3 className="text-sm font-bold text-slate-900 leading-tight">Generate GST Invoice</h3>
+              <p className="text-[11px] text-slate-500 leading-tight">Create official tax bill with contract overbilling checks</p>
             </div>
           </div>
           <button 
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-slate-700 p-1 rounded-md transition-colors cursor-pointer"
+            className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 flex items-center justify-center transition-colors cursor-pointer"
+            title="Close (Esc)"
           >
             <X size={16} />
           </button>
         </div>
 
-        {/* Form Body */}
-        <form action={formAction} className="p-6 space-y-4 text-xs">
+        {/* Scrollable Form Body */}
+        <div className="overflow-y-auto flex-1 custom-scrollbar">
+          <form action={formAction} className="p-6 space-y-4 text-xs">
           {state?.error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg font-semibold text-red-700">
               {state.error}
@@ -517,5 +519,6 @@ export function CreateInvoiceModal({
         </form>
       </div>
     </div>
+  </div>
   );
 }

@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Plus, Search, Layers, CheckCircle2, Clock, Trash2, Power, RefreshCw } from "lucide-react";
+import { Plus, Search, Layers, CheckCircle2, Clock, Trash2, Power, RefreshCw, Edit2 } from "lucide-react";
 import { fetchServicesCatalogAction, toggleCatalogServiceAction } from "@/app/actions/services";
 import { formatINR } from "@/lib/utils";
 import { AddCatalogServiceModal } from "@/components/services/AddCatalogServiceModal";
+import { EditCatalogServiceModal } from "@/components/services/EditCatalogServiceModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 
@@ -15,6 +16,7 @@ export default function ServicesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCatalogService, setEditingCatalogService] = useState<any | null>(null);
 
   const { success, error: toastError } = useToast();
   const requestIdRef = useRef(0);
@@ -144,6 +146,7 @@ export default function ServicesPage() {
                 <tr className="bg-[#F1F5F9] text-[#1E293B] border-b border-[#E2E8F0] font-semibold text-[13px]">
                   <th className="py-3 px-4">Service Name</th>
                   <th className="py-3 px-4">Category</th>
+                  <th className="py-3 px-4 text-center">Type</th>
                   <th className="py-3 px-4 text-right">Default Service Fee</th>
                   <th className="py-3 px-4 text-right">Default Govt Fee</th>
                   <th className="py-3 px-4 text-right">Total Est. Price</th>
@@ -177,6 +180,16 @@ export default function ServicesPage() {
                         )}
                       </td>
                       <td className="py-3 px-4 text-slate-600 font-medium">{s.category}</td>
+                      <td className="py-3 px-4 text-center">
+                        {s.is_renewable ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-sky-50 text-[#0481A2] border border-sky-200">
+                            <RefreshCw size={10} />
+                            <span>{s.renewal_frequency || "Renewable"}</span>
+                          </span>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 font-normal">One-Time</span>
+                        )}
+                      </td>
                       <td className="py-3 px-4 text-right font-medium text-slate-900">
                         {formatINR(Number(s.default_service_fee) || 0)}
                       </td>
@@ -194,15 +207,24 @@ export default function ServicesPage() {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => handleToggleStatus(s.id, s.is_active)}
-                          className={`p-1.5 rounded-md transition-colors cursor-pointer ${
-                            s.is_active ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" : "text-emerald-600 hover:bg-emerald-50"
-                          }`}
-                          title={s.is_active ? "Archive Service" : "Activate Service"}
-                        >
-                          <Power size={14} />
-                        </button>
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          <button
+                            onClick={() => setEditingCatalogService(s)}
+                            className="p-1.5 text-slate-400 hover:text-[#0481A2] hover:bg-sky-50 rounded-md transition-colors cursor-pointer"
+                            title="Edit Service & Renewal Settings"
+                          >
+                            <Edit2 size={13} />
+                          </button>
+                          <button
+                            onClick={() => handleToggleStatus(s.id, s.is_active)}
+                            className={`p-1.5 rounded-md transition-colors cursor-pointer ${
+                              s.is_active ? "text-slate-400 hover:text-rose-600 hover:bg-rose-50" : "text-emerald-600 hover:bg-emerald-50"
+                            }`}
+                            title={s.is_active ? "Archive Service" : "Activate Service"}
+                          >
+                            <Power size={13} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -216,6 +238,13 @@ export default function ServicesPage() {
       <AddCatalogServiceModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        onSuccess={() => loadData()}
+      />
+
+      <EditCatalogServiceModal
+        service={editingCatalogService}
+        isOpen={Boolean(editingCatalogService)}
+        onClose={() => setEditingCatalogService(null)}
         onSuccess={() => loadData()}
       />
     </div>

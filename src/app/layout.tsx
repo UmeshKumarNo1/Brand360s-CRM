@@ -2,9 +2,13 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://brand360scrm.netlify.app"),
-  title: "BRAND 360s CRM",
-  description: "Enterprise CRM for BRAND 360s client management, registrations, and billing.",
+  metadataBase: new URL("https://crm.brand360s.co"),
+  title: "Brand360s CRM | Client Relationship Management",
+  description:
+    "Manage clients, projects, contracts, invoices, payments and business operations efficiently with Brand360s CRM.",
+  alternates: {
+    canonical: "https://crm.brand360s.co",
+  },
   robots: {
     index: false,
     follow: false,
@@ -27,16 +31,17 @@ export const metadata: Metadata = {
     apple: "/avatar.webp",
   },
   openGraph: {
-    title: "BRAND 360s CRM",
-    description: "Enterprise CRM for BRAND 360s client management, registrations, and billing.",
-    url: "https://brand360scrm.netlify.app",
-    siteName: "BRAND 360s CRM",
+    title: "Brand360s CRM | Client Relationship Management",
+    description:
+      "Manage clients, projects, contracts, invoices, payments and business operations efficiently with Brand360s CRM.",
+    url: "https://crm.brand360s.co",
+    siteName: "Brand360s CRM",
     images: [
       {
-        url: "/logo.webp",
+        url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "BRAND 360s CRM Logo",
+        alt: "Brand360s CRM Dashboard",
       },
     ],
     locale: "en_US",
@@ -44,9 +49,10 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "BRAND 360s CRM",
-    description: "Enterprise CRM for BRAND 360s client management, registrations, and billing.",
-    images: ["/logo.webp"],
+    title: "Brand360s CRM | Client Relationship Management",
+    description:
+      "Manage clients, projects, contracts, invoices, payments and business operations efficiently with Brand360s CRM.",
+    images: ["/og-image.png"],
   },
 };
 

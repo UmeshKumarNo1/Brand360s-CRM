@@ -11,6 +11,8 @@ import {
   Trash2,
   Image as ImageIcon,
   CheckCircle2,
+  RefreshCw,
+  CalendarDays,
 } from "lucide-react";
 import { assignClientServiceAction, fetchServicesCatalogAction } from "@/app/actions/services";
 import { fetchSalespeopleAction } from "@/app/actions/clients";
@@ -22,6 +24,12 @@ import {
   Brand360ServiceCategory,
 } from "@/lib/services/service-catalogue-master";
 import { ServiceCombobox, ServiceComboboxItem } from "@/components/services/ServiceCombobox";
+import {
+  calculateExpiryDate,
+  calculateReminderDate,
+  getMonthsForFrequency,
+  RenewalFrequency,
+} from "@/lib/renewals/renewal-dates";
 
 interface AssignServiceModalProps {
   isOpen: boolean;
@@ -86,6 +94,15 @@ export function AssignServiceModal({
 
   const [expectedDate, setExpectedDate] = useState<string>(getInitialWorkingDate);
   const [weekendWarning, setWeekendWarning] = useState<string | null>(null);
+
+  // Renewal Configuration State
+  const [startDate, setStartDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
+  const [isRenewable, setIsRenewable] = useState<boolean>(false);
+  const [renewalFrequency, setRenewalFrequency] = useState<RenewalFrequency>("Annually");
+  const [renewalDurationMonths, setRenewalDurationMonths] = useState<number>(12);
+  const [renewalAmount, setRenewalAmount] = useState<number | string>(0);
+  const [renewalReminderDays, setRenewalReminderDays] = useState<number>(30);
+  const [calculatedExpiryDate, setCalculatedExpiryDate] = useState<string>("");
 
   const handleExpectedDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
@@ -158,6 +175,14 @@ export function AssignServiceModal({
     }
   }, [state, onSuccess, onClose, success, toastError]);
 
+  // Update calculated expiry date whenever start date or duration changes
+  useEffect(() => {
+    if (isRenewable && startDate && renewalDurationMonths > 0) {
+      const exp = calculateExpiryDate(startDate, renewalDurationMonths);
+      setCalculatedExpiryDate(exp);
+    }
+  }, [isRenewable, startDate, renewalDurationMonths]);
+
   const handleSelectCatalogItem = (item: ServiceComboboxItem | null) => {
     setSelectedCatalogItem(item);
     if (item) {
@@ -165,9 +190,28 @@ export function AssignServiceModal({
       const cat = item.category || detectServiceCategory(item.name);
       setServiceCategory(cat);
       setIsCategoryManuallyEdited(false);
-      setServiceFee(item.default_service_fee !== undefined ? item.default_service_fee : 0);
+      const sFee = item.default_service_fee !== undefined ? item.default_service_fee : 0;
+      setServiceFee(sFee);
       setGovtFee(item.default_govt_fee !== undefined ? item.default_govt_fee : 0);
       setWorkflowPreset(item.workflow_preset || "");
+
+      // Renewal configuration detection & prepopulation
+      const renewable = Boolean(item.is_renewable);
+      setIsRenewable(renewable);
+      if (renewable) {
+        const freq = (item.renewal_frequency as RenewalFrequency) || "Annually";
+        setRenewalFrequency(freq);
+        const duration = item.renewal_duration_months || getMonthsForFrequency(freq);
+        setRenewalDurationMonths(duration);
+        setRenewalAmount(item.default_renewal_amount !== undefined ? item.default_renewal_amount : sFee);
+        setRenewalReminderDays(item.default_reminder_days || 30);
+        setCalculatedExpiryDate(calculateExpiryDate(startDate, duration));
+      } else {
+        setCalculatedExpiryDate("");
+      }
+    } else {
+      setIsRenewable(false);
+      setCalculatedExpiryDate("");
     }
   };
 
@@ -458,7 +502,8 @@ export function AssignServiceModal({
               <input
                 name="start_date"
                 type="date"
-                defaultValue={new Date().toISOString().split("T")[0]}
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2]"
               />
             </div>
@@ -486,6 +531,124 @@ export function AssignServiceModal({
               )}
             </div>
           </div>
+
+          {/* RENEWABLE SERVICE CONFIGURATION (Displays only if service is renewable) */}
+          {isRenewable && (
+            <div className="p-3.5 bg-gradient-to-br from-sky-50/70 to-indigo-50/40 border border-sky-200/80 rounded-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-[#0481A2] text-white flex items-center justify-center shadow-2xs">
+                    <RefreshCw size={14} />
+                  </div>
+                  <div>
+                    <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                      Renewal Configuration
+                      <span className="px-1.5 py-0.2 rounded text-[10px] bg-sky-100 text-[#0481A2] font-semibold border border-sky-200">
+                        Renewable Service
+                      </span>
+                    </span>
+                    <p className="text-[11px] text-slate-500">
+                      Auto-creates initial cycle and schedules recurring renewal timeline
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Hidden input to pass is_renewable flag */}
+              <input type="hidden" name="is_renewable" value="true" />
+
+              <div className="pt-2 border-t border-sky-100 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Renewal Frequency</label>
+                    <select
+                      name="renewal_frequency"
+                      value={renewalFrequency}
+                      onChange={(e) => {
+                        const freq = e.target.value as RenewalFrequency;
+                        setRenewalFrequency(freq);
+                        const dur = getMonthsForFrequency(freq);
+                        setRenewalDurationMonths(dur);
+                        if (startDate) setCalculatedExpiryDate(calculateExpiryDate(startDate, dur));
+                      }}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2] text-xs font-medium"
+                    >
+                      <option value="Monthly">Monthly (1 Month)</option>
+                      <option value="Quarterly">Quarterly (3 Months)</option>
+                      <option value="Half-Yearly">Half-Yearly (6 Months)</option>
+                      <option value="Annually">Annually (12 Months)</option>
+                      <option value="Custom">Custom Duration</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Duration (Months)</label>
+                    <input
+                      name="renewal_duration_months"
+                      type="number"
+                      min={1}
+                      value={renewalDurationMonths}
+                      onChange={(e) => {
+                        const val = Math.max(1, parseInt(e.target.value, 10) || 1);
+                        setRenewalDurationMonths(val);
+                        if (startDate) setCalculatedExpiryDate(calculateExpiryDate(startDate, val));
+                      }}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2] text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Renewal Amount (₹)</label>
+                    <input
+                      name="renewal_amount"
+                      type="number"
+                      step="any"
+                      value={renewalAmount}
+                      onChange={(e) => setRenewalAmount(e.target.value)}
+                      placeholder="e.g. 15000"
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2] text-xs font-number font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Reminder Alert (Days Before)</label>
+                    <input
+                      name="renewal_reminder_days"
+                      type="number"
+                      min={0}
+                      value={renewalReminderDays}
+                      onChange={(e) => setRenewalReminderDays(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2] text-xs"
+                    />
+                  </div>
+                </div>
+
+                {/* Expiry Date Review Box */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <CalendarDays size={13} className="text-[#0481A2]" />
+                      First Expiry / Renewal Date Review
+                    </span>
+                    <span className="text-[10px] text-[#0481A2] font-semibold">Editable for Client Specifics</span>
+                  </label>
+                  <input
+                    name="renewal_expiry_date"
+                    type="date"
+                    value={calculatedExpiryDate}
+                    onChange={(e) => setCalculatedExpiryDate(e.target.value)}
+                    required={isRenewable}
+                    className="w-full px-3 py-1.5 border border-sky-300 rounded-lg bg-white focus:outline-none focus:border-[#0481A2] text-xs font-semibold text-[#1B3260]"
+                  />
+                  <p className="text-[10.5px] text-slate-500 mt-1">
+                    Calculated from Start Date ({startDate || "today"}) + {renewalDurationMonths} months. Authorized users can review and adjust prior to saving.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* REQUIRED DOCUMENTS UPLOAD SECTION (PAN Card, Verification Proofs, etc.) */}
           <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">

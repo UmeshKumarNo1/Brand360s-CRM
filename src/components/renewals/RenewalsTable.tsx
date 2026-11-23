@@ -24,6 +24,7 @@ interface RenewalsTableProps {
   onCompleteRenewal?: (renewal: RenewalItem) => void;
   onCancelRenewal?: (renewal: RenewalItem) => void;
   onGenerateInvoice?: (renewal: RenewalItem) => void;
+  onCreateRenewalClick?: () => void;
 }
 
 export function RenewalsTable({
@@ -36,6 +37,7 @@ export function RenewalsTable({
   onCompleteRenewal,
   onCancelRenewal,
   onGenerateInvoice,
+  onCreateRenewalClick,
 }: RenewalsTableProps) {
   const getStatusBadge = (status: RenewalItem["status"]) => {
     switch (status) {
@@ -101,14 +103,20 @@ export function RenewalsTable({
       case "Partially Paid":
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-            Partial
+            Partially Paid
           </span>
         );
       case "Unpaid":
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+            Unpaid
+          </span>
+        );
+      case "Not Invoiced":
       default:
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-            Unpaid
+            Not Invoiced
           </span>
         );
     }
@@ -136,10 +144,19 @@ export function RenewalsTable({
               <tr>
                 <td colSpan={9} className="py-12 text-center text-slate-400">
                   <RefreshCw size={28} className="mx-auto text-slate-300 mb-2 stroke-[1.5]" />
-                  <p className="font-medium text-slate-600 text-xs">No service renewals found</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Service contracts and subscriptions will appear here automatically.
+                  <p className="font-semibold text-slate-700 text-sm">No service renewals found</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                    There are no renewal cycles scheduled yet. Service contracts must be explicitly created or renewed.
                   </p>
+                  {onCreateRenewalClick && (
+                    <button
+                      onClick={onCreateRenewalClick}
+                      className="mt-3.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#0481A2] text-white hover:bg-[#036c88] shadow-2xs transition-colors cursor-pointer"
+                    >
+                      <RefreshCw size={12} />
+                      <span>Create Renewal</span>
+                    </button>
+                  )}
                 </td>
               </tr>
             ) : (

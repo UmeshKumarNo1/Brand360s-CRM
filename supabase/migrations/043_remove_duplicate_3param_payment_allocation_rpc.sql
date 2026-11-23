@@ -1,0 +1,257 @@
+-- ==============================================================================
+-- BRAND 360s CRM — Migration 043: Remove Obsolete 3-Parameter Payment Allocation RPC Overload
+-- ==============================================================================
+
+-- 1. Safely drop the obsolete 3-parameter overload of public.allocate_payment_to_invoice.
+-- The enhanced 5-parameter overload with item-level & service-level resolution
+-- (defined in migrations 024 & 029) remains intact as the sole source of truth.
+DROP FUNCTION IF EXISTS public.allocate_payment_to_invoice(
+  p_payment_id UUID,
+  p_invoice_id UUID,
+  p_amount NUMERIC
+);
+
+-- Also ensure signature with unqualified parameter names is dropped if present
+DROP FUNCTION IF EXISTS public.allocate_payment_to_invoice(
+  UUID,
+  UUID,
+  NUMERIC
+);
+
+-- 2. Refine the enhanced 5-parameter function:
+-- Enforce the strict CRM business rule that ONLY 'Verified' payments can be allocated.
+-- (Removes the lenient 'Pending Verification' condition).
+CREATE OR REPLACE FUNCTION public.allocate_payment_to_invoice(
+  p_payment_id UUID,
+  p_invoice_id UUID,
+  p_amount NUMERIC,
+  p_invoice_item_id UUID DEFAULT NULL,
+  p_client_service_id UUID DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_is_admin BOOLEAN := false;
+  v_payment RECORD;
+  v_invoice RECORD;
+  v_item RECORD;
+  v_client RECORD;
+  v_allocated_total NUMERIC;
+  v_payment_available NUMERIC;
+  v_new_invoice_paid NUMERIC;
+  v_new_invoice_balance NUMERIC;
+  v_new_invoice_status TEXT;
+  v_item_allocated_total NUMERIC;
+  v_item_balance NUMERIC;
+  v_resolved_service_id UUID := p_client_service_id;
+  v_resolved_item_id UUID := p_invoice_item_id;
+  v_allocation_id UUID;
+  v_today DATE := CURRENT_DATE;
+BEGIN
+  -- 1. Identify authenticated user
+  v_user_id := auth.uid();
+  IF v_user_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Authentication required.');
+  END IF;
+
+  -- 2. Validate amount
+  IF p_amount IS NULL OR p_amount <= 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Allocation amount must be greater than zero.');
+  END IF;
+
+  -- 3. Check admin role
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles 
+    WHERE id = v_user_id AND role = 'admin' AND is_active = true
+  ) INTO v_is_admin;
+
+  -- 4. Lock & fetch payment
+  SELECT * INTO v_payment 
+  FROM public.payments 
+  WHERE id = p_payment_id 
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Payment transaction not found.');
+  END IF;
+
+  -- Strict business rule: Only verified payments can be allocated
+  IF COALESCE(v_payment.status, '') NOT IN ('Verified', 'Approved', 'Completed') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Only verified payments can be allocated. Unverified or pending payments cannot be applied to invoices.');
+  END IF;
+
+  -- 5. Lock & fetch invoice
+  SELECT * INTO v_invoice 
+  FROM public.invoices 
+  WHERE id = p_invoice_id 
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invoice not found.');
+  END IF;
+
+  IF LOWER(COALESCE(v_invoice.status, '')) = 'cancelled' THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Cannot allocate payment to a cancelled invoice.');
+  END IF;
+
+  -- 6. Strict client UUID matching
+  IF v_payment.client_id <> v_invoice.client_id THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Payment and invoice must belong to the exact same client.');
+  END IF;
+
+  -- 7. Authorization check
+  IF NOT v_is_admin THEN
+    SELECT * INTO v_client 
+    FROM public.clients 
+    WHERE id = v_payment.client_id;
+
+    IF NOT FOUND OR (v_client.assigned_salesperson <> v_user_id AND v_client.created_by <> v_user_id) THEN
+      RETURN jsonb_build_object('success', false, 'error', 'You are not authorized to allocate payments for this client.');
+    END IF;
+  END IF;
+
+  -- 8. Calculate total amount already allocated from this payment
+  SELECT COALESCE(SUM(allocated_amount), 0) INTO v_allocated_total
+  FROM public.invoice_payment_allocations
+  WHERE payment_id = p_payment_id;
+
+  v_payment_available := v_payment.amount - v_allocated_total;
+
+  IF p_amount > (v_payment_available + 0.001) THEN
+    RETURN jsonb_build_object(
+      'success', false, 
+      'error', 'Allocation amount exceeds available unallocated payment balance (Available: ₹' || v_payment_available || ').'
+    );
+  END IF;
+
+  -- 9. Auto-resolve service from invoice line items if not explicitly provided
+  IF v_resolved_service_id IS NULL THEN
+    SELECT client_service_id, id INTO v_resolved_service_id, v_resolved_item_id
+    FROM public.invoice_items
+    WHERE invoice_id = p_invoice_id AND client_service_id IS NOT NULL
+    LIMIT 1;
+  END IF;
+
+  -- If line item was provided, validate against it
+  IF v_resolved_item_id IS NOT NULL THEN
+    SELECT * INTO v_item
+    FROM public.invoice_items
+    WHERE id = v_resolved_item_id AND invoice_id = p_invoice_id;
+
+    IF FOUND THEN
+      SELECT COALESCE(SUM(allocated_amount), 0) INTO v_item_allocated_total
+      FROM public.invoice_payment_allocations
+      WHERE invoice_item_id = v_resolved_item_id;
+
+      v_item_balance := GREATEST(0, v_item.total - v_item_allocated_total);
+
+      IF p_amount > (v_item_balance + 0.001) THEN
+        RETURN jsonb_build_object(
+          'success', false,
+          'error', 'Allocation amount exceeds line item balance (' || v_item.description || ': Outstanding ₹' || v_item_balance || ').'
+        );
+      END IF;
+
+      IF v_resolved_service_id IS NULL THEN
+        v_resolved_service_id := v_item.client_service_id;
+      END IF;
+    END IF;
+  ELSE
+    IF p_amount > (v_invoice.balance_due + 0.001) THEN
+      RETURN jsonb_build_object(
+        'success', false, 
+        'error', 'Allocation amount exceeds invoice outstanding balance (Balance: ₹' || v_invoice.balance_due || ').'
+      );
+    END IF;
+  END IF;
+
+  -- 10. Record allocation in invoice_payment_allocations
+  INSERT INTO public.invoice_payment_allocations (
+    invoice_id,
+    payment_id,
+    invoice_item_id,
+    client_service_id,
+    allocated_amount
+  ) VALUES (
+    p_invoice_id,
+    p_payment_id,
+    v_resolved_item_id,
+    v_resolved_service_id,
+    p_amount
+  ) RETURNING id INTO v_allocation_id;
+
+  -- 11. Recalculate invoice paid amount from all its allocations
+  SELECT COALESCE(SUM(allocated_amount), 0) INTO v_new_invoice_paid
+  FROM public.invoice_payment_allocations
+  WHERE invoice_id = p_invoice_id;
+
+  v_new_invoice_balance := GREATEST(0, v_invoice.total_amount - v_new_invoice_paid);
+
+  -- 12. Determine new invoice status
+  IF v_new_invoice_balance <= 0 THEN
+    v_new_invoice_status := 'Paid';
+  ELSIF v_new_invoice_paid > 0 THEN
+    IF v_invoice.due_date < v_today THEN
+      v_new_invoice_status := 'Overdue';
+    ELSE
+      v_new_invoice_status := 'Partially Paid';
+    END IF;
+  ELSE
+    IF v_invoice.due_date < v_today THEN
+      v_new_invoice_status := 'Overdue';
+    ELSE
+      v_new_invoice_status := 'Issued';
+    END IF;
+  END IF;
+
+  -- 13. Update invoice table
+  UPDATE public.invoices
+  SET 
+    amount_paid = v_new_invoice_paid,
+    balance_due = v_new_invoice_balance,
+    status = v_new_invoice_status,
+    updated_at = NOW()
+  WHERE id = p_invoice_id;
+
+  -- 14. Synchronize payment schedules / installments linked to this invoice
+  UPDATE public.payment_schedules
+  SET 
+    amount_paid = LEAST(amount, amount_paid + p_amount),
+    status = CASE 
+      WHEN (amount_paid + p_amount) >= amount THEN 'Paid in full'
+      WHEN (amount_paid + p_amount) > 0 THEN 'Partially Paid'
+      ELSE status
+    END,
+    paid_date = CASE 
+      WHEN (amount_paid + p_amount) >= amount THEN v_today
+      ELSE paid_date
+    END,
+    updated_at = NOW()
+  WHERE invoice_id = p_invoice_id
+    AND status <> 'Cancelled';
+
+  -- 15. Touch client record for trigger cache invalidation
+  UPDATE public.clients
+  SET updated_at = NOW()
+  WHERE id = v_payment.client_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'allocation_id', v_allocation_id,
+    'allocated_amount', p_amount,
+    'invoice_paid', v_new_invoice_paid,
+    'invoice_balance', v_new_invoice_balance,
+    'invoice_status', v_new_invoice_status,
+    'invoice_item_id', v_resolved_item_id,
+    'client_service_id', v_resolved_service_id
+  );
+END;
+$$;
+
+-- 3. Notify PostgREST to reload schema cache
+NOTIFY pgrst, 'reload schema';
+

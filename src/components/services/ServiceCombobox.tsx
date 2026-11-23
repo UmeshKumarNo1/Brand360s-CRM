@@ -12,6 +12,11 @@ export interface ServiceComboboxItem {
   default_govt_fee?: number;
   workflow_preset?: string;
   description?: string;
+  is_renewable?: boolean;
+  renewal_frequency?: "Monthly" | "Quarterly" | "Half-Yearly" | "Annually" | "Custom";
+  renewal_duration_months?: number;
+  default_renewal_amount?: number;
+  default_reminder_days?: number;
 }
 
 interface ServiceComboboxProps {

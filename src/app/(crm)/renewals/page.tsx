@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import {
   fetchRenewalsAction,
+  fetchClientsAndServicesForRenewalAction,
   completeRenewalRecordAction,
   cancelRenewalRecordAction,
   generateRenewalInvoiceAction,
@@ -23,6 +24,8 @@ import { useToast } from "@/components/common/ToastProvider";
 
 export default function RenewalsPage() {
   const [renewals, setRenewals] = useState<RenewalItem[]>([]);
+  const [modalClients, setModalClients] = useState<{ id: string; name: string }[]>([]);
+  const [modalServices, setModalServices] = useState<{ id: string; clientId: string; name: string; amount: number; expiry: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { success, error: toastError } = useToast();
 
@@ -49,8 +52,13 @@ export default function RenewalsPage() {
   const loadData = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await fetchRenewalsAction();
+      const [data, modalData] = await Promise.all([
+        fetchRenewalsAction(),
+        fetchClientsAndServicesForRenewalAction(),
+      ]);
       setRenewals(data || []);
+      setModalClients(modalData.clients || []);
+      setModalServices(modalData.services || []);
     } catch {
       toastError("Error", "Failed to load renewals data.");
     } finally {
@@ -274,6 +282,7 @@ export default function RenewalsPage() {
         onCancelRenewal={handleCancelRenewal}
         onGenerateInvoice={handleGenerateInvoice}
         onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
+        onCreateRenewalClick={() => setIsCreateRenewalModalOpen(true)}
       />
 
       {/* 5. Pagination */}
@@ -302,8 +311,8 @@ export default function RenewalsPage() {
         isOpen={isCreateRenewalModalOpen}
         onClose={() => setIsCreateRenewalModalOpen(false)}
         onSuccess={() => loadData()}
-        clients={uniqueClients}
-        services={servicesForModal}
+        clients={modalClients.length > 0 ? modalClients : uniqueClients}
+        services={modalServices.length > 0 ? modalServices : servicesForModal}
       />
 
       <RenewalHistoryModal

@@ -42,8 +42,10 @@ export function RenewServiceModal({
     setIsSubmitting(true);
 
     try {
+      // Use clientServiceId if available, otherwise renewal.id
+      const targetServiceId = renewal.clientServiceId || renewal.id;
       const res = await processServiceRenewalAction(
-        renewal.id,
+        targetServiceId,
         newRenewalDate,
         Number(renewalAmount) || 0,
         createInvoice,

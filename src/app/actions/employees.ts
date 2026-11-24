@@ -425,13 +425,59 @@ export async function fetchEmployeeDetailsAction(employeeId: string) {
 
   if (!profile) return null;
 
-  const { data: clients } = await supabase
-    .from("clients")
-    .select("*")
-    .eq("assigned_salesperson", employeeId)
-    .order("created_at", { ascending: false });
+  const [clientsRes, servicesRes] = await Promise.all([
+    supabase
+      .from("clients")
+      .select("*")
+      .eq("assigned_salesperson", employeeId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("client_services")
+      .select(`
+        id,
+        service_name,
+        service_category,
+        total_amount,
+        service_fee,
+        govt_fee,
+        service_status,
+        start_date,
+        expected_completion_date,
+        target_delivery_date,
+        current_stage_name,
+        progress_percentage,
+        fulfillment_stages,
+        created_at,
+        client:clients!client_id (
+          id,
+          company_name,
+          client_code,
+          assigned_salesperson,
+          salesperson:profiles!assigned_salesperson(full_name)
+        )
+      `)
+      .eq("assigned_employee_id", employeeId)
+      .order("created_at", { ascending: false }),
+  ]);
 
-  const clientList = clients || [];
+  const clientList = clientsRes.data || [];
+  const assignedServicesList = (servicesRes.data || []).map((s: any) => ({
+    id: s.id,
+    service_name: s.service_name,
+    service_category: s.service_category,
+    total_amount: Number(s.total_amount) || 0,
+    service_status: s.service_status || "Pending",
+    start_date: s.start_date,
+    target_delivery_date: s.target_delivery_date || s.expected_completion_date,
+    current_stage_name: s.current_stage_name,
+    progress_percentage: s.progress_percentage || 0,
+    fulfillment_stages: s.fulfillment_stages,
+    client_id: s.client?.id,
+    company_name: s.client?.company_name || "Unknown Client",
+    client_code: s.client?.client_code,
+    client_salesperson: s.client?.salesperson?.full_name || "Unassigned",
+  }));
+
   const totalClients = clientList.length;
   const activeClients = clientList.filter((c) => c.client_status === "Active").length;
   const completedClients = clientList.filter((c) => c.payment_status === "Paid in full").length;
@@ -439,10 +485,13 @@ export async function fetchEmployeeDetailsAction(employeeId: string) {
   return {
     profile,
     clients: clientList,
+    assignedServices: assignedServicesList,
     stats: {
       totalClients,
       activeClients,
       completedClients,
+      totalAssignedServices: assignedServicesList.length,
+      activeAssignedServices: assignedServicesList.filter((s) => s.service_status !== "Completed").length,
     },
   };
 }

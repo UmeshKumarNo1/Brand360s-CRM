@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, User, Phone, Mail, ShieldCheck, CheckCircle2, XCircle, Building2, Calendar, FileText } from "lucide-react";
+import { ArrowLeft, User, Phone, Mail, ShieldCheck, CheckCircle2, XCircle, Building2, Calendar, FileText, Briefcase, Layers } from "lucide-react";
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { fetchEmployeeDetailsAction } from "@/app/actions/employees";
 import { formatINR } from "@/lib/utils";
@@ -26,7 +26,7 @@ export default async function EmployeeDetailsPage({
     notFound();
   }
 
-  const { profile, clients, stats } = data;
+  const { profile, clients, assignedServices = [], stats } = data;
 
   return (
     <div className="space-y-6">
@@ -59,18 +59,26 @@ export default async function EmployeeDetailsPage({
       </div>
 
       {/* KPI Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
-          <span className="text-xs text-slate-500 font-medium">Assigned Clients</span>
+          <span className="text-xs text-slate-500 font-medium">Owned Clients</span>
           <p className="text-2xl font-bold text-slate-900 mt-1">{stats.totalClients}</p>
+          <span className="text-[11px] text-slate-400">Client Salesperson</span>
         </div>
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
           <span className="text-xs text-slate-500 font-medium">Active Clients</span>
           <p className="text-2xl font-bold text-[#0481A2] mt-1">{stats.activeClients}</p>
+          <span className="text-[11px] text-slate-400">Operational portfolio</span>
         </div>
         <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
-          <span className="text-xs text-slate-500 font-medium">Fully Paid Clients</span>
-          <p className="text-2xl font-bold text-emerald-600 mt-1">{stats.completedClients}</p>
+          <span className="text-xs text-slate-500 font-medium">Assigned Services</span>
+          <p className="text-2xl font-bold text-indigo-600 mt-1">{stats.totalAssignedServices || 0}</p>
+          <span className="text-[11px] text-slate-400">Service Deliverables</span>
+        </div>
+        <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-2xs">
+          <span className="text-xs text-slate-500 font-medium">Active Services</span>
+          <p className="text-2xl font-bold text-emerald-600 mt-1">{stats.activeAssignedServices || 0}</p>
+          <span className="text-[11px] text-slate-400">Fulfillment in progress</span>
         </div>
       </div>
 
@@ -81,59 +89,178 @@ export default async function EmployeeDetailsPage({
           <EditEmployeeForm profile={profile} />
         </div>
 
-        {/* Right: Assigned Clients Table */}
-        <div className="lg:col-span-2 bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">Assigned Client Portfolio</h3>
-              <p className="text-xs text-slate-500">Clients currently owned or handled by {profile.full_name}</p>
+        {/* Right: Client Ownership & Service Deliverables */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Section 1: Assigned Client Portfolio (Client Salesperson) */}
+          <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Briefcase size={16} className="text-[#0481A2]" />
+                  <h3 className="text-sm font-bold text-slate-900">Assigned Client Portfolio</h3>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Clients brought in or owned by {profile.full_name} (Client Salesperson)
+                </p>
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-0.5 bg-sky-50 text-[#0481A2] rounded-full border border-sky-100">
+                {clients.length} Clients
+              </span>
             </div>
-            <span className="text-xs font-semibold px-2 py-0.5 bg-sky-50 text-[#0481A2] rounded">
-              {clients.length} Clients
-            </span>
-          </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-100 text-slate-500 uppercase text-[10px] tracking-wider font-semibold">
-                  <th className="pb-2.5">Company Name</th>
-                  <th className="pb-2.5">Services</th>
-                  <th className="pb-2.5 text-right">Contract Value</th>
-                  <th className="pb-2.5 text-right">Balance</th>
-                  <th className="pb-2.5 text-center">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {clients.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400">
-                      No clients currently assigned to this employee.
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-500 uppercase text-[10px] tracking-wider font-semibold">
+                    <th className="pb-2.5">Company Name</th>
+                    <th className="pb-2.5">Services</th>
+                    <th className="pb-2.5 text-right">Contract Value</th>
+                    <th className="pb-2.5 text-right">Balance</th>
+                    <th className="pb-2.5 text-center">Status</th>
                   </tr>
-                ) : (
-                  clients.map((c: any) => (
-                    <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-2.5 font-semibold">
-                        <Link href={`/clients/${c.id}`} className="text-[#0481A2] hover:underline">
-                          {c.company_name}
-                        </Link>
-                      </td>
-                      <td className="py-2.5 text-slate-600">{c.services_purchased || "General"}</td>
-                      <td className="py-2.5 text-right font-medium text-slate-800">
-                        {formatINR(Number(c.contract_value) || 0)}
-                      </td>
-                      <td className="py-2.5 text-right font-medium text-slate-800">
-                        {formatINR(Number(c.balance_receivable) || 0)}
-                      </td>
-                      <td className="py-2.5 text-center">
-                        <PaymentStatusBadge status={c.payment_status || "Upcoming"} />
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {clients.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-slate-400">
+                        No clients currently owned by this employee as salesperson.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    clients.map((c: any) => (
+                      <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-2.5 font-semibold">
+                          <Link href={`/clients/${c.id}`} className="text-[#0481A2] hover:underline">
+                            {c.company_name}
+                          </Link>
+                        </td>
+                        <td className="py-2.5 text-slate-600">{c.services_purchased || "General"}</td>
+                        <td className="py-2.5 text-right font-medium text-slate-800">
+                          {formatINR(Number(c.contract_value) || 0)}
+                        </td>
+                        <td className="py-2.5 text-right font-medium text-slate-800">
+                          {formatINR(Number(c.balance_receivable) || 0)}
+                        </td>
+                        <td className="py-2.5 text-center">
+                          <PaymentStatusBadge status={c.payment_status || "Upcoming"} />
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Section 2: Assigned Service Deliverables (Service Assignee) */}
+          <div className="bg-white border border-[#E2E8F0] rounded-xl p-5 shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Layers size={16} className="text-indigo-600" />
+                  <h3 className="text-sm font-bold text-slate-900">Assigned Service Deliverables</h3>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Individual client services assigned to {profile.full_name} for fulfillment
+                </p>
+              </div>
+              <span className="text-xs font-semibold px-2.5 py-0.5 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100">
+                {assignedServices.length} Services
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-500 uppercase text-[10px] tracking-wider font-semibold">
+                    <th className="pb-2.5">Client / Company</th>
+                    <th className="pb-2.5">Service Deliverable</th>
+                    <th className="pb-2.5">Client Salesperson</th>
+                    <th className="pb-2.5 text-center">Progress</th>
+                    <th className="pb-2.5 text-center">Current Stage</th>
+                    <th className="pb-2.5 text-center">Target Date</th>
+                    <th className="pb-2.5 text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {assignedServices.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-6 text-center text-slate-400">
+                        No service deliverables currently assigned to this employee.
+                      </td>
+                    </tr>
+                  ) : (
+                    assignedServices.map((srv: any) => (
+                      <tr key={srv.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="py-2.5 font-semibold">
+                          <Link href={`/clients/${srv.client_id}`} className="text-[#0481A2] hover:underline">
+                            {srv.company_name}
+                          </Link>
+                        </td>
+                        <td className="py-2.5 text-slate-700 font-medium">
+                          <Link
+                            href={`/clients/${srv.client_id}?tab=services&serviceId=${srv.id}`}
+                            className="hover:text-[#0481A2] hover:underline"
+                          >
+                            {srv.service_name}
+                          </Link>
+                          {srv.service_category && (
+                            <span className="block text-[10px] text-slate-400 font-normal">
+                              {srv.service_category}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 text-slate-600">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-purple-50 text-purple-700 border border-purple-100">
+                            {srv.client_salesperson}
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-center">
+                          <div className="inline-flex items-center gap-1.5">
+                            <div className="w-12 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                              <div
+                                className="bg-[#0481A2] h-full rounded-full transition-all"
+                                style={{ width: `${Math.min(100, Math.max(0, srv.progress_percentage))}%` }}
+                              />
+                            </div>
+                            <span className="text-[11px] font-semibold text-slate-700">
+                              {srv.progress_percentage}%
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-2.5 text-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700">
+                            {srv.current_stage_name || "-"}
+                          </span>
+                        </td>
+                        <td className="py-2.5 text-center text-slate-600 font-mono text-[11px]">
+                          {srv.target_delivery_date
+                            ? new Date(srv.target_delivery_date).toLocaleDateString("en-IN", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            : "-"}
+                        </td>
+                        <td className="py-2.5 text-center">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${
+                              srv.service_status === "Completed"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : srv.service_status === "In Progress" || srv.service_status === "Processing"
+                                ? "bg-sky-50 text-[#0481A2] border border-sky-200"
+                                : "bg-amber-50 text-amber-700 border border-amber-200"
+                            }`}
+                          >
+                            {srv.service_status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>

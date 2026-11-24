@@ -70,6 +70,7 @@ export default function ClientsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedSalesperson, setSelectedSalesperson] = useState("All");
+  const [selectedServiceAssignee, setSelectedServiceAssignee] = useState("All");
   const [selectedService, setSelectedService] = useState("All");
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState("All");
   const [selectedClientStatus, setSelectedClientStatus] = useState("All");
@@ -435,6 +436,14 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
       if (selectedSalesperson !== "All" && client.salesperson !== selectedSalesperson) {
         return false;
       }
+      if (selectedServiceAssignee !== "All") {
+        const hasMatchingService = (client.services || []).some(
+          (s: any) => s.assigned_employee_name === selectedServiceAssignee
+        );
+        if (!hasMatchingService) {
+          return false;
+        }
+      }
       if (selectedService !== "All" && !client.servicesPurchased?.toLowerCase().includes(selectedService.toLowerCase())) {
         return false;
       }
@@ -446,7 +455,7 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
       }
       return true;
     });
-  }, [dbClients, clientTab, debouncedSearchQuery, selectedSalesperson, selectedService, selectedPaymentStatus, selectedClientStatus]);
+  }, [dbClients, clientTab, debouncedSearchQuery, selectedSalesperson, selectedServiceAssignee, selectedService, selectedPaymentStatus, selectedClientStatus]);
 
   const totalPages = Math.ceil(filteredClients.length / pageSize) || 1;
   const paginatedClients = useMemo(() => {
@@ -478,6 +487,7 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
   const handleReset = () => {
     setSearchQuery("");
     setSelectedSalesperson("All");
+    setSelectedServiceAssignee("All");
     setSelectedService("All");
     setSelectedPaymentStatus("All");
     setSelectedClientStatus("All");
@@ -649,6 +659,11 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
         selectedSalesperson={selectedSalesperson}
         setSelectedSalesperson={(s) => {
           setSelectedSalesperson(s);
+          setCurrentPage(1);
+        }}
+        selectedServiceAssignee={selectedServiceAssignee}
+        setSelectedServiceAssignee={(sa) => {
+          setSelectedServiceAssignee(sa);
           setCurrentPage(1);
         }}
         selectedService={selectedService}

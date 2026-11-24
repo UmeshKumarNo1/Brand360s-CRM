@@ -217,7 +217,7 @@ export function ClientsTable({
                 Client / Company
               </th>
               <th className="py-3 px-2 sm:px-3 text-left font-semibold leading-tight">
-                Salesperson
+                Client Salesperson
               </th>
               <th className="py-3 px-2 sm:px-3 text-right font-semibold leading-tight">
                 Contract

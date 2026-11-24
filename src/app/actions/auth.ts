@@ -28,13 +28,26 @@ export async function loginAction(prevState: AuthState | null, formData: FormDat
   let supabaseSuccess = false;
   try {
     const supabase = await createClient();
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: authData, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
-    if (!error) {
+    if (!error && authData?.user) {
+      // Check if profile is active in CRM
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("is_active")
+        .eq("id", authData.user.id)
+        .maybeSingle();
+
+      if (profile && profile.is_active === false) {
+        // Sign out immediately if deactivated
+        await supabase.auth.signOut();
+        return { error: "Your employee account has been deactivated. Please contact an administrator." };
+      }
+
       supabaseSuccess = true;
-    } else {
+    } else if (error) {
       console.warn("Supabase sign in notice:", error.message);
     }
   } catch (err: any) {

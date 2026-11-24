@@ -128,24 +128,106 @@ export async function createEmployeeAction(
     };
   }
 
-  // 2. Check if email already exists in profiles
-  const { data: existingProfile } = await adminAuth
+  // 2. Check if email already exists in profiles or auth.users (Account Reconciliation)
+  const { data: existingProfile } = await (adminAuth as any)
     .from("profiles")
-    .select("id, email")
+    .select("id, email, is_active, full_name, role")
     .eq("email", email)
-    .single();
+    .maybeSingle();
 
-  if (existingProfile) {
-    return { error: "An account with this email address already exists." };
+  // Also check if user exists in Supabase Auth
+  const { data: userListData } = await adminAuth.auth.admin.listUsers();
+  const existingAuthUser = (userListData?.users || []).find(
+    (u: any) => u.email?.toLowerCase() === email
+  );
+
+  // If user already exists in both Auth and Profiles
+  if (existingProfile && existingAuthUser) {
+    if (!existingProfile.is_active) {
+      return {
+        error: "An employee account with this email already exists but is currently deactivated. Please reactivate it from the employee directory instead of creating a duplicate.",
+      };
+    }
+    return { error: "An active employee account with this email address already exists." };
   }
 
-  // 3. Create user in Supabase Auth via admin API (generates the official UUID)
+  // Reconciliation Case 1: Auth user exists, but Profile is missing
+  if (existingAuthUser && !existingProfile) {
+    // Update Auth user metadata
+    await adminAuth.auth.admin.updateUserById(existingAuthUser.id, {
+      password,
+      user_metadata: {
+        full_name,
+        name: full_name,
+        role: role === "admin" ? "admin" : "employee",
+        phone,
+      },
+    });
+
+    // Recreate profile matching the exact Auth UID
+    const { error: profileRecreateError } = await adminAuth
+      .from("profiles")
+      .upsert({
+        id: existingAuthUser.id,
+        email,
+        full_name,
+        role: role === "admin" ? "admin" : "employee",
+        is_active: true,
+        phone,
+        updated_at: new Date().toISOString(),
+      });
+
+    if (profileRecreateError) {
+      return { error: `Failed to restore missing profile for existing user: ${profileRecreateError.message}` };
+    }
+
+    revalidatePath("/employees");
+    return { success: true };
+  }
+
+  // Reconciliation Case 2: Profile exists, but Auth user is missing
+  if (existingProfile && !existingAuthUser) {
+    // Recreate Auth user with the profile ID
+    const { data: createdAuthUser, error: authRecreateError } = await adminAuth.auth.admin.createUser({
+      id: existingProfile.id,
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: {
+        full_name,
+        name: full_name,
+        role: role === "admin" ? "admin" : "employee",
+        phone,
+      },
+    });
+
+    if (authRecreateError) {
+      return { error: `Failed to recreate Auth account for profile: ${authRecreateError.message}` };
+    }
+
+    await adminAuth
+      .from("profiles")
+      .update({
+        full_name,
+        phone,
+        role: role === "admin" ? "admin" : "employee",
+        is_active: true,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existingProfile.id);
+
+    revalidatePath("/employees");
+    return { success: true };
+  }
+
+  // 3. Normal Creation: Create user in Supabase Auth via admin API (generates the official UUID)
   const { data: newAuthUser, error: authError } = await adminAuth.auth.admin.createUser({
     email,
     password,
     email_confirm: true,
     user_metadata: { 
       full_name,
+      name: full_name,
       role: role === "admin" ? "admin" : "employee",
       phone,
     },
@@ -269,6 +351,22 @@ export async function updateEmployeeProfileAction(
 
   if (error) {
     return { error: error.message };
+  }
+
+  // Also synchronize metadata in Supabase Auth if service role is available
+  if (adminAuth) {
+    try {
+      await adminAuth.auth.admin.updateUserById(employeeId, {
+        user_metadata: {
+          full_name,
+          name: full_name,
+          role: role === "admin" ? "admin" : "employee",
+          phone,
+        },
+      });
+    } catch (syncErr) {
+      console.warn("Notice: could not synchronize metadata to Supabase Auth:", syncErr);
+    }
   }
 
   revalidatePath(`/employees/${employeeId}`);

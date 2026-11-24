@@ -469,9 +469,10 @@ export async function assignClientServiceAction(
   }
 
   // Feature: Auto-generate invoice for this service deliverable with correct GST-exclusive billing
+  let generatedInvoiceId: string | null = null;
   if (totalAmount > 0 && newClientService?.id) {
     try {
-      await autoGenerateInvoiceForClientAction(clientId, {
+      const invRes = await autoGenerateInvoiceForClientAction(clientId, {
         serviceName,
         clientServiceId: newClientService.id,
         serviceFee,
@@ -481,6 +482,9 @@ export async function assignClientServiceAction(
         description: `${serviceName} - Professional Deliverable`,
         dueDate: expectedCompletionDate || undefined,
       });
+      if (invRes.success && invRes.invoiceId) {
+        generatedInvoiceId = invRes.invoiceId;
+      }
     } catch (invErr) {
       console.warn("Auto-invoice generation on service assignment warning:", invErr);
     }
@@ -553,7 +557,7 @@ export async function assignClientServiceAction(
 
         const reminderDate = calculateReminderDate(calculatedExpiry, renewalReminderDays);
 
-        await supabase.from("renewals").insert({
+        const { data: createdRenewal } = await supabase.from("renewals").insert({
           client_id: clientId,
           client_service_id: newClientService.id,
           salesperson_id: clientInfo?.assigned_salesperson || null,
@@ -569,9 +573,22 @@ export async function assignClientServiceAction(
           renewal_frequency: renewalFrequency,
           duration_months: renewalDurationMonths,
           reminder_date: reminderDate,
+          invoice_id: generatedInvoiceId || null,
           notes: notes ? `Initial renewal cycle. Notes: ${notes}` : "Initial automated renewal cycle.",
           created_by: currentUser?.id || null,
-        });
+        }).select("id").maybeSingle();
+
+        // If an invoice was created and migration 045 added renewal_id, link back explicitly
+        if (createdRenewal?.id && generatedInvoiceId) {
+          try {
+            await supabase
+              .from("invoices")
+              .update({ renewal_id: createdRenewal.id })
+              .eq("id", generatedInvoiceId);
+          } catch (linkErr) {
+            console.warn("Could not link invoice to renewal_id:", linkErr);
+          }
+        }
       }
     } catch (renewalErr) {
       console.warn("Auto-creation of first renewal cycle notice:", renewalErr);

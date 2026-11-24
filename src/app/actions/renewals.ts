@@ -33,11 +33,13 @@ export interface RenewalItem {
   salespersonId?: string | null;
   status: "Upcoming" | "Due Soon" | "Overdue" | "Renewed" | "Expired" | "Pending" | "Cancelled";
   renewalStatus: "Pending" | "Renewed" | "Cancelled";
-  paymentStatus: "Not Invoiced" | "Unpaid" | "Partially Paid" | "Paid";
+  invoiceStatus: "Not Invoiced" | "Draft" | "Issued" | "Paid" | "Partially Paid" | "Void" | "Cancelled";
+  paymentStatus: "Unpaid" | "Partially Paid" | "Paid" | "Overdue";
   lastRenewedAt?: string | null;
   notes?: string | null;
   invoiceId?: string | null;
   invoiceNumber?: string | null;
+  invoiceTotalAmount?: number;
   invoiceDetails?: {
     invoiceNumber: string;
     issueDate: string;
@@ -239,15 +241,19 @@ export async function fetchRenewalsAction(): Promise<RenewalItem[]> {
     const inv = r.invoice ? (Array.isArray(r.invoice) ? r.invoice[0] : r.invoice) : null;
     const cs = r.client_service ? (Array.isArray(r.client_service) ? r.client_service[0] : r.client_service) : null;
 
-    // Determine live Payment Status strictly from renewal invoice allocations
-    let paymentStatus: RenewalItem["paymentStatus"] = "Not Invoiced";
+    // Determine live Invoice Status & Payment Status strictly from actual linked database records
+    let invoiceStatus: RenewalItem["invoiceStatus"] = "Not Invoiced";
+    let paymentStatus: RenewalItem["paymentStatus"] = "Unpaid";
     let invoiceDetails: RenewalItem["invoiceDetails"] = null;
     let paymentAllocations: RenewalItem["paymentAllocations"] = [];
+    let invoiceTotalAmount: number | undefined = undefined;
 
     if (inv) {
+      invoiceStatus = (inv.status as RenewalItem["invoiceStatus"]) || "Issued";
       const invoiceTotal = Number(inv.total_amount) || 0;
       const invoiceSubtotal = Number(inv.subtotal) || 0;
       const invoiceTax = Number(inv.tax_amount) || 0;
+      invoiceTotalAmount = invoiceTotal;
 
       const allocInfo = allocationsByInvoice[inv.id] || { totalPaid: 0, allocations: [] };
       // Fallback to inv.amount_paid if no allocation rows are present but invoice has recorded payment
@@ -256,10 +262,17 @@ export async function fetchRenewalsAction(): Promise<RenewalItem[]> {
 
       paymentAllocations = allocInfo.allocations;
 
+      // Check if overdue by dueDate
+      const dueDateObj = inv.due_date ? new Date(inv.due_date) : null;
+      if (dueDateObj) dueDateObj.setHours(0, 0, 0, 0);
+      const isPastDueDate = dueDateObj && dueDateObj.getTime() < today.getTime();
+
       if (actualBalance <= 0.01 && invoiceTotal > 0) {
         paymentStatus = "Paid";
       } else if (actualPaid > 0.01) {
         paymentStatus = "Partially Paid";
+      } else if (isPastDueDate && actualBalance > 0.01) {
+        paymentStatus = "Overdue";
       } else {
         paymentStatus = "Unpaid";
       }
@@ -275,6 +288,15 @@ export async function fetchRenewalsAction(): Promise<RenewalItem[]> {
         balanceDue: actualBalance,
         status: inv.status,
       };
+    } else {
+      // Check if renewal itself is overdue
+      const targetDate = new Date(r.renewal_date || r.renewal_end_date);
+      targetDate.setHours(0, 0, 0, 0);
+      if (targetDate.getTime() < today.getTime()) {
+        paymentStatus = "Overdue";
+      } else {
+        paymentStatus = "Unpaid";
+      }
     }
 
     // Determine status (Upcoming, Due Soon, Overdue, Renewed, Cancelled)
@@ -309,10 +331,12 @@ export async function fetchRenewalsAction(): Promise<RenewalItem[]> {
       salespersonId: sp?.id || null,
       status: computedStatus,
       renewalStatus: r.renewal_status || "Pending",
+      invoiceStatus,
       paymentStatus,
       notes: r.notes,
       invoiceId: inv?.id || r.invoice_id || null,
       invoiceNumber: inv?.invoice_number || null,
+      invoiceTotalAmount,
       invoiceDetails,
       paymentAllocations,
       isCustomRenewal: true,

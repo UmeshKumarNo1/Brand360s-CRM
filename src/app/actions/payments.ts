@@ -967,6 +967,15 @@ export async function allocatePaymentToInvoicesAction(
     };
   }
 
+  // 2b. Strict Verification Check: Only verified payments can be allocated
+  const paymentStatus = payment.status || "Pending";
+  if (!["Verified", "Approved", "Completed"].includes(paymentStatus)) {
+    return {
+      success: false,
+      error: `Payment is currently ${paymentStatus}. Only verified payments can be allocated to invoices.`,
+    };
+  }
+
   // 3. Compute available unallocated amount with decimal precision protection
   const paymentTotal = Math.round((Number(payment.amount) || 0) * 100) / 100;
   const currentAllocated = Math.round(

@@ -35,7 +35,7 @@ export function CreateRenewalModal({
   const [newRenewalDate, setNewRenewalDate] = useState(defaultNextDate());
   const [renewalAmount, setRenewalAmount] = useState<number>(0);
   const [notes, setNotes] = useState("");
-  const [createInvoice, setCreateInvoice] = useState(true);
+  const [createInvoice, setCreateInvoice] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Available services for the selected client

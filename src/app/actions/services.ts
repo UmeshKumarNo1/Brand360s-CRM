@@ -2,6 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
+import {
+  calculateExpiryDate,
+  calculateReminderDate,
+  getMonthsForFrequency,
+  RenewalFrequency,
+} from "@/lib/renewals/renewal-dates";
 import { revalidatePath } from "next/cache";
 import { autoGenerateInvoiceForClientAction } from "@/app/actions/invoices";
 import { uploadClientServiceDocumentAction } from "@/app/actions/documents";
@@ -88,6 +94,11 @@ export async function createCatalogServiceAction(
   const default_service_fee = parseFloat(formData.get("default_service_fee") as string) || 0;
   const default_govt_fee = parseFloat(formData.get("default_govt_fee") as string) || 0;
   const workflow_preset = (formData.get("workflow_preset") as string) || null;
+  const is_renewable = formData.get("is_renewable") === "true" || formData.get("is_renewable") === "on";
+  const renewal_frequency = (formData.get("renewal_frequency") as string) || "Annually";
+  const renewal_duration_months = parseInt(formData.get("renewal_duration_months") as string, 10) || 12;
+  const default_renewal_amount = parseFloat(formData.get("default_renewal_amount") as string) || default_service_fee;
+  const default_reminder_days = parseInt(formData.get("default_reminder_days") as string, 10) || 30;
 
   if (!name) {
     return { error: "Service name is required." };
@@ -102,8 +113,60 @@ export async function createCatalogServiceAction(
       default_service_fee,
       default_govt_fee,
       workflow_preset: workflow_preset || undefined,
+      is_renewable,
+      renewal_frequency: is_renewable ? renewal_frequency : null,
+      renewal_duration_months: is_renewable ? renewal_duration_months : null,
+      default_renewal_amount: is_renewable ? default_renewal_amount : null,
+      default_reminder_days: is_renewable ? default_reminder_days : null,
       is_active: true,
     });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/services");
+  return { success: true };
+}
+
+export async function updateCatalogServiceAction(
+  id: string,
+  data: {
+    name?: string;
+    category?: string;
+    description?: string | null;
+    default_service_fee?: number;
+    default_govt_fee?: number;
+    workflow_preset?: string | null;
+    is_renewable?: boolean;
+    renewal_frequency?: RenewalFrequency | null;
+    renewal_duration_months?: number | null;
+    default_renewal_amount?: number | null;
+    default_reminder_days?: number | null;
+  }
+): Promise<ServiceActionState> {
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Authentication required." };
+
+  const updateData: any = {};
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.category !== undefined) updateData.category = data.category;
+  if (data.description !== undefined) updateData.description = data.description;
+  if (data.default_service_fee !== undefined) updateData.default_service_fee = data.default_service_fee;
+  if (data.default_govt_fee !== undefined) updateData.default_govt_fee = data.default_govt_fee;
+  if (data.workflow_preset !== undefined) updateData.workflow_preset = data.workflow_preset || null;
+  if (data.is_renewable !== undefined) updateData.is_renewable = data.is_renewable;
+  if (data.renewal_frequency !== undefined) updateData.renewal_frequency = data.renewal_frequency;
+  if (data.renewal_duration_months !== undefined) updateData.renewal_duration_months = data.renewal_duration_months;
+  if (data.default_renewal_amount !== undefined) updateData.default_renewal_amount = data.default_renewal_amount;
+  if (data.default_reminder_days !== undefined) updateData.default_reminder_days = data.default_reminder_days;
+
+  const { error } = await supabase
+    .from("services_catalog")
+    .update(updateData)
+    .eq("id", id);
 
   if (error) {
     return { error: error.message };
@@ -320,6 +383,14 @@ export async function assignClientServiceAction(
   const workflowPreset = (formData.get("workflow_preset") as string) || null;
   const taxRate = parseFloat(formData.get("tax_rate") as string) || 18.0;
 
+  // Renewable Service Fields
+  const isRenewable = formData.get("is_renewable") === "true" || formData.get("is_renewable") === "on";
+  const renewalFrequency = (formData.get("renewal_frequency") as RenewalFrequency) || "Annually";
+  const renewalDurationMonths = parseInt(formData.get("renewal_duration_months") as string, 10) || 12;
+  const renewalAmount = parseFloat(formData.get("renewal_amount") as string) || serviceFee;
+  const renewalReminderDays = parseInt(formData.get("renewal_reminder_days") as string, 10) || 30;
+  const explicitRenewalExpiryDate = (formData.get("renewal_expiry_date") as string) || null;
+
   if (!clientId || !serviceName) {
     return { error: "Client and service name are required." };
   }
@@ -342,6 +413,11 @@ export async function assignClientServiceAction(
     serviceName.toLowerCase().includes("gst") ? "gst" : "general"
   );
 
+  // Calculate renewal cycle dates if renewable
+  const calculatedExpiry = isRenewable
+    ? explicitRenewalExpiryDate || calculateExpiryDate(startDate || new Date().toISOString().split("T")[0], renewalDurationMonths)
+    : null;
+
   const { data: newClientService, error } = await supabase
     .from("client_services")
     .insert({
@@ -362,6 +438,14 @@ export async function assignClientServiceAction(
       service_status: serviceStatus,
       assigned_employee_id: assignedEmployeeId,
       notes,
+      is_renewable: isRenewable,
+      renewal_frequency: isRenewable ? renewalFrequency : null,
+      renewal_duration_months: isRenewable ? renewalDurationMonths : null,
+      renewal_reminder_days: isRenewable ? renewalReminderDays : null,
+      renewal_date: calculatedExpiry,
+      renewal_amount: isRenewable ? renewalAmount : 0,
+      renewal_status: isRenewable ? "Upcoming" : null,
+      renewal_cycle_count: isRenewable ? 1 : 0,
     })
     .select("id")
     .single();
@@ -385,9 +469,10 @@ export async function assignClientServiceAction(
   }
 
   // Feature: Auto-generate invoice for this service deliverable with correct GST-exclusive billing
+  let generatedInvoiceId: string | null = null;
   if (totalAmount > 0 && newClientService?.id) {
     try {
-      await autoGenerateInvoiceForClientAction(clientId, {
+      const invRes = await autoGenerateInvoiceForClientAction(clientId, {
         serviceName,
         clientServiceId: newClientService.id,
         serviceFee,
@@ -397,6 +482,9 @@ export async function assignClientServiceAction(
         description: `${serviceName} - Professional Deliverable`,
         dueDate: expectedCompletionDate || undefined,
       });
+      if (invRes.success && invRes.invoiceId) {
+        generatedInvoiceId = invRes.invoiceId;
+      }
     } catch (invErr) {
       console.warn("Auto-invoice generation on service assignment warning:", invErr);
     }
@@ -446,8 +534,70 @@ export async function assignClientServiceAction(
   // Recalculate and synchronize client contract value & balance receivable
   await syncClientContractValueAction(clientId);
 
+  // Automatic First Renewal Cycle Creation for Renewable Services
+  if (isRenewable && newClientService?.id && calculatedExpiry) {
+    try {
+      // Check if a pending renewal already exists to prevent duplicate creation
+      const { data: existingRenewal } = await supabase
+        .from("renewals")
+        .select("id")
+        .eq("client_service_id", newClientService.id)
+        .eq("renewal_status", "Pending")
+        .maybeSingle();
+
+      if (!existingRenewal) {
+        // Fetch client's assigned salesperson
+        const { data: clientInfo } = await supabase
+          .from("clients")
+          .select("assigned_salesperson")
+          .eq("id", clientId)
+          .single();
+
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+
+        const reminderDate = calculateReminderDate(calculatedExpiry, renewalReminderDays);
+
+        const { data: createdRenewal } = await supabase.from("renewals").insert({
+          client_id: clientId,
+          client_service_id: newClientService.id,
+          salesperson_id: clientInfo?.assigned_salesperson || null,
+          service_name_snapshot: serviceName,
+          previous_expiry_date: null,
+          renewal_start_date: startDate || new Date().toISOString().split("T")[0],
+          renewal_end_date: calculatedExpiry,
+          renewal_date: calculatedExpiry,
+          renewal_amount: renewalAmount,
+          payment_status: "Unpaid",
+          renewal_status: "Pending",
+          cycle_number: 1,
+          renewal_frequency: renewalFrequency,
+          duration_months: renewalDurationMonths,
+          reminder_date: reminderDate,
+          invoice_id: generatedInvoiceId || null,
+          notes: notes ? `Initial renewal cycle. Notes: ${notes}` : "Initial automated renewal cycle.",
+          created_by: currentUser?.id || null,
+        }).select("id").maybeSingle();
+
+        // If an invoice was created and migration 045 added renewal_id, link back explicitly
+        if (createdRenewal?.id && generatedInvoiceId) {
+          try {
+            await supabase
+              .from("invoices")
+              .update({ renewal_id: createdRenewal.id })
+              .eq("id", generatedInvoiceId);
+          } catch (linkErr) {
+            console.warn("Could not link invoice to renewal_id:", linkErr);
+          }
+        }
+      }
+    } catch (renewalErr) {
+      console.warn("Auto-creation of first renewal cycle notice:", renewalErr);
+    }
+  }
+
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/clients");
+  revalidatePath("/renewals");
   revalidatePath("/services");
   revalidatePath("/invoices");
   revalidatePath("/payments");
@@ -563,6 +713,12 @@ export async function editClientServiceAction(
     taxRate?: number;
     workflowPreset?: string | null;
     resetWorkflow?: boolean;
+    isRenewable?: boolean;
+    renewalFrequency?: RenewalFrequency;
+    renewalDurationMonths?: number;
+    renewalAmount?: number;
+    renewalReminderDays?: number;
+    renewalDate?: string | null;
   }
 ): Promise<ServiceActionState> {
   const supabase = await createClient();
@@ -641,6 +797,12 @@ export async function editClientServiceAction(
   if (data.serviceStatus !== undefined) updateData.service_status = data.serviceStatus;
   if (data.assignedEmployeeId !== undefined) updateData.assigned_employee_id = data.assignedEmployeeId;
   if (data.notes !== undefined) updateData.notes = data.notes;
+  if (data.isRenewable !== undefined) updateData.is_renewable = data.isRenewable;
+  if (data.renewalFrequency !== undefined) updateData.renewal_frequency = data.renewalFrequency;
+  if (data.renewalDurationMonths !== undefined) updateData.renewal_duration_months = data.renewalDurationMonths;
+  if (data.renewalAmount !== undefined) updateData.renewal_amount = data.renewalAmount;
+  if (data.renewalReminderDays !== undefined) updateData.renewal_reminder_days = data.renewalReminderDays;
+  if (data.renewalDate !== undefined) updateData.renewal_date = data.renewalDate;
 
   // 3. Workflow Preset Update & Intelligent Stage Mapping
   if (data.workflowPreset !== undefined && data.workflowPreset !== currentService.workflow_preset) {
@@ -694,12 +856,50 @@ export async function editClientServiceAction(
     return { error: error.message };
   }
 
+  // Update existing pending renewal record if renewal details changed, WITHOUT creating duplicate cycles
+  if (data.isRenewable || data.renewalDate || data.renewalAmount !== undefined) {
+    try {
+      const { data: pendingRenewal } = await supabase
+        .from("renewals")
+        .select("id")
+        .eq("client_service_id", serviceId)
+        .eq("renewal_status", "Pending")
+        .maybeSingle();
+
+      if (pendingRenewal) {
+        const renewalUpdate: any = {
+          updated_at: new Date().toISOString(),
+        };
+        if (data.renewalDate) {
+          renewalUpdate.renewal_end_date = data.renewalDate;
+          renewalUpdate.renewal_date = data.renewalDate;
+        }
+        if (data.renewalAmount !== undefined) {
+          renewalUpdate.renewal_amount = data.renewalAmount;
+        }
+        if (data.renewalFrequency) {
+          renewalUpdate.renewal_frequency = data.renewalFrequency;
+        }
+        if (data.renewalDurationMonths) {
+          renewalUpdate.duration_months = data.renewalDurationMonths;
+        }
+        await supabase
+          .from("renewals")
+          .update(renewalUpdate)
+          .eq("id", pendingRenewal.id);
+      }
+    } catch (renewUpdateErr) {
+      console.warn("Sync pending renewal on service edit notice:", renewUpdateErr);
+    }
+  }
+
   // Recalculate client contract value
   await syncClientContractValueAction(clientId);
 
   revalidatePath(`/clients/${clientId}`);
   revalidatePath("/clients");
   revalidatePath("/services");
+  revalidatePath("/renewals");
   return { success: true };
 }
 

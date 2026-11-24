@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { AppSidebar } from "./AppSidebar";
 import { TopNavbar } from "./TopNavbar";
 
@@ -17,6 +18,12 @@ interface AppLayoutProps {
 export function AppLayout({ children, userProfile }: AppLayoutProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Scroll to top upon navigating to a new route to prevent page content clipping
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [pathname]);
 
   return (
     <div className="min-h-screen bg-[#F4F8FC] flex relative overflow-x-hidden">

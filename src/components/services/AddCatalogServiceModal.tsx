@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
-import { Layers, X, Loader2, IndianRupee } from "lucide-react";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { Layers, X, Loader2, IndianRupee, RefreshCw } from "lucide-react";
 import { createCatalogServiceAction } from "@/app/actions/services";
 import { useToast } from "@/components/common/ToastProvider";
 
@@ -13,6 +13,9 @@ interface AddCatalogServiceModalProps {
 
 export function AddCatalogServiceModal({ isOpen, onClose, onSuccess }: AddCatalogServiceModalProps) {
   const [state, formAction, isPending] = useActionState(createCatalogServiceAction, null);
+  const [isRenewable, setIsRenewable] = useState(false);
+  const [renewalFrequency, setRenewalFrequency] = useState<string>("Annually");
+  const [durationMonths, setDurationMonths] = useState<number>(12);
   const { success, error: toastError } = useToast();
   const handledStateRef = useRef<any>(null);
 
@@ -132,6 +135,92 @@ export function AddCatalogServiceModal({ isOpen, onClose, onSuccess }: AddCatalo
               placeholder="Scope of work, deliverables, and typical requirements..."
               className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none"
             />
+          </div>
+
+          {/* Renewable Service Configuration */}
+          <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <RefreshCw size={15} className="text-[#0481A2]" />
+                <span className="font-bold text-slate-800 text-xs">Renewable Subscription Service</span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  name="is_renewable"
+                  value="true"
+                  checked={isRenewable}
+                  onChange={(e) => setIsRenewable(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-8 h-4 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-[#0481A2]"></div>
+              </label>
+            </div>
+
+            {isRenewable && (
+              <div className="pt-2 border-t border-slate-200/80 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Renewal Frequency</label>
+                    <select
+                      name="renewal_frequency"
+                      value={renewalFrequency}
+                      onChange={(e) => {
+                        const freq = e.target.value;
+                        setRenewalFrequency(freq);
+                        if (freq === "Monthly") setDurationMonths(1);
+                        else if (freq === "Quarterly") setDurationMonths(3);
+                        else if (freq === "Half-Yearly") setDurationMonths(6);
+                        else if (freq === "Annually") setDurationMonths(12);
+                      }}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-[#0481A2] text-xs"
+                    >
+                      <option value="Monthly">Monthly (1 Month)</option>
+                      <option value="Quarterly">Quarterly (3 Months)</option>
+                      <option value="Half-Yearly">Half-Yearly (6 Months)</option>
+                      <option value="Annually">Annually (12 Months)</option>
+                      <option value="Custom">Custom Duration</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Duration (Months)</label>
+                    <input
+                      name="renewal_duration_months"
+                      type="number"
+                      min={1}
+                      value={durationMonths}
+                      onChange={(e) => setDurationMonths(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2] text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Default Renewal Amount (₹)</label>
+                    <input
+                      name="default_renewal_amount"
+                      type="number"
+                      step="any"
+                      placeholder="e.g. 15000"
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2] text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Reminder Alert (Days Before)</label>
+                    <input
+                      name="default_reminder_days"
+                      type="number"
+                      min={0}
+                      defaultValue={30}
+                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:border-[#0481A2] text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">

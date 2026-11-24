@@ -24,6 +24,7 @@ interface RenewalsTableProps {
   onCompleteRenewal?: (renewal: RenewalItem) => void;
   onCancelRenewal?: (renewal: RenewalItem) => void;
   onGenerateInvoice?: (renewal: RenewalItem) => void;
+  onCreateRenewalClick?: () => void;
 }
 
 export function RenewalsTable({
@@ -36,6 +37,7 @@ export function RenewalsTable({
   onCompleteRenewal,
   onCancelRenewal,
   onGenerateInvoice,
+  onCreateRenewalClick,
 }: RenewalsTableProps) {
   const getStatusBadge = (status: RenewalItem["status"]) => {
     switch (status) {
@@ -101,14 +103,57 @@ export function RenewalsTable({
       case "Partially Paid":
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-            Partial
+            Partially Paid
+          </span>
+        );
+      case "Overdue":
+        return (
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
+            Overdue
           </span>
         );
       case "Unpaid":
       default:
         return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
             Unpaid
+          </span>
+        );
+    }
+  };
+
+  const getInvoiceStatusBadge = (status: RenewalItem["invoiceStatus"]) => {
+    switch (status) {
+      case "Issued":
+        return (
+          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+            Issued
+          </span>
+        );
+      case "Paid":
+        return (
+          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+            Paid
+          </span>
+        );
+      case "Draft":
+        return (
+          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+            Draft
+          </span>
+        );
+      case "Void":
+      case "Cancelled":
+        return (
+          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-medium bg-slate-100 text-slate-500 border border-slate-200">
+            {status}
+          </span>
+        );
+      case "Not Invoiced":
+      default:
+        return (
+          <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[9px] font-medium bg-slate-50 text-slate-500 border border-slate-200">
+            Not Invoiced
           </span>
         );
     }
@@ -126,7 +171,7 @@ export function RenewalsTable({
               <th className="py-2.5 px-2 font-semibold text-xs tracking-wider text-center whitespace-nowrap">Renewal Start</th>
               <th className="py-2.5 px-2 font-semibold text-xs tracking-wider text-center whitespace-nowrap">Renewal End</th>
               <th className="py-2.5 px-2 text-center font-semibold text-xs tracking-wider whitespace-nowrap">Amount</th>
-              <th className="py-2.5 px-2 text-center font-semibold text-xs tracking-wider whitespace-nowrap">Payment</th>
+              <th className="py-2.5 px-2 text-center font-semibold text-xs tracking-wider whitespace-nowrap">Invoice & Payment</th>
               <th className="py-2.5 px-2 text-center font-semibold text-xs tracking-wider whitespace-nowrap">Status</th>
               <th className="py-2.5 px-3 font-semibold text-xs tracking-wider text-center whitespace-nowrap">Actions</th>
             </tr>
@@ -136,10 +181,19 @@ export function RenewalsTable({
               <tr>
                 <td colSpan={9} className="py-12 text-center text-slate-400">
                   <RefreshCw size={28} className="mx-auto text-slate-300 mb-2 stroke-[1.5]" />
-                  <p className="font-medium text-slate-600 text-xs">No service renewals found</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Service contracts and subscriptions will appear here automatically.
+                  <p className="font-semibold text-slate-700 text-sm">No service renewals found</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                    There are no renewal cycles scheduled yet. Service contracts must be explicitly created or renewed.
                   </p>
+                  {onCreateRenewalClick && (
+                    <button
+                      onClick={onCreateRenewalClick}
+                      className="mt-3.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold bg-[#0481A2] text-white hover:bg-[#036c88] shadow-2xs transition-colors cursor-pointer"
+                    >
+                      <RefreshCw size={12} />
+                      <span>Create Renewal</span>
+                    </button>
+                  )}
                 </td>
               </tr>
             ) : (
@@ -190,20 +244,33 @@ export function RenewalsTable({
                   </td>
 
                   {/* Renewal Amount */}
-                  <td className="py-2 px-2 font-bold font-number text-slate-900 text-right whitespace-nowrap align-middle">
-                    {formatINR(r.renewalAmount)}
+                  <td className="py-2 px-2 text-right whitespace-nowrap align-middle">
+                    <div className="font-bold font-number text-slate-900">
+                      {formatINR(r.renewalAmount)}
+                    </div>
+                    {r.invoiceTotalAmount !== undefined && r.invoiceTotalAmount !== r.renewalAmount && (
+                      <div className="text-[10px] text-slate-500 font-mono" title="Total invoice including taxes">
+                        {formatINR(r.invoiceTotalAmount)} <span className="text-[9px] text-slate-400">incl GST</span>
+                      </div>
+                    )}
                   </td>
 
-                  {/* Payment Status */}
+                  {/* Invoice & Payment Status */}
                   <td className="py-2 px-2 text-center whitespace-nowrap align-middle">
-                    <div className="flex flex-col items-center gap-0.5">
-                      {getPaymentStatusBadge(r.paymentStatus)}
+                    <div className="flex flex-col items-center gap-1">
+                      <div className="flex items-center gap-1">
+                        {getPaymentStatusBadge(r.paymentStatus)}
+                        {r.invoiceStatus && r.invoiceStatus !== "Not Invoiced" && (
+                          getInvoiceStatusBadge(r.invoiceStatus)
+                        )}
+                      </div>
                       {r.invoiceId ? (
                         <button
                           onClick={() => onPreviewInvoice && r.invoiceId && onPreviewInvoice(r.invoiceId)}
-                          className="text-[9px] text-[#0481A2] hover:underline font-mono"
+                          className="inline-flex items-center gap-0.5 text-[9px] text-[#0481A2] hover:underline font-mono font-medium"
                           title="Preview invoice"
                         >
+                          <FileText size={9} />
                           {r.invoiceNumber || "Invoice"}
                         </button>
                       ) : (

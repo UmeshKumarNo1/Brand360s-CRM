@@ -3,9 +3,17 @@
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { revalidatePath } from "next/cache";
+import { generateInvoiceNumberAction as generateNextInvoiceNumber } from "@/lib/invoices/invoice-number";
+import {
+  calculateExpiryDate,
+  calculateNextRenewalCycle,
+  calculateReminderDate,
+  getMonthsForFrequency,
+  RenewalFrequency,
+} from "@/lib/renewals/renewal-dates";
 
 export interface RenewalItem {
-  id: string; // renewal record id OR client_service id
+  id: string; // renewal record id
   clientServiceId: string;
   clientId: string;
   clientName: string;
@@ -25,11 +33,33 @@ export interface RenewalItem {
   salespersonId?: string | null;
   status: "Upcoming" | "Due Soon" | "Overdue" | "Renewed" | "Expired" | "Pending" | "Cancelled";
   renewalStatus: "Pending" | "Renewed" | "Cancelled";
-  paymentStatus: "Unpaid" | "Partially Paid" | "Paid";
+  invoiceStatus: "Not Invoiced" | "Draft" | "Issued" | "Paid" | "Partially Paid" | "Void" | "Cancelled";
+  paymentStatus: "Unpaid" | "Partially Paid" | "Paid" | "Overdue";
   lastRenewedAt?: string | null;
   notes?: string | null;
   invoiceId?: string | null;
   invoiceNumber?: string | null;
+  invoiceTotalAmount?: number;
+  invoiceDetails?: {
+    invoiceNumber: string;
+    issueDate: string;
+    dueDate?: string;
+    subtotal: number;
+    taxAmount: number;
+    totalAmount: number;
+    amountPaid: number;
+    balanceDue: number;
+    status: string;
+  } | null;
+  paymentAllocations?: {
+    id: string;
+    paymentId: string;
+    paymentNumber?: string;
+    amount: number;
+    paymentDate?: string;
+    paymentMethod?: string;
+    status?: string;
+  }[];
   isCustomRenewal?: boolean;
 }
 
@@ -58,7 +88,7 @@ export interface RenewalActionState {
 }
 
 /**
- * Fetch all renewals derived from active client services with RLS & salesperson mapping
+ * Fetch all real renewals from public.renewals with live payment allocation calculations
  */
 export async function fetchRenewalsAction(): Promise<RenewalItem[]> {
   if (!isSupabaseConfigured()) {
@@ -78,52 +108,10 @@ export async function fetchRenewalsAction(): Promise<RenewalItem[]> {
     .single();
 
   const isAdmin = profile?.role === "admin";
-
-  // 2. Query client services with client & salesperson info
-  let query = supabase
-    .from("client_services")
-    .select(`
-      id,
-      client_id,
-      service_name,
-      service_category,
-      service_fee,
-      total_amount,
-      start_date,
-      expected_completion_date,
-      renewal_date,
-      renewal_amount,
-      renewal_status,
-      last_renewed_at,
-      notes,
-      client:clients!client_id (
-        id,
-        company_name,
-        client_code,
-        contact_person,
-        email,
-        phone,
-        client_status,
-        assigned_salesperson,
-        assigned_profile:profiles!assigned_salesperson (
-          id,
-          full_name
-        )
-      )
-    `)
-    .order("renewal_date", { ascending: true, nullsFirst: false });
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error("Error fetching renewals:", error);
-    return [];
-  }
-
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // 3. Query all recorded renewals from public.renewals table with client, service, and invoice joins
+  // 2. Query recorded renewals from public.renewals table with client, service, and invoice joins
   let renewalsQuery = supabase
     .from("renewals")
     .select(`
@@ -159,110 +147,162 @@ export async function fetchRenewalsAction(): Promise<RenewalItem[]> {
       invoice:invoices!invoice_id (
         id,
         invoice_number,
+        issue_date,
+        due_date,
+        subtotal,
+        tax_amount,
+        total_amount,
+        amount_paid,
+        balance_due,
         status
       ),
       client_service:client_services!client_service_id (
         id,
+        service_name,
         service_category,
         expected_completion_date
       )
     `)
     .order("renewal_date", { ascending: true });
 
-  const { data: dbRenewals } = await renewalsQuery;
+  const { data: dbRenewals, error } = await renewalsQuery;
 
-  const results: RenewalItem[] = [];
-  const processedServiceIds = new Set<string>();
-
-  // Process explicit renewal records from public.renewals first
-  if (dbRenewals) {
-    dbRenewals.forEach((r: any) => {
-      const client = Array.isArray(r.client) ? r.client[0] : r.client;
-      if (client?.client_status === "Archived") return;
-      if (!isAdmin && client?.assigned_salesperson !== user.id) return;
-
-      processedServiceIds.add(r.client_service_id);
-
-      const sp = r.salesperson_profile ? (Array.isArray(r.salesperson_profile) ? r.salesperson_profile[0] : r.salesperson_profile) : null;
-      const inv = r.invoice ? (Array.isArray(r.invoice) ? r.invoice[0] : r.invoice) : null;
-      const cs = r.client_service ? (Array.isArray(r.client_service) ? r.client_service[0] : r.client_service) : null;
-
-      let paymentStatus: RenewalItem["paymentStatus"] = "Unpaid";
-      if (inv?.status === "Paid" || inv?.status === "Completed") paymentStatus = "Paid";
-      else if (inv?.status === "Partially Paid" || inv?.status === "Partial") paymentStatus = "Partially Paid";
-      else if (r.payment_status === "Paid" || r.payment_status === "Partially Paid") paymentStatus = r.payment_status;
-
-      let computedStatus: RenewalItem["status"] = (r.renewal_status as any) || "Pending";
-      if (computedStatus === "Pending") {
-        const targetDate = new Date(r.renewal_date || r.renewal_end_date);
-        targetDate.setHours(0, 0, 0, 0);
-        const diffDays = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        if (diffDays < 0) computedStatus = "Overdue";
-        else if (diffDays <= 30) computedStatus = "Due Soon";
-        else computedStatus = "Upcoming";
-      }
-
-      results.push({
-        id: r.id,
-        clientServiceId: r.client_service_id,
-        clientId: r.client_id,
-        clientName: client?.company_name || "Unknown Client",
-        clientCode: client?.client_code || "B360-000",
-        contactPerson: client?.contact_person || "-",
-        email: client?.email || "-",
-        phone: client?.phone || "-",
-        serviceName: r.service_name_snapshot,
-        serviceCategory: cs?.service_category || "General",
-        previousExpiryDate: r.previous_expiry_date,
-        renewalStartDate: r.renewal_start_date,
-        renewalEndDate: r.renewal_end_date,
-        currentExpiryDate: r.previous_expiry_date || cs?.expected_completion_date || "-",
-        renewalDate: r.renewal_date || r.renewal_end_date,
-        renewalAmount: Number(r.renewal_amount) || 0,
-        salesperson: sp?.full_name || "Unassigned",
-        salespersonId: sp?.id || null,
-        status: computedStatus,
-        renewalStatus: r.renewal_status || "Pending",
-        paymentStatus,
-        notes: r.notes,
-        invoiceId: inv?.id || r.invoice_id || null,
-        invoiceNumber: inv?.invoice_number || null,
-        isCustomRenewal: true,
-      });
-    });
+  if (error) {
+    console.error("Error fetching renewals:", error);
+    return [];
   }
 
-  // Also include active client_services that don't have a pending renewal record yet
-  (data || []).forEach((row: any) => {
-    if (processedServiceIds.has(row.id)) return;
+  if (!dbRenewals || dbRenewals.length === 0) {
+    return [];
+  }
 
-    const client = Array.isArray(row.client) ? row.client[0] : row.client;
+  // 3. Extract all invoice IDs to batch fetch verified payment allocations
+  const invoiceIds = dbRenewals
+    .map((r: any) => r.invoice_id)
+    .filter((id): id is string => Boolean(id));
+
+  const allocationsByInvoice: Record<string, {
+    totalPaid: number;
+    allocations: any[];
+  }> = {};
+
+  if (invoiceIds.length > 0) {
+    const { data: allocations } = await supabase
+      .from("invoice_payment_allocations")
+      .select(`
+        id,
+        invoice_id,
+        payment_id,
+        amount,
+        payment:payments!payment_id (
+          id,
+          payment_number,
+          payment_date,
+          payment_method,
+          status
+        )
+      `)
+      .in("invoice_id", invoiceIds);
+
+    if (allocations) {
+      allocations.forEach((alloc: any) => {
+        const p = Array.isArray(alloc.payment) ? alloc.payment[0] : alloc.payment;
+        // Verify payment is confirmed/verified (not rejected or reversed)
+        const isVerified = !p || p.status === "Verified" || p.status === "Approved" || p.status === "Completed";
+        if (isVerified) {
+          if (!allocationsByInvoice[alloc.invoice_id]) {
+            allocationsByInvoice[alloc.invoice_id] = { totalPaid: 0, allocations: [] };
+          }
+          const amt = Number(alloc.amount) || 0;
+          allocationsByInvoice[alloc.invoice_id].totalPaid += amt;
+          allocationsByInvoice[alloc.invoice_id].allocations.push({
+            id: alloc.id,
+            paymentId: alloc.payment_id,
+            paymentNumber: p?.payment_number,
+            amount: amt,
+            paymentDate: p?.payment_date,
+            paymentMethod: p?.payment_method,
+            status: p?.status,
+          });
+        }
+      });
+    }
+  }
+
+  // 4. Transform records into RenewalItem
+  const results: RenewalItem[] = [];
+
+  dbRenewals.forEach((r: any) => {
+    const client = Array.isArray(r.client) ? r.client[0] : r.client;
     if (client?.client_status === "Archived") return;
     if (!isAdmin && client?.assigned_salesperson !== user.id) return;
 
-    const salespersonProfile = client?.assigned_profile
-      ? Array.isArray(client.assigned_profile)
-        ? client.assigned_profile[0]
-        : client.assigned_profile
-      : null;
+    const sp = r.salesperson_profile ? (Array.isArray(r.salesperson_profile) ? r.salesperson_profile[0] : r.salesperson_profile) : null;
+    const inv = r.invoice ? (Array.isArray(r.invoice) ? r.invoice[0] : r.invoice) : null;
+    const cs = r.client_service ? (Array.isArray(r.client_service) ? r.client_service[0] : r.client_service) : null;
 
-    const renewalDateStr =
-      row.renewal_date ||
-      row.expected_completion_date ||
-      row.start_date ||
-      new Date().toISOString().split("T")[0];
+    // Determine live Invoice Status & Payment Status strictly from actual linked database records
+    let invoiceStatus: RenewalItem["invoiceStatus"] = "Not Invoiced";
+    let paymentStatus: RenewalItem["paymentStatus"] = "Unpaid";
+    let invoiceDetails: RenewalItem["invoiceDetails"] = null;
+    let paymentAllocations: RenewalItem["paymentAllocations"] = [];
+    let invoiceTotalAmount: number | undefined = undefined;
 
-    const currentExpiry =
-      row.expected_completion_date ||
-      row.renewal_date ||
-      row.start_date ||
-      "-";
+    if (inv) {
+      invoiceStatus = (inv.status as RenewalItem["invoiceStatus"]) || "Issued";
+      const invoiceTotal = Number(inv.total_amount) || 0;
+      const invoiceSubtotal = Number(inv.subtotal) || 0;
+      const invoiceTax = Number(inv.tax_amount) || 0;
+      invoiceTotalAmount = invoiceTotal;
 
-    const renewalAmount = Number(row.renewal_amount || row.total_amount || row.service_fee || 0);
+      const allocInfo = allocationsByInvoice[inv.id] || { totalPaid: 0, allocations: [] };
+      // Fallback to inv.amount_paid if no allocation rows are present but invoice has recorded payment
+      const actualPaid = allocInfo.totalPaid > 0 ? allocInfo.totalPaid : (Number(inv.amount_paid) || 0);
+      const actualBalance = Math.max(0, invoiceTotal - actualPaid);
 
-    let computedStatus: RenewalItem["status"] = (row.renewal_status as any) || "Upcoming";
-    if (computedStatus !== "Renewed" && computedStatus !== "Expired") {
-      const targetDate = new Date(renewalDateStr);
+      paymentAllocations = allocInfo.allocations;
+
+      // Check if overdue by dueDate
+      const dueDateObj = inv.due_date ? new Date(inv.due_date) : null;
+      if (dueDateObj) dueDateObj.setHours(0, 0, 0, 0);
+      const isPastDueDate = dueDateObj && dueDateObj.getTime() < today.getTime();
+
+      if (actualBalance <= 0.01 && invoiceTotal > 0) {
+        paymentStatus = "Paid";
+      } else if (actualPaid > 0.01) {
+        paymentStatus = "Partially Paid";
+      } else if (isPastDueDate && actualBalance > 0.01) {
+        paymentStatus = "Overdue";
+      } else {
+        paymentStatus = "Unpaid";
+      }
+
+      invoiceDetails = {
+        invoiceNumber: inv.invoice_number,
+        issueDate: inv.issue_date,
+        dueDate: inv.due_date,
+        subtotal: invoiceSubtotal,
+        taxAmount: invoiceTax,
+        totalAmount: invoiceTotal,
+        amountPaid: actualPaid,
+        balanceDue: actualBalance,
+        status: inv.status,
+      };
+    } else {
+      // Check if renewal itself is overdue
+      const targetDate = new Date(r.renewal_date || r.renewal_end_date);
+      targetDate.setHours(0, 0, 0, 0);
+      if (targetDate.getTime() < today.getTime()) {
+        paymentStatus = "Overdue";
+      } else {
+        paymentStatus = "Unpaid";
+      }
+    }
+
+    // Determine status (Upcoming, Due Soon, Overdue, Renewed, Cancelled)
+    let computedStatus: RenewalItem["status"] = (r.renewal_status as any) || "Pending";
+    if (computedStatus === "Pending") {
+      const targetDate = new Date(r.renewal_date || r.renewal_end_date);
       targetDate.setHours(0, 0, 0, 0);
       const diffDays = Math.ceil((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       if (diffDays < 0) computedStatus = "Overdue";
@@ -271,36 +311,139 @@ export async function fetchRenewalsAction(): Promise<RenewalItem[]> {
     }
 
     results.push({
-      id: row.id,
-      clientServiceId: row.id,
-      clientId: row.client_id,
+      id: r.id,
+      clientServiceId: r.client_service_id,
+      clientId: r.client_id,
       clientName: client?.company_name || "Unknown Client",
       clientCode: client?.client_code || "B360-000",
       contactPerson: client?.contact_person || "-",
       email: client?.email || "-",
       phone: client?.phone || "-",
-      serviceName: row.service_name || "Annual Service",
-      serviceCategory: row.service_category || "General",
-      previousExpiryDate: currentExpiry,
-      renewalStartDate: currentExpiry !== "-" ? currentExpiry : new Date().toISOString().split("T")[0],
-      renewalEndDate: renewalDateStr,
-      currentExpiryDate: currentExpiry,
-      renewalDate: renewalDateStr,
-      renewalAmount,
-      salesperson: salespersonProfile?.full_name || "Unassigned",
-      salespersonId: salespersonProfile?.id || null,
+      serviceName: r.service_name_snapshot || cs?.service_name || "Renewal Service",
+      serviceCategory: cs?.service_category || "General",
+      previousExpiryDate: r.previous_expiry_date,
+      renewalStartDate: r.renewal_start_date,
+      renewalEndDate: r.renewal_end_date,
+      currentExpiryDate: r.previous_expiry_date || cs?.expected_completion_date || "-",
+      renewalDate: r.renewal_date || r.renewal_end_date,
+      renewalAmount: Number(r.renewal_amount) || 0,
+      salesperson: sp?.full_name || "Unassigned",
+      salespersonId: sp?.id || null,
       status: computedStatus,
-      renewalStatus: (row.renewal_status as any) || "Pending",
-      paymentStatus: "Unpaid",
-      lastRenewedAt: row.last_renewed_at,
-      notes: row.notes,
-      invoiceId: null,
-      invoiceNumber: null,
-      isCustomRenewal: false,
+      renewalStatus: r.renewal_status || "Pending",
+      invoiceStatus,
+      paymentStatus,
+      notes: r.notes,
+      invoiceId: inv?.id || r.invoice_id || null,
+      invoiceNumber: inv?.invoice_number || null,
+      invoiceTotalAmount,
+      invoiceDetails,
+      paymentAllocations,
+      isCustomRenewal: true,
     });
   });
 
   return results;
+}
+
+/**
+ * Dedicated server action to fetch active clients and their active client services
+ * for populating the Create Renewal modal independently of the renewals table.
+ */
+export async function fetchClientsAndServicesForRenewalAction(): Promise<{
+  clients: { id: string; name: string }[];
+  services: {
+    id: string;
+    clientId: string;
+    name: string;
+    amount: number;
+    expiry: string;
+    serviceCategory: string;
+    contractValue: number;
+  }[];
+}> {
+  if (!isSupabaseConfigured()) {
+    return { clients: [], services: [] };
+  }
+
+  const supabase = await createClient();
+
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { clients: [], services: [] };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  const isAdmin = profile?.role === "admin";
+
+  let clientQuery = supabase
+    .from("clients")
+    .select("id, company_name, assigned_salesperson, client_status")
+    .neq("client_status", "Archived")
+    .order("company_name", { ascending: true });
+
+  if (!isAdmin) {
+    clientQuery = clientQuery.eq("assigned_salesperson", user.id);
+  }
+
+  const { data: clientRows, error: cErr } = await clientQuery;
+  if (cErr || !clientRows) {
+    console.error("Error fetching clients for renewal:", cErr);
+    return { clients: [], services: [] };
+  }
+
+  const clientIds = clientRows.map((c: any) => c.id);
+  if (clientIds.length === 0) {
+    return { clients: [], services: [] };
+  }
+
+  const { data: serviceRows, error: sErr } = await supabase
+    .from("client_services")
+    .select(`
+      id,
+      client_id,
+      service_name,
+      service_category,
+      service_fee,
+      total_amount,
+      expected_completion_date,
+      renewal_date,
+      renewal_amount,
+      status
+    `)
+    .in("client_id", clientIds)
+    .neq("status", "Cancelled")
+    .order("service_name", { ascending: true });
+
+  if (sErr || !serviceRows) {
+    console.error("Error fetching services for renewal:", sErr);
+  }
+
+  const clients = clientRows.map((c: any) => ({
+    id: c.id,
+    name: c.company_name,
+  }));
+
+  const services = (serviceRows || []).map((s: any) => {
+    const contractVal = Number(s.total_amount || s.service_fee || 0);
+    const renewAmt = Number(s.renewal_amount) || contractVal;
+    const exp = s.renewal_date || s.expected_completion_date || "-";
+
+    return {
+      id: s.id,
+      clientId: s.client_id,
+      name: s.service_name,
+      amount: renewAmt,
+      expiry: exp,
+      serviceCategory: s.service_category || "General",
+      contractValue: contractVal,
+    };
+  });
+
+  return { clients, services };
 }
 
 /**
@@ -425,7 +568,7 @@ export async function processServiceRenewalAction(
 
   // 3. Create invoice if requested
   if (createInvoice && client) {
-    const invoiceNumber = `B360-INV-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`;
+    const invoiceNumber = await generateNextInvoiceNumber();
 
     const { data: invData, error: invErr } = await supabase
       .from("invoices")
@@ -449,11 +592,25 @@ export async function processServiceRenewalAction(
       console.warn("Could not create renewal invoice:", invErr.message);
     } else if (invData) {
       createdInvoiceId = invData.id;
+
+      // Also create an invoice_items line item
+      await supabase.from("invoice_items").insert({
+        invoice_id: invData.id,
+        client_service_id: service.id,
+        item_description: `Subscription Renewal: ${service.service_name}`,
+        quantity: 1,
+        unit_price: renewalAmount,
+        subtotal: renewalAmount,
+        tax_rate: 0,
+        tax_amount: 0,
+        total: renewalAmount,
+      });
     }
   }
 
   // 4. Insert into dedicated renewals table for audit history
   try {
+    const nowIso = new Date().toISOString();
     await supabase.from("renewals").insert({
       client_id: client.id,
       client_service_id: service.id,
@@ -467,6 +624,8 @@ export async function processServiceRenewalAction(
       invoice_id: createdInvoiceId,
       payment_status: "Unpaid",
       renewal_status: "Renewed",
+      confirmed_by: user.id,
+      confirmed_at: nowIso,
       notes: notes || null,
       created_by: user.id,
     });
@@ -577,7 +736,7 @@ export async function createManualRenewalAction(
 
   // Create invoice if requested
   if (createInvoice && client) {
-    const invoiceNumber = `B360-INV-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`;
+    const invoiceNumber = await generateNextInvoiceNumber();
     const { data: invData, error: invErr } = await supabase
       .from("invoices")
       .insert({
@@ -598,6 +757,19 @@ export async function createManualRenewalAction(
 
     if (!invErr && invData) {
       createdInvoiceId = invData.id;
+
+      // Also create invoice_items row
+      await supabase.from("invoice_items").insert({
+        invoice_id: invData.id,
+        client_service_id: service.id,
+        item_description: `Subscription Renewal: ${service.service_name}`,
+        quantity: 1,
+        unit_price: renewalAmount,
+        subtotal: renewalAmount,
+        tax_rate: 0,
+        tax_amount: 0,
+        total: renewalAmount,
+      });
     }
   }
 
@@ -660,10 +832,28 @@ export async function completeRenewalRecordAction(renewalId: string): Promise<Re
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Authentication required." };
 
-  // Fetch renewal record
+  // Fetch renewal record with service and client details
   const { data: renewal, error: rErr } = await supabase
     .from("renewals")
-    .select("*, client_service:client_services!client_service_id(id, service_name)")
+    .select(`
+      *,
+      client_service:client_services!client_service_id(
+        id,
+        service_name,
+        service_category,
+        is_renewable,
+        renewal_frequency,
+        renewal_duration_months,
+        renewal_amount,
+        renewal_reminder_days,
+        renewal_cycle_count
+      ),
+      client:clients!client_id(
+        id,
+        company_name,
+        assigned_salesperson
+      )
+    `)
     .eq("id", renewalId)
     .single();
 
@@ -675,18 +865,26 @@ export async function completeRenewalRecordAction(renewalId: string): Promise<Re
     return { error: "Renewal is already completed." };
   }
 
-  // 1. Update renewal record
+  const nowIso = new Date().toISOString();
+
+  // 1. Mark current renewal record as Renewed, tracking confirmed_by and confirmed_at
   const { error: updRenewalErr } = await supabase
     .from("renewals")
     .update({
       renewal_status: "Renewed",
-      updated_at: new Date().toISOString(),
+      confirmed_by: user.id,
+      confirmed_at: nowIso,
+      updated_at: nowIso,
     })
     .eq("id", renewalId);
 
   if (updRenewalErr) return { error: updRenewalErr.message };
 
-  // 2. Update client_service expiry
+  const cs = Array.isArray(renewal.client_service) ? renewal.client_service[0] : renewal.client_service;
+  const client = Array.isArray(renewal.client) ? renewal.client[0] : renewal.client;
+
+  // 2. Update client_service expiry & cycle count
+  const newCycleCount = ((cs?.renewal_cycle_count || renewal.cycle_number || 1) + 1);
   if (renewal.client_service_id) {
     await supabase
       .from("client_services")
@@ -695,13 +893,60 @@ export async function completeRenewalRecordAction(renewalId: string): Promise<Re
         renewal_date: renewal.renewal_end_date,
         renewal_amount: renewal.renewal_amount,
         renewal_status: "Renewed",
-        last_renewed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        renewal_cycle_count: newCycleCount,
+        last_renewed_at: nowIso,
+        updated_at: nowIso,
       })
       .eq("id", renewal.client_service_id);
   }
 
-  // 3. Audit log
+  // 3. Automatically schedule the NEXT renewal cycle if the service is configured as renewable
+  if (renewal.client_service_id) {
+    try {
+      // Check if an existing Pending renewal already exists to prevent duplicate cycles
+      const { data: existingNextPending } = await supabase
+        .from("renewals")
+        .select("id")
+        .eq("client_service_id", renewal.client_service_id)
+        .eq("renewal_status", "Pending")
+        .maybeSingle();
+
+      if (!existingNextPending) {
+        const frequency: RenewalFrequency = (renewal.renewal_frequency || cs?.renewal_frequency || "Annually") as RenewalFrequency;
+        const durationMonths: number = renewal.duration_months || cs?.renewal_duration_months || getMonthsForFrequency(frequency);
+        const reminderDays: number = cs?.renewal_reminder_days || 30;
+
+        // Calculate next period: Next Start = Previous Expiry + 1 day; Next End = Next Start + duration - 1 day
+        const previousExpiry = renewal.renewal_end_date || renewal.renewal_date;
+        const nextCycle = calculateNextRenewalCycle(previousExpiry, durationMonths);
+        const nextReminderDate = calculateReminderDate(nextCycle.endDate, reminderDays);
+
+        await supabase.from("renewals").insert({
+          client_id: renewal.client_id,
+          client_service_id: renewal.client_service_id,
+          salesperson_id: renewal.salesperson_id || client?.assigned_salesperson || null,
+          service_name_snapshot: renewal.service_name_snapshot || cs?.service_name || "Renewal Service",
+          previous_expiry_date: previousExpiry,
+          renewal_start_date: nextCycle.startDate,
+          renewal_end_date: nextCycle.endDate,
+          renewal_date: nextCycle.endDate,
+          renewal_amount: renewal.renewal_amount,
+          payment_status: "Unpaid",
+          renewal_status: "Pending",
+          cycle_number: newCycleCount,
+          renewal_frequency: frequency,
+          duration_months: durationMonths,
+          reminder_date: nextReminderDate,
+          notes: `Cycle ${newCycleCount} scheduled following completion of cycle ${renewal.cycle_number || 1}.`,
+          created_by: user.id,
+        });
+      }
+    } catch (nextCycleErr) {
+      console.warn("Auto-scheduling next renewal cycle notice:", nextCycleErr);
+    }
+  }
+
+  // 4. Audit log
   try {
     await supabase.from("audit_logs").insert({
       user_id: user.id,
@@ -709,8 +954,11 @@ export async function completeRenewalRecordAction(renewalId: string): Promise<Re
       entity_type: "renewals",
       entity_id: renewalId,
       details: {
+        confirmedBy: user.id,
+        confirmedAt: nowIso,
         renewalEndDate: renewal.renewal_end_date,
         renewalAmount: renewal.renewal_amount,
+        nextCycleScheduled: true,
       },
     });
   } catch {}
@@ -766,14 +1014,16 @@ export async function generateRenewalInvoiceAction(renewalId: string): Promise<R
 
   const { data: renewal, error: rErr } = await supabase
     .from("renewals")
-    .select("*, client:clients!client_id(id, company_name)")
+    .select("*, client:clients!client_id(id, company_name), client_service:client_services!client_service_id(id, service_name)")
     .eq("id", renewalId)
     .single();
 
   if (rErr || !renewal) return { error: "Renewal not found." };
   if (renewal.invoice_id) return { error: "An invoice is already generated for this renewal." };
 
-  const invoiceNumber = `B360-INV-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`;
+  const invoiceNumber = await generateNextInvoiceNumber();
+  const renewalAmount = Number(renewal.renewal_amount) || 0;
+
   const { data: invData, error: invErr } = await supabase
     .from("invoices")
     .insert({
@@ -782,17 +1032,32 @@ export async function generateRenewalInvoiceAction(renewalId: string): Promise<R
       issue_date: new Date().toISOString().split("T")[0],
       due_date: renewal.renewal_end_date || renewal.renewal_date,
       status: "Unpaid",
-      subtotal: renewal.renewal_amount,
+      subtotal: renewalAmount,
       tax_amount: 0,
-      total_amount: renewal.renewal_amount,
+      total_amount: renewalAmount,
       amount_paid: 0,
-      balance_due: renewal.renewal_amount,
+      balance_due: renewalAmount,
       notes: `Subscription Renewal for: ${renewal.service_name_snapshot}`,
     })
     .select("id")
     .single();
 
   if (invErr || !invData) return { error: invErr?.message || "Failed to generate invoice." };
+
+  // Insert invoice_items record
+  if (renewal.client_service_id) {
+    await supabase.from("invoice_items").insert({
+      invoice_id: invData.id,
+      client_service_id: renewal.client_service_id,
+      item_description: `Subscription Renewal: ${renewal.service_name_snapshot}`,
+      quantity: 1,
+      unit_price: renewalAmount,
+      subtotal: renewalAmount,
+      tax_rate: 0,
+      tax_amount: 0,
+      total: renewalAmount,
+    });
+  }
 
   // Link invoice back to renewal
   await supabase

@@ -73,9 +73,10 @@ export function RenewalFilters({
             className="w-full px-3 py-2 text-xs rounded-xl bg-slate-50/70 border border-slate-200 focus:bg-white focus:outline-none focus:border-[#0481A2] transition-colors text-slate-700"
           >
             <option value="All">All Payments</option>
-            <option value="Paid">Paid</option>
-            <option value="Partially Paid">Partially Paid</option>
+            <option value="Not Invoiced">Not Invoiced</option>
             <option value="Unpaid">Unpaid</option>
+            <option value="Partially Paid">Partially Paid</option>
+            <option value="Paid">Paid</option>
           </select>
         </div>
 

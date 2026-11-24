@@ -453,7 +453,11 @@ export function ClientPaymentsTab({
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {clientInvoices.map((inv) => {
-                      const isOverbilling = contractValue > 0 && Number(inv.totalAmount) > contractValue;
+                      const taxableAmount =
+                        inv.subtotal !== undefined && inv.subtotal !== null && Number(inv.subtotal) > 0
+                          ? Number(inv.subtotal)
+                          : Math.max(0, (Number(inv.totalAmount) || 0) - (Number(inv.taxAmount) || 0));
+                      const isOverbilling = contractValue > 0 && taxableAmount > contractValue + 0.01;
                       return (
                         <tr key={inv.id} className="hover:bg-slate-50/70">
                           <td className="py-2.5 px-3 font-mono font-bold text-slate-900">{inv.invoiceNumber}</td>
@@ -465,7 +469,7 @@ export function ClientPaymentsTab({
                           <td className="py-2.5 px-3 text-right font-bold text-rose-600 font-sans font-number">{formatINR(inv.balanceDue)}</td>
                           <td className="py-2.5 px-3 text-center">
                             {isOverbilling ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200" title={`Invoice total (${formatINR(inv.totalAmount)}) exceeds agreed contract (${formatINR(contractValue)})`}>
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200" title={`Taxable invoice subtotal (${formatINR(taxableAmount)}) exceeds agreed contract (${formatINR(contractValue)})`}>
                                 Above Contract
                               </span>
                             ) : (

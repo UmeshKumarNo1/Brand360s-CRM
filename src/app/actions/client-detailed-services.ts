@@ -124,6 +124,8 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       invoice_number,
       issue_date,
       due_date,
+      subtotal,
+      tax_amount,
       total_amount,
       amount_paid,
       balance_due,
@@ -133,6 +135,9 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       items:invoice_items (
         id,
         description,
+        unit_price,
+        quantity,
+        tax_amount,
         total,
         client_service_id
       )

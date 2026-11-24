@@ -283,7 +283,11 @@ export function ClientServicesTab({
                     }
 
                     return (
-                      <tr key={s.id} className="hover:bg-slate-50/70 transition-colors">
+                      <tr
+                        key={s.id}
+                        id={`service-${s.id}`}
+                        className="hover:bg-slate-50/70 transition-colors scroll-mt-24"
+                      >
                         {/* 1. Service Column */}
                         <td className="py-3 px-3 align-middle">
                           <div className="flex items-start gap-2.5">

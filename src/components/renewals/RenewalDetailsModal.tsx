@@ -129,11 +129,13 @@ export function RenewalDetailsModal({
                     renewal.paymentStatus === "Paid"
                       ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                       : renewal.paymentStatus === "Partially Paid"
-                      ? "bg-blue-50 text-blue-700 border-blue-200"
+                      ? "bg-amber-50 text-amber-700 border-amber-200"
+                      : renewal.paymentStatus === "Unpaid"
+                      ? "bg-rose-50 text-rose-700 border-rose-200"
                       : "bg-slate-100 text-slate-600 border-slate-200"
                   }`}
                 >
-                  Payment: {renewal.paymentStatus || "Unpaid"}
+                  Payment: {renewal.paymentStatus || "Not Invoiced"}
                 </span>
               </div>
             </div>
@@ -203,6 +205,68 @@ export function RenewalDetailsModal({
               )}
             </div>
           </div>
+
+          {/* Tax Invoice Financial Details (when invoice exists) */}
+          {renewal.invoiceDetails && (
+            <div className="p-4 bg-slate-50/80 rounded-xl border border-slate-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                  <FileText size={13} className="text-[#0481A2]" />
+                  <span>Renewal Invoice Financials ({renewal.invoiceDetails.invoiceNumber})</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onPreviewInvoice && onPreviewInvoice(renewal.invoiceId)}
+                  className="text-[11px] font-semibold text-[#0481A2] hover:underline"
+                >
+                  View Full Invoice &rarr;
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div className="bg-white p-2.5 rounded-lg border border-slate-100">
+                  <span className="text-[10px] uppercase text-slate-400 font-bold block">Taxable Subtotal</span>
+                  <span className="font-bold text-slate-800 font-number">{formatINR(renewal.invoiceDetails.subtotal)}</span>
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-slate-100">
+                  <span className="text-[10px] uppercase text-slate-400 font-bold block">GST Amount</span>
+                  <span className="font-bold text-slate-800 font-number">{formatINR(renewal.invoiceDetails.taxAmount)}</span>
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-slate-100">
+                  <span className="text-[10px] uppercase text-slate-400 font-bold block">Total Amount</span>
+                  <span className="font-bold text-[#1B3260] font-number">{formatINR(renewal.invoiceDetails.totalAmount)}</span>
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-slate-100">
+                  <span className="text-[10px] uppercase text-slate-400 font-bold block">Outstanding Balance</span>
+                  <span className={`font-bold font-number ${renewal.invoiceDetails.balanceDue > 0 ? "text-rose-600" : "text-emerald-600"}`}>
+                    {formatINR(renewal.invoiceDetails.balanceDue)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Payment Allocations linked to this renewal invoice */}
+              {renewal.paymentAllocations && renewal.paymentAllocations.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-slate-200">
+                  <span className="text-[10px] font-bold uppercase text-slate-500 block mb-1.5">
+                    Verified Payments Allocated ({renewal.paymentAllocations.length}):
+                  </span>
+                  <div className="space-y-1.5 max-h-28 overflow-y-auto">
+                    {renewal.paymentAllocations.map((alloc: any) => (
+                      <div key={alloc.id} className="flex items-center justify-between text-[11px] bg-white px-2.5 py-1.5 rounded-lg border border-slate-100">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-slate-600 font-medium">{alloc.paymentNumber || "Payment"}</span>
+                          <span className="text-slate-400">&bull;</span>
+                          <span className="text-slate-500">{alloc.paymentDate || "Verified"}</span>
+                          {alloc.paymentMethod && <span className="text-slate-400 text-[10px]">({alloc.paymentMethod})</span>}
+                        </div>
+                        <span className="font-bold text-emerald-600 font-number">+{formatINR(alloc.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Notes Section */}
           {renewal.notes && (

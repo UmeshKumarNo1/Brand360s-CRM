@@ -86,6 +86,7 @@ interface ClientDetailViewProps {
   canEdit: boolean;
   initialTab?: "overview" | "payments" | "services" | "followups";
   initialAddService?: boolean;
+  initialServiceId?: string | null;
 }
 
 export function ClientDetailView({
@@ -94,11 +95,14 @@ export function ClientDetailView({
   canEdit,
   initialTab = "overview",
   initialAddService = false,
+  initialServiceId = null,
 }: ClientDetailViewProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"services" | "overview" | "payments" | "followups" | "activity">(
     initialTab === "services" || initialTab === "overview" ? "services" : initialTab
   );
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(initialServiceId);
+  const [highlightedServiceId, setHighlightedServiceId] = useState<string | null>(initialServiceId);
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
@@ -152,6 +156,44 @@ export function ClientDetailView({
   useEffect(() => {
     loadDetailedServices();
   }, [loadDetailedServices]);
+
+  // Sync initialServiceId or search params when prop changes
+  useEffect(() => {
+    if (initialServiceId) {
+      setSelectedServiceId(initialServiceId);
+      setHighlightedServiceId(initialServiceId);
+    }
+  }, [initialServiceId]);
+
+  // Auto-scroll to selected service once services are loaded and rendered
+  useEffect(() => {
+    if (!selectedServiceId || isLoadingServices) return;
+
+    // Check if target service exists in detailedServices
+    const serviceExists = detailedServices.some((s) => s.id === selectedServiceId);
+    if (!serviceExists) return;
+
+    // Ensure we are on the services tab
+    if (activeTab !== "services") {
+      setActiveTab("services");
+    }
+
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`service-${selectedServiceId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 150);
+
+    const highlightTimer = setTimeout(() => {
+      setHighlightedServiceId(null);
+    }, 3500);
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(highlightTimer);
+    };
+  }, [selectedServiceId, isLoadingServices, detailedServices, activeTab]);
 
   const isArchived = client.clientStatus === "Archived";
 
@@ -658,6 +700,7 @@ export function ClientDetailView({
                         index={idx}
                         totalServices={detailedServices.length}
                         defaultExpanded={true}
+                        isSelected={highlightedServiceId === service.id}
                         canEdit={canEdit}
                         isAdmin={isAdmin}
                         onRefresh={() => loadDetailedServices(true)}

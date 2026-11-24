@@ -4,7 +4,7 @@ import { useActionState, useState, Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
-import { loginAction, quickDemoLoginAction } from "@/app/actions/auth";
+import { loginAction } from "@/app/actions/auth";
 import { Eye, EyeOff, Lock, Mail, ArrowRight, Loader2 } from "lucide-react";
 
 function LoginForm() {
@@ -13,16 +13,6 @@ function LoginForm() {
 
   const [state, formAction, isPending] = useActionState(loginAction, null);
   const [showPassword, setShowPassword] = useState(false);
-  const [isDemoLoggingIn, setIsDemoLoggingIn] = useState(false);
-
-  const handleQuickLogin = async (role: "admin" | "salesperson") => {
-    setIsDemoLoggingIn(true);
-    try {
-      await quickDemoLoginAction(role, returnUrl);
-    } catch {
-      setIsDemoLoggingIn(false);
-    }
-  };
 
   return (
     <div className="space-y-5">
@@ -53,8 +43,7 @@ function LoginForm() {
               type="email"
               autoComplete="email"
               required
-              defaultValue="admin@brand360s.com"
-              placeholder="admin@brand360s.com"
+              placeholder="Enter your email address"
               className="block w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0481A2]/20 focus:border-[#0481A2] placeholder:text-slate-400"
             />
           </div>
@@ -86,7 +75,6 @@ function LoginForm() {
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               required
-              defaultValue="Admin@12345"
               placeholder="••••••••"
               className="block w-full pl-10 pr-10 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0481A2]/20 focus:border-[#0481A2] placeholder:text-slate-400"
             />
@@ -103,7 +91,7 @@ function LoginForm() {
         {/* Submit Button */}
         <button
           type="submit"
-          disabled={isPending || isDemoLoggingIn}
+          disabled={isPending}
           className="w-full flex justify-center items-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-semibold text-white bg-[#0481A2] hover:bg-[#036c88] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0481A2] transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
         >
           {isPending ? (
@@ -119,31 +107,6 @@ function LoginForm() {
           )}
         </button>
       </form>
-
-      {/* 1-Click Quick Demo Sign-in */}
-      <div className="pt-4 border-t border-slate-100">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 text-center mb-2.5">
-          Quick 1-Click Access
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            disabled={isPending || isDemoLoggingIn}
-            onClick={() => handleQuickLogin("admin")}
-            className="w-full py-2 px-3 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-          >
-            <span>👑 Admin</span>
-          </button>
-          <button
-            type="button"
-            disabled={isPending || isDemoLoggingIn}
-            onClick={() => handleQuickLogin("salesperson")}
-            className="w-full py-2 px-3 text-xs font-semibold rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
-          >
-            <span>💼 Salesperson</span>
-          </button>
-        </div>
-      </div>
     </div>
   );
 }

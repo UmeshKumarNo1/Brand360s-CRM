@@ -325,9 +325,9 @@ export async function updateEmployeeProfileAction(
     return { error: "Unauthorized." };
   }
 
-  const employeeId = formData.get("employee_id") as string;
-  const full_name = formData.get("full_name") as string;
-  const phone = (formData.get("phone") as string) || null;
+  const employeeId = (formData.get("employee_id") as string)?.trim();
+  const full_name = (formData.get("full_name") as string)?.trim();
+  const phone = (formData.get("phone") as string)?.trim() || null;
   const role = (formData.get("role") as string) || "employee";
   const is_active = formData.get("is_active") === "true";
 
@@ -336,9 +336,33 @@ export async function updateEmployeeProfileAction(
   }
 
   const adminAuth = getAdminAuthClient();
-  const dbClient = adminAuth || supabase;
+  if (!adminAuth) {
+    return {
+      error: "SUPABASE_SERVICE_ROLE_KEY is required to synchronize employee names with Supabase Authentication. Please check server configuration.",
+    };
+  }
 
-  const { error } = await dbClient
+  // 1. Validate employee Auth UID existence in Supabase Auth before updating
+  const { data: authUserData, error: getUserError } = await adminAuth.auth.admin.getUserById(employeeId);
+  if (getUserError || !authUserData?.user) {
+    return {
+      error: `Auth account with UID ${employeeId} was not found in Supabase Authentication.`,
+    };
+  }
+
+  // 2. Fetch existing profile for rollback safety
+  const { data: existingProfile, error: fetchProfileError } = await adminAuth
+    .from("profiles")
+    .select("full_name, phone, role, is_active")
+    .eq("id", employeeId)
+    .single();
+
+  if (fetchProfileError || !existingProfile) {
+    return { error: "Employee profile not found in CRM database." };
+  }
+
+  // 3. Update public.profiles table
+  const { error: profileUpdateError } = await adminAuth
     .from("profiles")
     .update({
       full_name,
@@ -349,24 +373,40 @@ export async function updateEmployeeProfileAction(
     })
     .eq("id", employeeId);
 
-  if (error) {
-    return { error: error.message };
+  if (profileUpdateError) {
+    return { error: `Database profile update failed: ${profileUpdateError.message}` };
   }
 
-  // Also synchronize metadata in Supabase Auth if service role is available
-  if (adminAuth) {
-    try {
-      await adminAuth.auth.admin.updateUserById(employeeId, {
-        user_metadata: {
-          full_name,
-          name: full_name,
-          role: role === "admin" ? "admin" : "employee",
-          phone,
-        },
-      });
-    } catch (syncErr) {
-      console.warn("Notice: could not synchronize metadata to Supabase Auth:", syncErr);
-    }
+  // 4. Synchronize user_metadata in Supabase Auth (set user_metadata.full_name and user_metadata.name)
+  const existingMetadata = authUserData.user.user_metadata || {};
+  const { error: authUpdateError } = await adminAuth.auth.admin.updateUserById(employeeId, {
+    user_metadata: {
+      ...existingMetadata,
+      full_name,
+      name: full_name,
+      role: role === "admin" ? "admin" : "employee",
+      phone,
+    },
+  });
+
+  // 5. Strict consistency check: Do not report success if Auth metadata synchronization failed
+  if (authUpdateError) {
+    console.error("Auth metadata synchronization failed, rolling back CRM profile:", authUpdateError);
+    // Roll back CRM profile to previous values to maintain 100% consistency
+    await adminAuth
+      .from("profiles")
+      .update({
+        full_name: existingProfile.full_name,
+        phone: existingProfile.phone,
+        role: existingProfile.role,
+        is_active: existingProfile.is_active,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", employeeId);
+
+    return {
+      error: `Failed to synchronize updated name to Supabase Authentication: ${authUpdateError.message}. Profile update was rolled back.`,
+    };
   }
 
   revalidatePath(`/employees/${employeeId}`);

@@ -158,6 +158,12 @@ export default function ClientsPage() {
         }
 
         if (records && records.length > 0) {
+          // Build salesperson lookup map for instant O(1) resolution
+          const spMap = new Map<string, string>();
+          (spList || []).forEach((s: any) => {
+            if (s.id && s.full_name) spMap.set(s.id, s.full_name);
+          });
+
           const mapped: ClientRecord[] = records.map((r: any, idx: number) => {
             // Process services for expandable row
             const dbServices: any[] = r.services || r.client_services || [];
@@ -186,7 +192,10 @@ export default function ClientsPage() {
                   start_date: s.start_date || null,
                   expected_completion_date: s.expected_completion_date || null,
                   assigned_employee_id: s.assigned_employee_id || null,
-                  assigned_employee_name: s.assigned_profile?.full_name || null,
+                  assigned_employee_name:
+                    s.assigned_profile?.full_name ||
+                    (s.assigned_employee_id ? spMap.get(s.assigned_employee_id) : null) ||
+                    null,
                   stage: stageText,
                   progressPercent: progress,
                   fulfillment_stages: s.fulfillment_stages || fulfillment.stages,
@@ -240,7 +249,10 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
                 : "-",
               createdAt: r.created_at || "-",
               assignedSalespersonId: r.assigned_salesperson || null,
-              salesperson: r.assigned_profile?.full_name || "Unassigned",
+              salesperson:
+                r.assigned_profile?.full_name ||
+                (r.assigned_salesperson ? spMap.get(r.assigned_salesperson) : null) ||
+                "Unassigned",
               servicesPurchased:
                 servicesList.length > 0
                   ? servicesList.map((s) => s.service_name).join(", ")

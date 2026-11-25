@@ -17,6 +17,7 @@ import {
 
 import { recordAuditLog } from "@/lib/audit/audit-logger";
 import { calculateClientFinancials, calculateServiceFinancials } from "@/lib/financial/financial-calculator";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 export interface CreateClientState {
   error?: string | null;
@@ -471,6 +472,37 @@ export async function fetchClientsAction() {
         : Promise.resolve({ data: [] }),
     ]);
 
+    // Resolve any missing profiles (e.g. if RLS restricted profile select for non-admin) using server-side admin client
+    const missingProfileIds = new Set<string>();
+    (data || []).forEach((c: any) => {
+      if (c.assigned_salesperson && !c.assigned_profile?.full_name) {
+        missingProfileIds.add(c.assigned_salesperson);
+      }
+      (c.services || []).forEach((s: any) => {
+        if (s.assigned_employee_id && !s.assigned_profile?.full_name) {
+          missingProfileIds.add(s.assigned_employee_id);
+        }
+      });
+    });
+
+    const fallbackProfiles: Record<string, { id: string; full_name: string; email: string }> = {};
+    if (missingProfileIds.size > 0) {
+      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (serviceKey && supabaseUrl && !serviceKey.includes("placeholder")) {
+        const adminClient = createSupabaseClient(supabaseUrl, serviceKey, {
+          auth: { autoRefreshToken: false, persistSession: false },
+        });
+        const { data: profs } = await adminClient
+          .from("profiles")
+          .select("id, full_name, email")
+          .in("id", Array.from(missingProfileIds));
+        (profs || []).forEach((p: any) => {
+          fallbackProfiles[p.id] = p;
+        });
+      }
+    }
+
     const invoicesByClient: Record<string, any[]> = {};
     (invoicesRes.data || []).forEach((inv: any) => {
       if (!invoicesByClient[inv.client_id]) invoicesByClient[inv.client_id] = [];
@@ -531,8 +563,16 @@ export async function fetchClientsAction() {
           serviceAllocatedAmount,
         });
 
+        // Resolve service assigned profile if missing from RLS
+        const resolvedServiceProfile = s.assigned_profile?.full_name
+          ? s.assigned_profile
+          : s.assigned_employee_id && fallbackProfiles[s.assigned_employee_id]
+          ? { full_name: fallbackProfiles[s.assigned_employee_id].full_name }
+          : s.assigned_profile;
+
         return {
           ...s,
+          assigned_profile: resolvedServiceProfile,
           contract_value: svcFiancials.contractValue,
           total_amount: svcFiancials.contractValue,
           invoicedAmount: svcFiancials.invoicedAmount,
@@ -545,8 +585,19 @@ export async function fetchClientsAction() {
         };
       });
 
+      // Resolve client assigned salesperson profile if missing from RLS
+      const resolvedClientProfile = client.assigned_profile?.full_name
+        ? client.assigned_profile
+        : client.assigned_salesperson && fallbackProfiles[client.assigned_salesperson]
+        ? {
+            full_name: fallbackProfiles[client.assigned_salesperson].full_name,
+            email: fallbackProfiles[client.assigned_salesperson].email,
+          }
+        : client.assigned_profile;
+
       return {
         ...client,
+        assigned_profile: resolvedClientProfile,
         contractValue: clientFinancials.contractValue,
         contract_value: clientFinancials.contractValue,
         invoicedAmount: clientFinancials.invoicedAmount,

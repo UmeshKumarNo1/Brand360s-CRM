@@ -10,18 +10,21 @@ import { Eye, EyeOff, Lock, Mail, ArrowRight, Loader2 } from "lucide-react";
 function LoginForm() {
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") || "/dashboard";
+  const urlError = searchParams.get("error");
 
   const [state, formAction, isPending] = useActionState(loginAction, null);
   const [showPassword, setShowPassword] = useState(false);
+
+  const displayError = state?.error || (urlError === "account-deactivated" ? "Your employee account has been deactivated. Please contact an administrator." : null);
 
   return (
     <div className="space-y-5">
       <form action={formAction} className="space-y-4">
         <input type="hidden" name="returnUrl" value={returnUrl} />
 
-        {state?.error && (
+        {displayError && (
           <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs font-semibold text-red-700 flex items-center gap-2">
-            <span>{state.error}</span>
+            <span>{displayError}</span>
           </div>
         )}
 

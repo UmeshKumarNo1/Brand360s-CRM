@@ -33,6 +33,7 @@ export interface ClientRecord {
   phone?: string;
   dateOfCreation?: string;
   createdAt?: string;
+  assignedSalespersonId?: string | null;
   salesperson: string;
   servicesPurchased: string;
   contractValue: number;

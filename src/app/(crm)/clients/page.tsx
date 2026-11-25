@@ -26,21 +26,29 @@ import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationM
 import { ReassignClientModal } from "@/components/clients/ReassignClientModal";
 import { ScanDuplicatesModal } from "@/components/clients/ScanDuplicatesModal";
 import { ClientsTableSkeleton } from "@/components/clients/ClientsTableSkeleton";
+import { AssignedServicesTable } from "@/components/clients/AssignedServicesTable";
+import { ServiceStageModal } from "@/components/services/ServiceStageModal";
+import { fetchAssignedServicesAction, AssignedServiceItem } from "@/app/actions/assigned-services";
 import { useToast } from "@/components/common/ToastProvider";
-import { RefreshCw, Users, Archive, RotateCcw, Trash2, UserCheck, Layers } from "lucide-react";
+import { RefreshCw, Users, Archive, RotateCcw, Trash2, UserCheck, Layers, Briefcase } from "lucide-react";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 import { computeServiceFulfillment } from "@/lib/services/fulfillment-workflows";
 
 export default function ClientsPage() {
   const router = useRouter();
   const [dbClients, setDbClients] = useState<ClientRecord[]>([]);
+  const [assignedServices, setAssignedServices] = useState<AssignedServiceItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
 
-  // Tab: Active Clients vs Archived Clients
-  const [clientTab, setClientTab] = useState<"active" | "archived">("active");
+  // Tab: Active Clients vs Assigned Services vs Archived Clients
+  const [clientTab, setClientTab] = useState<"active" | "assigned_services" | "archived">("active");
+
+  // Stage modal for Assigned Services
+  const [stageModalServiceId, setStageModalServiceId] = useState<string | null>(null);
 
   // Selection state for Bulk Operations
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -62,6 +70,7 @@ export default function ClientsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [selectedSalesperson, setSelectedSalesperson] = useState("All");
+  const [selectedServiceAssignee, setSelectedServiceAssignee] = useState("All");
   const [selectedService, setSelectedService] = useState("All");
   const [selectedPaymentStatus, setSelectedPaymentStatus] = useState("All");
   const [selectedClientStatus, setSelectedClientStatus] = useState("All");
@@ -96,6 +105,7 @@ export default function ClientsPage() {
   // Check admin status on mount
   useEffect(() => {
     getCurrentUserProfileAction().then((p) => {
+      setCurrentUserProfile(p);
       if (p?.role === "admin") {
         setIsAdmin(true);
       }
@@ -134,13 +144,15 @@ export default function ClientsPage() {
     setErrorMessage(null);
 
     try {
-      const [records, spList, pendingFollowupsMap] = await Promise.all([
+      const [records, spList, pendingFollowupsMap, svcAssigned] = await Promise.all([
         fetchClientsAction(),
         fetchSalespeopleAction(),
         fetchPendingClientFollowupsAction(),
+        fetchAssignedServicesAction(),
       ]);
 
       if (currentReqId === requestIdRef.current) {
+        setAssignedServices(svcAssigned || []);
         if (spList && Array.isArray(spList)) {
           setSalespeopleList(spList.map((s: any) => ({ id: s.id, full_name: s.full_name })));
         }
@@ -227,6 +239,7 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
                 })
                 : "-",
               createdAt: r.created_at || "-",
+              assignedSalespersonId: r.assigned_salesperson || null,
               salesperson: r.assigned_profile?.full_name || "Unassigned",
               servicesPurchased:
                 servicesList.length > 0
@@ -424,6 +437,14 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
       if (selectedSalesperson !== "All" && client.salesperson !== selectedSalesperson) {
         return false;
       }
+      if (selectedServiceAssignee !== "All") {
+        const hasMatchingService = (client.services || []).some(
+          (s: any) => s.assigned_employee_name === selectedServiceAssignee
+        );
+        if (!hasMatchingService) {
+          return false;
+        }
+      }
       if (selectedService !== "All" && !client.servicesPurchased?.toLowerCase().includes(selectedService.toLowerCase())) {
         return false;
       }
@@ -435,7 +456,7 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
       }
       return true;
     });
-  }, [dbClients, clientTab, debouncedSearchQuery, selectedSalesperson, selectedService, selectedPaymentStatus, selectedClientStatus]);
+  }, [dbClients, clientTab, debouncedSearchQuery, selectedSalesperson, selectedServiceAssignee, selectedService, selectedPaymentStatus, selectedClientStatus]);
 
   const totalPages = Math.ceil(filteredClients.length / pageSize) || 1;
   const paginatedClients = useMemo(() => {
@@ -467,6 +488,7 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
   const handleReset = () => {
     setSearchQuery("");
     setSelectedSalesperson("All");
+    setSelectedServiceAssignee("All");
     setSelectedService("All");
     setSelectedPaymentStatus("All");
     setSelectedClientStatus("All");
@@ -537,7 +559,7 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
         isLoading={isStatsLoading && dbClients.length === 0}
       />
 
-      {/* Tabs: Active vs Archived Portfolio */}
+      {/* Tabs: Active vs Assigned Services vs Archived Portfolio */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <button
@@ -551,8 +573,25 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
               : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
               }`}
           >
-            Active Clients ({totalNonArchived})
+            {isAdmin ? `Active Clients (${totalNonArchived})` : `My Clients (${totalNonArchived})`}
           </button>
+
+          {/* Dedicated Assigned Services View for Employees & Admins */}
+          <button
+            onClick={() => {
+              setClientTab("assigned_services");
+              setCurrentPage(1);
+              setSelectedIds([]);
+            }}
+            className={`inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${clientTab === "assigned_services"
+              ? "bg-[#0481A2] text-white shadow-2xs"
+              : "bg-white text-slate-600 hover:bg-slate-100 border border-slate-200"
+              }`}
+          >
+            <Briefcase size={13} />
+            <span>{isAdmin ? `All Assigned Services (${assignedServices.length})` : `My Assigned Services (${assignedServices.length})`}</span>
+          </button>
+
           {isAdmin && (
             <button
               onClick={() => {
@@ -623,6 +662,11 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
           setSelectedSalesperson(s);
           setCurrentPage(1);
         }}
+        selectedServiceAssignee={selectedServiceAssignee}
+        setSelectedServiceAssignee={(sa) => {
+          setSelectedServiceAssignee(sa);
+          setCurrentPage(1);
+        }}
         selectedService={selectedService}
         setSelectedService={(srv) => {
           setSelectedService(srv);
@@ -649,33 +693,71 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
 
       {!errorMessage && (
         <>
-          {isLoading ? (
-            <ClientsTableSkeleton rows={pageSize > 10 ? 10 : pageSize} />
+          {clientTab === "assigned_services" ? (
+            isLoading ? (
+              <ClientsTableSkeleton rows={pageSize > 10 ? 10 : pageSize} />
+            ) : (
+              <AssignedServicesTable
+                services={assignedServices.filter((s) => {
+                  if (!debouncedSearchQuery.trim()) return true;
+                  const q = debouncedSearchQuery.toLowerCase();
+                  return (
+                    s.clientName.toLowerCase().includes(q) ||
+                    s.serviceName.toLowerCase().includes(q) ||
+                    s.clientCode.toLowerCase().includes(q) ||
+                    s.clientSalespersonName.toLowerCase().includes(q) ||
+                    s.currentStageName.toLowerCase().includes(q)
+                  );
+                })}
+                onOpenStageModal={(id) => setStageModalServiceId(id)}
+                isAdmin={isAdmin}
+              />
+            )
           ) : (
-            <ClientsTable
-              clients={paginatedClients}
-              isAdmin={isAdmin}
-              onDeleteClient={handleOpenDelete}
-              onArchiveClient={handleOpenDelete}
-              onRestoreClient={handleRestoreClient}
-              onReassignClient={handleOpenReassign}
-              onRefresh={loadData}
-            />
-          )}
+            <>
+              {isLoading ? (
+                <ClientsTableSkeleton rows={pageSize > 10 ? 10 : pageSize} />
+              ) : (
+                <ClientsTable
+                  clients={paginatedClients}
+                  isAdmin={isAdmin}
+                  currentUserId={currentUserProfile?.id}
+                  currentUserName={currentUserProfile?.full_name}
+                  onDeleteClient={handleOpenDelete}
+                  onArchiveClient={handleOpenDelete}
+                  onRestoreClient={handleRestoreClient}
+                  onReassignClient={handleOpenReassign}
+                  onRefresh={loadData}
+                />
+              )}
 
-          {!isLoading && (
-            <ClientPagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              pageSize={pageSize}
-              onPageChange={setCurrentPage}
-              onPageSizeChange={(size) => {
-                setPageSize(size);
-                setCurrentPage(1);
-              }}
-            />
+              {!isLoading && (
+                <ClientPagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  pageSize={pageSize}
+                  onPageChange={setCurrentPage}
+                  onPageSizeChange={(size) => {
+                    setPageSize(size);
+                    setCurrentPage(1);
+                  }}
+                />
+              )}
+            </>
           )}
         </>
+      )}
+
+      {/* Service Fulfillment Stage Modal for Assigned Services */}
+      {stageModalServiceId && (
+        <ServiceStageModal
+          isOpen={!!stageModalServiceId}
+          onClose={() => setStageModalServiceId(null)}
+          serviceId={stageModalServiceId}
+          onSuccess={() => {
+            loadData();
+          }}
+        />
       )}
 
       {/* Delete / Archive Confirmation Modal */}

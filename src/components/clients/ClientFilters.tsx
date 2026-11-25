@@ -7,6 +7,8 @@ interface ClientFiltersProps {
   setSearchQuery: (val: string) => void;
   selectedSalesperson: string;
   setSelectedSalesperson: (val: string) => void;
+  selectedServiceAssignee?: string;
+  setSelectedServiceAssignee?: (val: string) => void;
   selectedService: string;
   setSelectedService: (val: string) => void;
   selectedPaymentStatus: string;
@@ -23,6 +25,8 @@ export function ClientFilters({
   setSearchQuery,
   selectedSalesperson,
   setSelectedSalesperson,
+  selectedServiceAssignee = "All",
+  setSelectedServiceAssignee,
   selectedService,
   setSelectedService,
   selectedPaymentStatus,
@@ -47,14 +51,15 @@ export function ClientFilters({
         />
       </div>
 
-      {/* Salesperson Filter */}
-      <div className="relative min-w-[155px]">
+      {/* Salesperson Filter (Client Owner) */}
+      <div className="relative min-w-[170px]">
         <select
           value={selectedSalesperson}
           onChange={(e) => setSelectedSalesperson(e.target.value)}
           className="w-full appearance-none pl-4 pr-9 py-2.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-2xl focus:outline-none focus:border-[#0481A2] text-slate-700 shadow-2xs cursor-pointer font-medium hover:border-slate-300 transition-colors"
+          title="Filter by the employee who brought / owns the client"
         >
-          <option value="All">Salesperson: All</option>
+          <option value="All">Client Salesperson: All</option>
           {salespeople.map((sp) => (
             <option key={sp.id} value={sp.full_name}>
               {sp.full_name}
@@ -63,6 +68,26 @@ export function ClientFilters({
         </select>
         <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
       </div>
+
+      {/* Service Assignee Filter (Service Owner / Handler) */}
+      {setSelectedServiceAssignee && (
+        <div className="relative min-w-[175px]">
+          <select
+            value={selectedServiceAssignee}
+            onChange={(e) => setSelectedServiceAssignee(e.target.value)}
+            className="w-full appearance-none pl-4 pr-9 py-2.5 text-xs sm:text-sm bg-white border border-[#E2E8F0] rounded-2xl focus:outline-none focus:border-[#0481A2] text-slate-700 shadow-2xs cursor-pointer font-medium hover:border-slate-300 transition-colors"
+            title="Filter by the employee handling the service"
+          >
+            <option value="All">Service Assigned To: All</option>
+            {salespeople.map((sp) => (
+              <option key={sp.id} value={sp.full_name}>
+                {sp.full_name}
+              </option>
+            ))}
+          </select>
+          <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+        </div>
+      )}
 
       {/* Service Filter */}
       <div className="relative min-w-[145px]">

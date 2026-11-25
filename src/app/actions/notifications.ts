@@ -4,6 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { revalidatePath } from "next/cache";
 import { NotificationItem } from "@/lib/notifications/notification-types";
+import { runScheduledNotificationsCheck } from "@/app/actions/notification-scheduler";
+
+// Cache timestamp to prevent executing deadline checks multiple times per minute
+let lastCheckTime = 0;
 
 /**
  * Fetch current user notifications with category filter & limit
@@ -17,6 +21,17 @@ export async function fetchNotificationsAction(
   }
 
   try {
+    // Proactively generate service deadlines and overdue notifications if 60 seconds have elapsed
+    const now = Date.now();
+    if (now - lastCheckTime > 60000) {
+      lastCheckTime = now;
+      try {
+        await runScheduledNotificationsCheck();
+      } catch (checkErr) {
+        console.warn("Background notification check non-fatal error:", checkErr);
+      }
+    }
+
     const supabase = await createClient();
 
     const { data: { user } } = await supabase.auth.getUser();

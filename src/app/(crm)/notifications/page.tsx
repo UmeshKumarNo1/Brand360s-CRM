@@ -118,6 +118,12 @@ export default function NotificationsPage() {
       case "followup_due":
       case "followup_overdue":
         return <Calendar size={16} className="text-blue-600" />;
+      case "service_deadline_overdue":
+        return <AlertTriangle size={16} className="text-rose-600" />;
+      case "service_deadline_today":
+        return <AlertTriangle size={16} className="text-rose-600" />;
+      case "service_deadline_upcoming":
+        return <Calendar size={16} className="text-amber-600" />;
       case "client_created":
       case "client_updated":
         return <UserPlus size={16} className="text-emerald-600" />;

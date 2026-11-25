@@ -141,6 +141,119 @@ export async function runScheduledNotificationsCheck(): Promise<{ generatedCount
     }
   }
 
+  // 5. Check Service Deadlines (Overdue and within the next 7 calendar days)
+  // Timezone safe day calculation based on Asia/Kolkata
+  const kolkataNowStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(new Date());
+  const [ky, km, kd] = kolkataNowStr.split("-").map(Number);
+  const todayKolkata = new Date(ky, km - 1, kd);
+
+  // 7 calendar days ahead in Asia/Kolkata
+  const sevenDaysAheadDate = new Date(todayKolkata.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const sevenDaysAheadStr = `${sevenDaysAheadDate.getFullYear()}-${String(sevenDaysAheadDate.getMonth() + 1).padStart(2, "0")}-${String(sevenDaysAheadDate.getDate()).padStart(2, "0")}`;
+
+  // Fetch pending / incomplete services with target dates <= 7 days ahead (including overdue)
+  const { data: services } = await supabase
+    .from("client_services")
+    .select(`
+      id,
+      client_id,
+      service_name,
+      service_status,
+      expected_completion_date,
+      assigned_employee_id,
+      client:clients!client_id (
+        id,
+        company_name,
+        assigned_salesperson
+      )
+    `)
+    .not("expected_completion_date", "is", null)
+    .not("service_status", "in", '("Completed","Cancelled")')
+    .lte("expected_completion_date", sevenDaysAheadStr);
+
+  // Fetch all admin user IDs so they also receive service deadline notifications
+  const { data: adminProfiles } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("role", "admin");
+  const adminIds = (adminProfiles || []).map((a: any) => a.id);
+
+  if (services && services.length > 0) {
+    for (const s of services) {
+      const targetDateStr = s.expected_completion_date?.includes("T")
+        ? s.expected_completion_date.split("T")[0]
+        : s.expected_completion_date;
+      if (!targetDateStr) continue;
+
+      const [ty, tm, td] = targetDateStr.split("-").map(Number);
+      const targetDateObj = new Date(ty, tm - 1, td);
+      const diffDays = Math.round((targetDateObj.getTime() - todayKolkata.getTime()) / (1000 * 60 * 60 * 24));
+
+      const client = s.client as any;
+      const clientName = client?.company_name || "Client";
+      const serviceName = s.service_name;
+
+      let title = "";
+      let message = "";
+      let notifType: "service_deadline_overdue" | "service_deadline_today" | "service_deadline_upcoming" = "service_deadline_upcoming";
+      let formattedTarget = targetDateStr;
+      try {
+        formattedTarget = targetDateObj.toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        });
+      } catch {}
+
+      if (diffDays < 0) {
+        // Overdue
+        const overdueDays = Math.abs(diffDays);
+        title = `Overdue Service: ${serviceName}`;
+        message = `${clientName} • ${serviceName} is ${overdueDays} day${overdueDays > 1 ? "s" : ""} past target date (${formattedTarget}).`;
+        notifType = "service_deadline_overdue";
+      } else if (diffDays === 0) {
+        // Due today
+        title = `Service Deadline Today: ${serviceName}`;
+        message = `${clientName} • ${serviceName} target date is today (${formattedTarget}).`;
+        notifType = "service_deadline_today";
+      } else if (diffDays <= 3) {
+        // Due in 1-3 days
+        title = `Upcoming Deadline (in ${diffDays}d): ${serviceName}`;
+        message = `${clientName} • Target date is approaching on ${formattedTarget} (${diffDays} day${diffDays > 1 ? "s" : ""} left).`;
+        notifType = "service_deadline_upcoming";
+      } else if (diffDays <= 7) {
+        // Due in 4-7 days
+        title = `Upcoming Deadline: ${serviceName}`;
+        message = `${clientName} • Target delivery date is scheduled for ${formattedTarget} (${diffDays} days remaining).`;
+        notifType = "service_deadline_upcoming";
+      } else {
+        continue;
+      }
+
+      // Collect recipients: assigned employee, client salesperson, and admins
+      const recipientSet = new Set<string>();
+      if (s.assigned_employee_id) recipientSet.add(s.assigned_employee_id);
+      if (client?.assigned_salesperson) recipientSet.add(client.assigned_salesperson);
+      adminIds.forEach((aid: string) => recipientSet.add(aid));
+
+      const actionUrl = `/clients/${s.client_id}?tab=services&serviceId=${s.id}`;
+
+      for (const recipientId of Array.from(recipientSet)) {
+        const created = await createNotification({
+          recipient_id: recipientId,
+          title,
+          message,
+          type: notifType,
+          category: "alert",
+          entity_type: "client_services",
+          entity_id: s.id,
+          action_url: actionUrl,
+        });
+        if (created) count++;
+      }
+    }
+  }
+
   return { generatedCount: count };
 }
 

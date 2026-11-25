@@ -503,13 +503,6 @@ export function ClientsTable({
                               {/* Right: Clean Financial Metrics separated by subtle pipes */}
                               <div className="flex items-center gap-3 text-xs text-slate-600 flex-wrap font-medium">
                                 <span>
-                                  Contract:{" "}
-                                  <strong className="text-slate-900 font-sans font-number font-bold">
-                                    {formatINR(client.contractValue)}
-                                  </strong>
-                                </span>
-                                <span className="text-slate-300">|</span>
-                                <span>
                                   Invoiced:{" "}
                                   <strong className="text-slate-900 font-sans font-number font-bold">
                                     {formatINR(client.invoicedAmount ?? client.contractValue)}

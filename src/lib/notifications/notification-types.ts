@@ -11,6 +11,9 @@ export type NotificationType =
   | "followup_overdue"
   | "installment_due"
   | "installment_overdue"
+  | "service_deadline_today"
+  | "service_deadline_upcoming"
+  | "service_deadline_overdue"
   | "client_created"
   | "client_updated"
   | "system_alert";

@@ -117,6 +117,12 @@ export function NotificationBellDropdown({ triggerClassName }: NotificationBellD
       case "followup_due":
       case "followup_overdue":
         return <Calendar size={14} className="text-blue-600" />;
+      case "service_deadline_overdue":
+        return <AlertTriangle size={14} className="text-rose-600" />;
+      case "service_deadline_today":
+        return <Clock size={14} className="text-rose-600" />;
+      case "service_deadline_upcoming":
+        return <Calendar size={14} className="text-amber-600" />;
       case "client_created":
       case "client_updated":
         return <UserPlus size={14} className="text-emerald-600" />;

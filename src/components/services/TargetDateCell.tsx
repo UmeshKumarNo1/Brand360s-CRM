@@ -72,10 +72,12 @@ export function formatDate(dateStr?: string | null) {
 }
 
 /**
- * Calculates proximity and visual theme for target delivery dates:
- * - Green: More than 7 days remaining (> 7 days)
- * - Orange: 4–7 days remaining (4 to 7 days)
- * - Red: 0–3 days remaining or Overdue (< 0 days)
+ * Calculates proximity and visual theme for target delivery dates (Asia/Kolkata timezone safe):
+ * - Overdue: Red (< 0 days)
+ * - Due today: Red (0 days remaining)
+ * - Due within 1–3 days: Orange/Yellow (1 to 3 days)
+ * - Due within 4–7 days: Green (4 to 7 days)
+ * - Due in > 7 days: Green / On Track
  * - Neutral Grey: No target date set
  * - Completed: Emerald green badge
  */
@@ -103,47 +105,21 @@ export function getTargetDateMeta(dateStr?: string | null, isCompleted?: boolean
     };
   }
 
+  // Business timezone safe day difference: Asia/Kolkata (UTC+5:30)
   const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const targetDay = new Date(target.getFullYear(), target.getMonth(), target.getDate());
-  const diffMs = targetDay.getTime() - today.getTime();
+  const kolkataNowStr = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata" }).format(now);
+  const [ky, km, kd] = kolkataNowStr.split("-").map(Number);
+  const todayKolkata = new Date(ky, km - 1, kd);
+
+  const cleanTargetStr = dateStr?.includes("T") ? dateStr.split("T")[0] : (dateStr || "");
+  const [ty, tm, td] = cleanTargetStr.split("-").map(Number);
+  const targetDay = new Date(ty, tm - 1, td);
+
+  const diffMs = targetDay.getTime() - todayKolkata.getTime();
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
-  if (diffDays > 7) {
-    // Green: More than 7 days remaining
-    return {
-      color: "green" as const,
-      badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100/70",
-      iconClass: "text-emerald-600",
-      text: formatDate(dateStr),
-      title: `Target Date: ${formatDate(dateStr)} (${diffDays} days remaining - On Track)`,
-      indicatorLabel: null,
-    };
-  } else if (diffDays >= 4) {
-    // Orange: 4–7 days remaining
-    return {
-      color: "orange" as const,
-      badgeClass: "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100/70",
-      iconClass: "text-amber-600",
-      text: formatDate(dateStr),
-      title: `Target Date: ${formatDate(dateStr)} (${diffDays} days remaining - Attention needed)`,
-      indicatorLabel: "Due Soon",
-    };
-  } else if (diffDays >= 0) {
-    // Red: 0–3 days remaining (including Today)
-    const label = diffDays === 0 ? "Due Today" : "Due Soon";
-    return {
-      color: "red" as const,
-      badgeClass: "bg-rose-50 text-rose-700 border border-rose-200 font-bold hover:bg-rose-100/70",
-      iconClass: "text-rose-600",
-      text: formatDate(dateStr),
-      title: diffDays === 0
-        ? `Target Date is TODAY (${formatDate(dateStr)}) - Deliverable due!`
-        : `Target Date: ${formatDate(dateStr)} (${diffDays} day${diffDays > 1 ? "s" : ""} left - Urgent!)`,
-      indicatorLabel: label,
-    };
-  } else {
-    // Red: Target date has passed (Overdue)
+  if (diffDays < 0) {
+    // 1. Overdue: Red
     const overdue = Math.abs(diffDays);
     return {
       color: "red" as const,
@@ -152,6 +128,46 @@ export function getTargetDateMeta(dateStr?: string | null, isCompleted?: boolean
       text: formatDate(dateStr),
       title: `Target Date was ${formatDate(dateStr)} (${overdue} day${overdue > 1 ? "s" : ""} overdue)`,
       indicatorLabel: "Overdue",
+    };
+  } else if (diffDays === 0) {
+    // 2. Due today: Red
+    return {
+      color: "red" as const,
+      badgeClass: "bg-rose-50 text-rose-700 border border-rose-200 font-bold hover:bg-rose-100/70",
+      iconClass: "text-rose-600",
+      text: formatDate(dateStr),
+      title: `Target Date is TODAY (${formatDate(dateStr)}) - Deliverable due!`,
+      indicatorLabel: "Due Today",
+    };
+  } else if (diffDays <= 3) {
+    // 3. Due within 1–3 days: Orange/Yellow
+    return {
+      color: "orange" as const,
+      badgeClass: "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100/70",
+      iconClass: "text-amber-600",
+      text: formatDate(dateStr),
+      title: `Target Date: ${formatDate(dateStr)} (${diffDays} day${diffDays > 1 ? "s" : ""} left - Attention needed)`,
+      indicatorLabel: "Due Soon",
+    };
+  } else if (diffDays <= 7) {
+    // 4. Due within 4–7 days: Green
+    return {
+      color: "green" as const,
+      badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100/70",
+      iconClass: "text-emerald-600",
+      text: formatDate(dateStr),
+      title: `Target Date: ${formatDate(dateStr)} (${diffDays} days remaining - On Track)`,
+      indicatorLabel: null,
+    };
+  } else {
+    // > 7 days remaining: Green
+    return {
+      color: "green" as const,
+      badgeClass: "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100/70",
+      iconClass: "text-emerald-600",
+      text: formatDate(dateStr),
+      title: `Target Date: ${formatDate(dateStr)} (${diffDays} days remaining)`,
+      indicatorLabel: null,
     };
   }
 }

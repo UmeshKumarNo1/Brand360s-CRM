@@ -39,12 +39,20 @@ export function NotificationBellDropdown({ triggerClassName }: NotificationBellD
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  const [counts, setCounts] = useState<{ all: number; alert: number; update: number; unread: number }>({
+    all: 0,
+    alert: 0,
+    update: 0,
+    unread: 0,
+  });
+
   const loadNotifications = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await fetchNotificationsAction(activeTab, 20);
       setNotifications(res.notifications || []);
       setUnreadCount(res.unreadCount || 0);
+      if (res.counts) setCounts(res.counts);
     } catch {
       // Fallback
     } finally {
@@ -212,30 +220,45 @@ export function NotificationBellDropdown({ triggerClassName }: NotificationBellD
           <div className="flex border-b border-slate-100 bg-slate-50/40 px-3 pt-1.5 gap-1 text-[11px] font-semibold">
             <button
               onClick={() => setActiveTab("all")}
-              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${activeTab === "all"
+              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === "all"
                   ? "border-[#0481A2] text-[#0481A2]"
                   : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
             >
-              All
+              <span>All</span>
+              {counts.all > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${activeTab === "all" ? "bg-cyan-50 text-[#0481A2]" : "bg-slate-200 text-slate-600"}`}>
+                  {counts.all}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setActiveTab("alert")}
-              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${activeTab === "alert"
+              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === "alert"
                   ? "border-red-500 text-red-600"
                   : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
             >
-              Alerts
+              <span>Alerts</span>
+              {counts.alert > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${activeTab === "alert" ? "bg-red-50 text-red-600" : "bg-slate-200 text-slate-600"}`}>
+                  {counts.alert}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setActiveTab("update")}
-              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer ${activeTab === "update"
+              className={`px-3 py-1.5 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${activeTab === "update"
                   ? "border-[#243E76] text-[#243E76]"
                   : "border-transparent text-slate-500 hover:text-slate-800"
                 }`}
             >
-              Updates
+              <span>Updates</span>
+              {counts.update > 0 && (
+                <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${activeTab === "update" ? "bg-blue-50 text-[#243E76]" : "bg-slate-200 text-slate-600"}`}>
+                  {counts.update}
+                </span>
+              )}
             </button>
           </div>
 
@@ -275,9 +298,30 @@ export function NotificationBellDropdown({ triggerClassName }: NotificationBellD
                   {/* Body */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1">
-                      <span className="font-semibold text-slate-900 text-xs truncate">
-                        {notif.title}
-                      </span>
+                      <div className="flex items-center gap-1.5 min-w-0 truncate">
+                        {notif.badge_label && (
+                          <span
+                            className={`px-1.5 py-0.2 rounded text-[9px] font-bold shrink-0 uppercase tracking-wider ${
+                              notif.badge_color === "red"
+                                ? "bg-red-50 text-red-600 border border-red-200"
+                                : notif.badge_color === "orange"
+                                ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                : notif.badge_color === "green"
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                : notif.badge_color === "purple"
+                                ? "bg-purple-50 text-purple-700 border border-purple-200"
+                                : notif.badge_color === "blue"
+                                ? "bg-sky-50 text-[#0481A2] border border-sky-200"
+                                : "bg-slate-100 text-slate-700 border border-slate-200"
+                            }`}
+                          >
+                            {notif.badge_label}
+                          </span>
+                        )}
+                        <span className="font-semibold text-slate-900 text-xs truncate">
+                          {notif.title}
+                        </span>
+                      </div>
                       <span className="text-[10px] text-slate-400 shrink-0 font-mono">
                         {formatTimeAgo(notif.created_at)}
                       </span>

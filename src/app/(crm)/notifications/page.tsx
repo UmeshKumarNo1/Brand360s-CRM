@@ -33,6 +33,12 @@ export default function NotificationsPage() {
   const { success, error: toastError } = useToast();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [counts, setCounts] = useState<{ all: number; alert: number; update: number; unread: number }>({
+    all: 0,
+    alert: 0,
+    update: 0,
+    unread: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   // Filters
@@ -46,6 +52,7 @@ export default function NotificationsPage() {
       const res = await fetchNotificationsAction(activeTab, 100);
       setNotifications(res.notifications || []);
       setUnreadCount(res.unreadCount || 0);
+      if (res.counts) setCounts(res.counts);
     } catch {
       toastError("Error", "Could not load notifications.");
     } finally {
@@ -198,27 +205,42 @@ export default function NotificationsPage() {
         <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
           <button
             onClick={() => setActiveTab("all")}
-            className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
               activeTab === "all" ? "bg-white text-[#243E76] shadow-2xs" : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            All
+            <span>All</span>
+            {counts.all > 0 && (
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeTab === "all" ? "bg-slate-100 text-[#243E76]" : "bg-slate-200 text-slate-600"}`}>
+                {counts.all}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("alert")}
-            className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
               activeTab === "alert" ? "bg-white text-red-600 shadow-2xs" : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Alerts
+            <span>Alerts</span>
+            {counts.alert > 0 && (
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeTab === "alert" ? "bg-red-50 text-red-600" : "bg-slate-200 text-slate-600"}`}>
+                {counts.alert}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveTab("update")}
-            className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
               activeTab === "update" ? "bg-white text-[#0481A2] shadow-2xs" : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            Updates
+            <span>Updates</span>
+            {counts.update > 0 && (
+              <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${activeTab === "update" ? "bg-sky-50 text-[#0481A2]" : "bg-slate-200 text-slate-600"}`}>
+                {counts.update}
+              </span>
+            )}
           </button>
         </div>
 
@@ -285,7 +307,26 @@ export default function NotificationsPage() {
               {/* Notification Content */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {notif.badge_label && (
+                      <span
+                        className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                          notif.badge_color === "red"
+                            ? "bg-red-50 text-red-600 border border-red-200"
+                            : notif.badge_color === "orange"
+                            ? "bg-amber-50 text-amber-700 border border-amber-200"
+                            : notif.badge_color === "green"
+                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            : notif.badge_color === "purple"
+                            ? "bg-purple-50 text-purple-700 border border-purple-200"
+                            : notif.badge_color === "blue"
+                            ? "bg-sky-50 text-[#0481A2] border border-sky-200"
+                            : "bg-slate-100 text-slate-700 border border-slate-200"
+                        }`}
+                      >
+                        {notif.badge_label}
+                      </span>
+                    )}
                     <span className="font-bold text-slate-900 text-sm">
                       {notif.title}
                     </span>

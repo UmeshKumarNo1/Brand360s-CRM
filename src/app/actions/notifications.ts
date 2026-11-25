@@ -1,12 +1,20 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseAdmin } from "@supabase/supabase-js";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { revalidatePath } from "next/cache";
-import { NotificationItem, NotificationType } from "@/lib/notifications/notification-types";
+import { NotificationItem, NotificationType, NotificationCounts } from "@/lib/notifications/notification-types";
 
 // In-memory set for notifications marked as read during the session
 const sessionReadNotifications = new Set<string>();
+
+function getAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) return null;
+  return createSupabaseAdmin(url, key, { auth: { persistSession: false } });
+}
 
 /**
  * Fetch current user notifications with category filter & limit.
@@ -16,16 +24,16 @@ const sessionReadNotifications = new Set<string>();
 export async function fetchNotificationsAction(
   category: "all" | "alert" | "update" = "all",
   limit: number = 30
-): Promise<{ notifications: NotificationItem[]; unreadCount: number }> {
+): Promise<{ notifications: NotificationItem[]; unreadCount: number; counts: NotificationCounts }> {
   if (!isSupabaseConfigured()) {
-    return { notifications: [], unreadCount: 0 };
+    return { notifications: [], unreadCount: 0, counts: { all: 0, alert: 0, update: 0, unread: 0 } };
   }
 
   try {
     const supabase = await createClient();
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { notifications: [], unreadCount: 0 };
+    if (!user) return { notifications: [], unreadCount: 0, counts: { all: 0, alert: 0, update: 0, unread: 0 } };
 
     // Get user profile to check role
     const { data: profile } = await supabase
@@ -80,7 +88,6 @@ export async function fetchNotificationsAction(
     if (services && services.length > 0) {
       for (const s of services) {
         const client = s.client as any;
-        // Strict role check in case OR query on joined table returned broader results
         if (!isAdmin && s.assigned_employee_id !== currentUserId && client?.assigned_salesperson !== currentUserId) {
           continue;
         }
@@ -109,24 +116,29 @@ export async function fetchNotificationsAction(
         let title = "";
         let message = "";
         let notifType: NotificationType = "service_deadline_upcoming";
+        let badgeColor: "red" | "orange" | "yellow" | "green" = "green";
 
         if (diffDays < 0) {
           const overdueDays = Math.abs(diffDays);
           title = `Overdue Service: ${serviceName}`;
           message = `${clientName} • ${serviceName} is ${overdueDays} day${overdueDays > 1 ? "s" : ""} past target date (${formattedTarget}).`;
           notifType = "service_deadline_overdue";
+          badgeColor = "red";
         } else if (diffDays === 0) {
           title = `Service Deadline Today: ${serviceName}`;
           message = `${clientName} • ${serviceName} target date is today (${formattedTarget}).`;
           notifType = "service_deadline_today";
+          badgeColor = "red";
         } else if (diffDays <= 3) {
           title = `Upcoming Deadline (in ${diffDays}d): ${serviceName}`;
           message = `${clientName} • Target date is approaching on ${formattedTarget} (${diffDays} day${diffDays > 1 ? "s" : ""} left).`;
           notifType = "service_deadline_upcoming";
+          badgeColor = "orange";
         } else if (diffDays <= 7) {
           title = `Upcoming Deadline: ${serviceName}`;
           message = `${clientName} • Target delivery date is scheduled for ${formattedTarget} (${diffDays} days remaining).`;
           notifType = "service_deadline_upcoming";
+          badgeColor = "green";
         } else {
           continue;
         }
@@ -141,6 +153,8 @@ export async function fetchNotificationsAction(
           message,
           type: notifType,
           category: "alert",
+          badge_label: "Service",
+          badge_color: badgeColor,
           entity_type: "client_services",
           entity_id: s.id,
           action_url: `/clients/${s.client_id}?tab=services&serviceId=${s.id}`,
@@ -203,20 +217,24 @@ export async function fetchNotificationsAction(
         let title = "";
         let message = "";
         let notifType: NotificationType = "followup_due";
+        let badgeColor: "red" | "orange" = "orange";
 
         if (diffDays < 0) {
           const overdueDays = Math.abs(diffDays);
           title = `Overdue Follow-up: ${f.title}`;
           message = `${priorityLabel}${clientName} • Client follow-up overdue by ${overdueDays}d (${formattedDueDate}). Please complete the pending follow-up.`;
           notifType = "followup_overdue";
+          badgeColor = "red";
         } else if (diffDays === 0) {
           title = `Follow-up Due Today: ${f.title}`;
           message = `${priorityLabel}${clientName} • ${f.follow_up_type || "Follow-up"} is scheduled for today (${formattedDueDate}).`;
           notifType = "followup_due";
+          badgeColor = "red";
         } else {
           title = `Upcoming Follow-up: ${f.title}`;
           message = `${priorityLabel}${clientName} • Reminder due on ${formattedDueDate} (${diffDays} days left).`;
           notifType = "followup_due";
+          badgeColor = "orange";
         }
 
         const notifId = `followup-${f.id}-${dueDateStr}`;
@@ -229,6 +247,8 @@ export async function fetchNotificationsAction(
           message,
           type: notifType,
           category: "alert",
+          badge_label: "Follow-up",
+          badge_color: badgeColor,
           entity_type: "follow_ups",
           entity_id: f.id,
           action_url: "/follow-ups",
@@ -296,20 +316,24 @@ export async function fetchNotificationsAction(
         let title = "";
         let message = "";
         let notifType: NotificationType = "payment_due";
+        let badgeColor: "red" | "orange" = "orange";
 
         if (diffDays < 0) {
           const overdueDays = Math.abs(diffDays);
           title = `Overdue Payment: ${inv.invoice_number}`;
           message = `${clientName} • Invoice is ${overdueDays} day${overdueDays > 1 ? "s" : ""} overdue with balance ${balanceFmt}.`;
           notifType = "payment_overdue";
+          badgeColor = "red";
         } else if (diffDays === 0) {
           title = `Payment Due Today: ${inv.invoice_number}`;
           message = `${clientName} • Payment of ${balanceFmt} is due today (${formattedDueDate}).`;
           notifType = "payment_due";
+          badgeColor = "red";
         } else {
           title = `Payment Due Soon: ${inv.invoice_number}`;
           message = `${clientName} • Outstanding balance of ${balanceFmt} due on ${formattedDueDate} (${diffDays} days left).`;
           notifType = "payment_due";
+          badgeColor = "orange";
         }
 
         const notifId = `inv-due-${inv.id}-${dueDateStr}`;
@@ -322,6 +346,8 @@ export async function fetchNotificationsAction(
           message,
           type: notifType,
           category: "alert",
+          badge_label: "Payment",
+          badge_color: badgeColor,
           entity_type: "invoices",
           entity_id: inv.id,
           action_url: "/payments",
@@ -389,16 +415,19 @@ export async function fetchNotificationsAction(
         let title = "";
         let message = "";
         let notifType: NotificationType = "renewal_due";
+        let badgeColor: "purple" | "red" = "purple";
 
         if (diffDays < 0) {
           const overdueDays = Math.abs(diffDays);
           title = `Overdue Renewal: ${serviceName}`;
           message = `${clientName} • Renewal was due ${overdueDays} day${overdueDays > 1 ? "s" : ""} ago (${formattedRenewalDate}).`;
           notifType = "renewal_overdue";
+          badgeColor = "red";
         } else {
           title = `Renewal Approaching: ${serviceName}`;
           message = `${clientName} • Service renewal due on ${formattedRenewalDate} (${diffDays} days left).`;
           notifType = "renewal_due";
+          badgeColor = "purple";
         }
 
         const notifId = `ren-due-${ren.id}-${renewalDateStr}`;
@@ -411,6 +440,8 @@ export async function fetchNotificationsAction(
           message,
           type: notifType,
           category: "alert",
+          badge_label: "Renewal",
+          badge_color: badgeColor,
           entity_type: "renewals",
           entity_id: ren.id,
           action_url: "/renewals",
@@ -421,10 +452,11 @@ export async function fetchNotificationsAction(
       }
     }
 
-    // 5. Fetch Real-time CRM Activity Updates from audit_logs
+    // 5. Fetch Real-time CRM Activity Updates from audit_logs using elevated reader
     const dynamicUpdates: NotificationItem[] = [];
     try {
-      const { data: recentAudits } = await supabase
+      const adminClient = getAdminClient() || supabase;
+      const { data: recentAudits } = await adminClient
         .from("audit_logs")
         .select(`
           id,
@@ -437,7 +469,7 @@ export async function fetchNotificationsAction(
           created_at
         `)
         .order("created_at", { ascending: false })
-        .limit(40);
+        .limit(50);
 
       if (recentAudits && recentAudits.length > 0) {
         for (const log of recentAudits) {
@@ -448,6 +480,8 @@ export async function fetchNotificationsAction(
           let message = "";
           let notifType: NotificationType = "system_alert";
           let actionUrl: string = "/clients";
+          let badgeLabel = "Activity";
+          let badgeColor: "blue" | "green" | "purple" | "slate" = "blue";
 
           const entityName = log.entity_name || "Record";
           const actionWord = log.action === "CREATE" ? "created" : log.action === "UPDATE" ? "updated" : log.action === "DELETE" ? "removed" : log.action.toLowerCase();
@@ -455,38 +489,58 @@ export async function fetchNotificationsAction(
           switch (log.entity_type) {
             case "client":
               notifType = log.action === "CREATE" ? "client_created" : "client_updated";
-              title = log.action === "CREATE" ? `New Client Created: ${entityName}` : `Client Updated: ${entityName}`;
-              message = `Client record ${entityName} was ${actionWord}.`;
+              title = log.action === "CREATE" ? `New Client: ${entityName}` : `Client Updated: ${entityName}`;
+              message = `Client account ${entityName} was successfully ${actionWord}.`;
               actionUrl = log.entity_id ? `/clients/${log.entity_id}` : "/clients";
+              badgeLabel = "Client";
+              badgeColor = "green";
               break;
             case "client_service":
-              notifType = "service_updated";
-              title = `Service Activity: ${entityName}`;
+              notifType = log.action === "CREATE" ? "service_assigned" : "service_updated";
+              title = log.action === "CREATE" ? `Service Assigned: ${entityName}` : `Service Updated: ${entityName}`;
               message = `Service details for ${entityName} were ${actionWord}.`;
               actionUrl = "/clients";
+              badgeLabel = "Service";
+              badgeColor = "blue";
               break;
             case "payment":
               notifType = "payment_received";
               title = `Payment Recorded: ${entityName}`;
-              message = `Payment transaction for ${entityName} was ${actionWord}.`;
+              message = `Payment transaction for ${entityName} was recorded.`;
               actionUrl = "/payments";
+              badgeLabel = "Payment";
+              badgeColor = "green";
               break;
             case "invoice":
               notifType = log.action === "CREATE" ? "invoice_created" : "invoice_updated";
               title = `Invoice ${log.action === "CREATE" ? "Generated" : "Updated"}: ${entityName}`;
               message = `Invoice ${entityName} was ${actionWord}.`;
               actionUrl = "/payments";
+              badgeLabel = "Invoice";
+              badgeColor = "blue";
               break;
             case "follow_up":
-              notifType = log.action === "CREATE" ? "followup_created" : "followup_due";
+              notifType = log.action === "CREATE" ? "followup_created" : "followup_completed";
               title = `Follow-up ${log.action === "CREATE" ? "Added" : "Updated"}: ${entityName}`;
               message = `Follow-up ${entityName} was ${actionWord}.`;
               actionUrl = "/follow-ups";
+              badgeLabel = "Follow-up";
+              badgeColor = "slate";
+              break;
+            case "renewal":
+              notifType = "renewal_completed";
+              title = `Renewal ${actionWord}: ${entityName}`;
+              message = `Renewal cycle for ${entityName} was ${actionWord}.`;
+              actionUrl = "/renewals";
+              badgeLabel = "Renewal";
+              badgeColor = "purple";
               break;
             default:
               title = `${log.entity_type || "CRM"} ${actionWord}: ${entityName}`;
-              message = `Activity recorded on ${entityName}.`;
+              message = `Activity logged on ${entityName}.`;
               actionUrl = "/clients";
+              badgeLabel = "Activity";
+              badgeColor = "slate";
               break;
           }
 
@@ -497,6 +551,8 @@ export async function fetchNotificationsAction(
             message,
             type: notifType,
             category: "update",
+            badge_label: badgeLabel,
+            badge_color: badgeColor,
             entity_type: log.entity_type,
             entity_id: log.entity_id,
             action_url: actionUrl,
@@ -507,7 +563,7 @@ export async function fetchNotificationsAction(
         }
       }
     } catch {
-      // Audit log read error handled gracefully
+      // Graceful fallback
     }
 
     // 6. Fetch from persisted notifications table (if table exists)
@@ -521,7 +577,7 @@ export async function fetchNotificationsAction(
         .limit(limit);
       if (dbNotifs) persistedNotifs = dbNotifs as NotificationItem[];
     } catch {
-      // Table doesn't exist or error, gracefully ignore
+      // Gracefully ignore
     }
 
     // 7. Merge, deduplicate by ID, and filter by category
@@ -533,13 +589,22 @@ export async function fetchNotificationsAction(
       }
     });
 
-    let result = Array.from(uniqueMap.values());
+    const allItems = Array.from(uniqueMap.values());
 
+    // Calculate actual category counts before filtering
+    const counts: NotificationCounts = {
+      all: allItems.length,
+      alert: allItems.filter((n) => n.category === "alert").length,
+      update: allItems.filter((n) => n.category === "update").length,
+      unread: allItems.filter((n) => !n.is_read).length,
+    };
+
+    let result = allItems;
     if (category !== "all") {
       result = result.filter((n) => n.category === category);
     }
 
-    // Sort by unread first, then urgency/date
+    // Sort by unread first, then date
     result.sort((a, b) => {
       if (!a.is_read && b.is_read) return -1;
       if (a.is_read && !b.is_read) return 1;
@@ -551,10 +616,11 @@ export async function fetchNotificationsAction(
     return {
       notifications: result.slice(0, limit),
       unreadCount,
+      counts,
     };
   } catch (err) {
     console.error("Error in fetchNotificationsAction:", err);
-    return { notifications: [], unreadCount: 0 };
+    return { notifications: [], unreadCount: 0, counts: { all: 0, alert: 0, update: 0, unread: 0 } };
   }
 }
 

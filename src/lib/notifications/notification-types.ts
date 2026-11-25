@@ -37,12 +37,21 @@ export interface NotificationItem {
   message: string;
   type: NotificationType;
   category: NotificationCategory;
+  badge_label?: string | null;
+  badge_color?: "red" | "orange" | "yellow" | "green" | "blue" | "purple" | "slate";
   entity_type?: string | null;
   entity_id?: string | null;
   action_url?: string | null;
   is_read: boolean;
   read_at?: string | null;
   created_at: string;
+}
+
+export interface NotificationCounts {
+  all: number;
+  alert: number;
+  update: number;
+  unread: number;
 }
 
 export interface CreateNotificationParams {

@@ -207,14 +207,14 @@ export async function fetchNotificationsAction(
         if (diffDays < 0) {
           const overdueDays = Math.abs(diffDays);
           title = `Overdue Follow-up: ${f.title}`;
-          message = `${priorityLabel}${clientName} • ${f.follow_up_type || "Follow-up"} was due ${overdueDays} day${overdueDays > 1 ? "s" : ""} ago (${formattedDueDate}).`;
+          message = `${priorityLabel}${clientName} • Client follow-up overdue by ${overdueDays}d (${formattedDueDate}). Please complete the pending follow-up.`;
           notifType = "followup_overdue";
         } else if (diffDays === 0) {
           title = `Follow-up Due Today: ${f.title}`;
           message = `${priorityLabel}${clientName} • ${f.follow_up_type || "Follow-up"} is scheduled for today (${formattedDueDate}).`;
           notifType = "followup_due";
         } else {
-          title = `Upcoming Follow-up (in ${diffDays}d): ${f.title}`;
+          title = `Upcoming Follow-up: ${f.title}`;
           message = `${priorityLabel}${clientName} • Reminder due on ${formattedDueDate} (${diffDays} days left).`;
           notifType = "followup_due";
         }
@@ -239,7 +239,278 @@ export async function fetchNotificationsAction(
       }
     }
 
-    // 3. Fetch from persisted notifications table (if table exists)
+    // 3. Fetch Invoices Alerts (Overdue or Due within next 7 days with outstanding balance)
+    let invoicesQuery = supabase
+      .from("invoices")
+      .select(`
+        id,
+        invoice_number,
+        client_id,
+        due_date,
+        status,
+        balance_due,
+        total_amount,
+        created_at,
+        client:clients!client_id (
+          id,
+          company_name,
+          assigned_salesperson
+        )
+      `)
+      .gt("balance_due", 0)
+      .not("due_date", "is", null)
+      .lte("due_date", sevenDaysAheadStr);
+
+    if (!isAdmin) {
+      invoicesQuery = invoicesQuery.eq("client.assigned_salesperson", currentUserId);
+    }
+
+    const { data: invoices } = await invoicesQuery;
+
+    if (invoices && invoices.length > 0) {
+      for (const inv of invoices) {
+        const client = inv.client as any;
+        if (!isAdmin && client?.assigned_salesperson !== currentUserId) {
+          continue;
+        }
+
+        const dueDateStr = inv.due_date?.includes("T") ? inv.due_date.split("T")[0] : inv.due_date;
+        if (!dueDateStr) continue;
+
+        const [iy, im, id] = dueDateStr.split("-").map(Number);
+        const dueDateObj = new Date(iy, im - 1, id);
+        const diffDays = Math.round((dueDateObj.getTime() - todayKolkata.getTime()) / (1000 * 60 * 60 * 24));
+
+        let formattedDueDate = dueDateStr;
+        try {
+          formattedDueDate = dueDateObj.toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          });
+        } catch {}
+
+        const clientName = client?.company_name || "Client";
+        const balanceFmt = `₹${Number(inv.balance_due).toLocaleString("en-IN")}`;
+
+        let title = "";
+        let message = "";
+        let notifType: NotificationType = "payment_due";
+
+        if (diffDays < 0) {
+          const overdueDays = Math.abs(diffDays);
+          title = `Overdue Payment: ${inv.invoice_number}`;
+          message = `${clientName} • Invoice is ${overdueDays} day${overdueDays > 1 ? "s" : ""} overdue with balance ${balanceFmt}.`;
+          notifType = "payment_overdue";
+        } else if (diffDays === 0) {
+          title = `Payment Due Today: ${inv.invoice_number}`;
+          message = `${clientName} • Payment of ${balanceFmt} is due today (${formattedDueDate}).`;
+          notifType = "payment_due";
+        } else {
+          title = `Payment Due Soon: ${inv.invoice_number}`;
+          message = `${clientName} • Outstanding balance of ${balanceFmt} due on ${formattedDueDate} (${diffDays} days left).`;
+          notifType = "payment_due";
+        }
+
+        const notifId = `inv-due-${inv.id}-${dueDateStr}`;
+        const isRead = sessionReadNotifications.has(notifId);
+
+        dynamicAlerts.push({
+          id: notifId,
+          recipient_id: currentUserId,
+          title,
+          message,
+          type: notifType,
+          category: "alert",
+          entity_type: "invoices",
+          entity_id: inv.id,
+          action_url: "/payments",
+          is_read: isRead,
+          read_at: isRead ? new Date().toISOString() : null,
+          created_at: inv.created_at || new Date().toISOString(),
+        });
+      }
+    }
+
+    // 4. Fetch Renewals Alerts (Renewal reminder due or overdue)
+    let renewalsQuery = supabase
+      .from("renewals")
+      .select(`
+        id,
+        client_id,
+        service_name_snapshot,
+        renewal_date,
+        reminder_date,
+        renewal_status,
+        renewal_amount,
+        created_at,
+        client:clients!client_id (
+          id,
+          company_name,
+          assigned_salesperson
+        )
+      `)
+      .not("renewal_status", "in", '("Renewed","Cancelled")')
+      .not("renewal_date", "is", null)
+      .lte("renewal_date", sevenDaysAheadStr);
+
+    if (!isAdmin) {
+      renewalsQuery = renewalsQuery.eq("client.assigned_salesperson", currentUserId);
+    }
+
+    const { data: renewals } = await renewalsQuery;
+
+    if (renewals && renewals.length > 0) {
+      for (const ren of renewals) {
+        const client = ren.client as any;
+        if (!isAdmin && client?.assigned_salesperson !== currentUserId) {
+          continue;
+        }
+
+        const renewalDateStr = ren.renewal_date?.includes("T") ? ren.renewal_date.split("T")[0] : ren.renewal_date;
+        if (!renewalDateStr) continue;
+
+        const [ry, rm, rd] = renewalDateStr.split("-").map(Number);
+        const renewalDateObj = new Date(ry, rm - 1, rd);
+        const diffDays = Math.round((renewalDateObj.getTime() - todayKolkata.getTime()) / (1000 * 60 * 60 * 24));
+
+        let formattedRenewalDate = renewalDateStr;
+        try {
+          formattedRenewalDate = renewalDateObj.toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          });
+        } catch {}
+
+        const clientName = client?.company_name || "Client";
+        const serviceName = ren.service_name_snapshot || "Service";
+
+        let title = "";
+        let message = "";
+        let notifType: NotificationType = "renewal_due";
+
+        if (diffDays < 0) {
+          const overdueDays = Math.abs(diffDays);
+          title = `Overdue Renewal: ${serviceName}`;
+          message = `${clientName} • Renewal was due ${overdueDays} day${overdueDays > 1 ? "s" : ""} ago (${formattedRenewalDate}).`;
+          notifType = "renewal_overdue";
+        } else {
+          title = `Renewal Approaching: ${serviceName}`;
+          message = `${clientName} • Service renewal due on ${formattedRenewalDate} (${diffDays} days left).`;
+          notifType = "renewal_due";
+        }
+
+        const notifId = `ren-due-${ren.id}-${renewalDateStr}`;
+        const isRead = sessionReadNotifications.has(notifId);
+
+        dynamicAlerts.push({
+          id: notifId,
+          recipient_id: currentUserId,
+          title,
+          message,
+          type: notifType,
+          category: "alert",
+          entity_type: "renewals",
+          entity_id: ren.id,
+          action_url: "/renewals",
+          is_read: isRead,
+          read_at: isRead ? new Date().toISOString() : null,
+          created_at: ren.created_at || new Date().toISOString(),
+        });
+      }
+    }
+
+    // 5. Fetch Real-time CRM Activity Updates from audit_logs
+    const dynamicUpdates: NotificationItem[] = [];
+    try {
+      const { data: recentAudits } = await supabase
+        .from("audit_logs")
+        .select(`
+          id,
+          actor_id,
+          action,
+          entity_type,
+          entity_id,
+          entity_name,
+          details,
+          created_at
+        `)
+        .order("created_at", { ascending: false })
+        .limit(40);
+
+      if (recentAudits && recentAudits.length > 0) {
+        for (const log of recentAudits) {
+          const notifId = `audit-${log.id}`;
+          const isRead = sessionReadNotifications.has(notifId);
+
+          let title = "";
+          let message = "";
+          let notifType: NotificationType = "system_alert";
+          let actionUrl: string = "/clients";
+
+          const entityName = log.entity_name || "Record";
+          const actionWord = log.action === "CREATE" ? "created" : log.action === "UPDATE" ? "updated" : log.action === "DELETE" ? "removed" : log.action.toLowerCase();
+
+          switch (log.entity_type) {
+            case "client":
+              notifType = log.action === "CREATE" ? "client_created" : "client_updated";
+              title = log.action === "CREATE" ? `New Client Created: ${entityName}` : `Client Updated: ${entityName}`;
+              message = `Client record ${entityName} was ${actionWord}.`;
+              actionUrl = log.entity_id ? `/clients/${log.entity_id}` : "/clients";
+              break;
+            case "client_service":
+              notifType = "service_updated";
+              title = `Service Activity: ${entityName}`;
+              message = `Service details for ${entityName} were ${actionWord}.`;
+              actionUrl = "/clients";
+              break;
+            case "payment":
+              notifType = "payment_received";
+              title = `Payment Recorded: ${entityName}`;
+              message = `Payment transaction for ${entityName} was ${actionWord}.`;
+              actionUrl = "/payments";
+              break;
+            case "invoice":
+              notifType = log.action === "CREATE" ? "invoice_created" : "invoice_updated";
+              title = `Invoice ${log.action === "CREATE" ? "Generated" : "Updated"}: ${entityName}`;
+              message = `Invoice ${entityName} was ${actionWord}.`;
+              actionUrl = "/payments";
+              break;
+            case "follow_up":
+              notifType = log.action === "CREATE" ? "followup_created" : "followup_due";
+              title = `Follow-up ${log.action === "CREATE" ? "Added" : "Updated"}: ${entityName}`;
+              message = `Follow-up ${entityName} was ${actionWord}.`;
+              actionUrl = "/follow-ups";
+              break;
+            default:
+              title = `${log.entity_type || "CRM"} ${actionWord}: ${entityName}`;
+              message = `Activity recorded on ${entityName}.`;
+              actionUrl = "/clients";
+              break;
+          }
+
+          dynamicUpdates.push({
+            id: notifId,
+            recipient_id: currentUserId,
+            title,
+            message,
+            type: notifType,
+            category: "update",
+            entity_type: log.entity_type,
+            entity_id: log.entity_id,
+            action_url: actionUrl,
+            is_read: isRead,
+            read_at: isRead ? new Date().toISOString() : null,
+            created_at: log.created_at || new Date().toISOString(),
+          });
+        }
+      }
+    } catch {
+      // Audit log read error handled gracefully
+    }
+
+    // 6. Fetch from persisted notifications table (if table exists)
     let persistedNotifs: NotificationItem[] = [];
     try {
       const { data: dbNotifs } = await supabase
@@ -253,8 +524,8 @@ export async function fetchNotificationsAction(
       // Table doesn't exist or error, gracefully ignore
     }
 
-    // 4. Merge, deduplicate by ID, and filter by category
-    const combined = [...dynamicAlerts, ...persistedNotifs];
+    // 7. Merge, deduplicate by ID, and filter by category
+    const combined = [...dynamicAlerts, ...dynamicUpdates, ...persistedNotifs];
     const uniqueMap = new Map<string, NotificationItem>();
     combined.forEach((n) => {
       if (!uniqueMap.has(n.id)) {
@@ -296,7 +567,14 @@ export async function markNotificationAsReadAction(notificationId: string): Prom
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (user && !notificationId.startsWith("svc-deadline-") && !notificationId.startsWith("followup-")) {
+    const isDynamic =
+      notificationId.startsWith("svc-deadline-") ||
+      notificationId.startsWith("followup-") ||
+      notificationId.startsWith("inv-due-") ||
+      notificationId.startsWith("ren-due-") ||
+      notificationId.startsWith("audit-");
+
+    if (user && !isDynamic) {
       await supabase
         .from("notifications")
         .update({ is_read: true, read_at: new Date().toISOString() })

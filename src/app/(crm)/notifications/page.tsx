@@ -107,25 +107,37 @@ export default function NotificationsPage() {
       case "payment_received":
       case "installment_due":
       case "installment_overdue":
+      case "payment_due":
+      case "payment_overdue":
         return <CreditCard size={16} className="text-[#0481A2]" />;
       case "invoice_created":
+      case "invoice_updated":
       case "invoice_overdue":
         return <FileText size={16} className="text-[#243E76]" />;
       case "renewal_due":
       case "renewal_overdue":
       case "renewal_completed":
+      case "renewal_generated":
+      case "renewal_confirmed":
         return <RefreshCw size={16} className="text-teal-600" />;
       case "followup_due":
       case "followup_overdue":
+      case "followup_created":
+      case "followup_completed":
         return <Calendar size={16} className="text-blue-600" />;
       case "service_deadline_overdue":
         return <AlertTriangle size={16} className="text-rose-600" />;
       case "service_deadline_today":
         return <AlertTriangle size={16} className="text-rose-600" />;
       case "service_deadline_upcoming":
+      case "service_assigned":
+      case "service_updated":
+      case "service_completed":
         return <Calendar size={16} className="text-amber-600" />;
       case "client_created":
       case "client_updated":
+      case "client_reassigned":
+      case "document_uploaded":
         return <UserPlus size={16} className="text-emerald-600" />;
       case "system_alert":
       default:

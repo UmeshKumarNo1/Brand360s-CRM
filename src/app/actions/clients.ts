@@ -455,7 +455,9 @@ export async function fetchClientsAction() {
     });
 
     // Batch fetch issued invoices, payments, and allocations
-    const [invoicesRes, paymentsRes, allocsRes] = await Promise.all([
+    // If user client returns empty due to restrictive RLS on non-owned client invoices/payments,
+    // fallback to server admin client so service assignees can see accurate client-level financial totals.
+    let [invoicesRes, paymentsRes, allocsRes] = await Promise.all([
       supabase
         .from("invoices")
         .select("id, client_id, subtotal, tax_amount, total_amount, amount_paid, balance_due, status, items:invoice_items(id, unit_price, quantity, tax_amount, total, client_service_id)")
@@ -471,6 +473,39 @@ export async function fetchClientsAction() {
             .select("id, invoice_id, payment_id, allocated_amount, client_service_id")
         : Promise.resolve({ data: [] }),
     ]);
+
+    // Check if any client visible to this user has services, but 0 invoices/payments returned
+    // This happens when an employee is only an assigned service handler, but invoices/payments are owned by another salesperson
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    let adminClient: any = null;
+    if (serviceKey && supabaseUrl && !serviceKey.includes("placeholder")) {
+      adminClient = createSupabaseClient(supabaseUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+    }
+
+    if (adminClient && allClientIds.length > 0 && (!invoicesRes.data || invoicesRes.data.length === 0)) {
+      const [adminInvs, adminPmts, adminAllocs] = await Promise.all([
+        adminClient
+          .from("invoices")
+          .select("id, client_id, subtotal, tax_amount, total_amount, amount_paid, balance_due, status, items:invoice_items(id, unit_price, quantity, tax_amount, total, client_service_id)")
+          .in("client_id", allClientIds)
+          .not("status", "in", '("Draft","Void","Cancelled")'),
+        adminClient
+          .from("payments")
+          .select("id, client_id, amount, status")
+          .in("client_id", allClientIds),
+        allServiceIds.length > 0 || allClientIds.length > 0
+          ? adminClient
+              .from("invoice_payment_allocations")
+              .select("id, invoice_id, payment_id, allocated_amount, client_service_id")
+          : Promise.resolve({ data: [] }),
+      ]);
+      if (adminInvs.data && adminInvs.data.length > 0) invoicesRes = adminInvs;
+      if (adminPmts.data && adminPmts.data.length > 0) paymentsRes = adminPmts;
+      if (adminAllocs.data && adminAllocs.data.length > 0) allocsRes = adminAllocs;
+    }
 
     // Resolve any missing profiles (e.g. if RLS restricted profile select for non-admin) using server-side admin client
     const missingProfileIds = new Set<string>();
@@ -783,7 +818,7 @@ export async function fetchClientContractSummaryAction(clientId: string) {
 export async function fetchClientsKpiSummaryAction() {
   const supabase = await createClient();
 
-  const [clientsRes, servicesRes, invoicesRes, paymentsRes, allocsRes] = await Promise.all([
+  let [clientsRes, servicesRes, invoicesRes, paymentsRes, allocsRes] = await Promise.all([
     supabase
       .from("clients")
       .select("id, client_status, contract_value, payments_received, balance_receivable"),
@@ -801,6 +836,36 @@ export async function fetchClientsKpiSummaryAction() {
       .from("invoice_payment_allocations")
       .select("invoice_id, allocated_amount"),
   ]);
+
+  const visibleClientIds = (clientsRes.data || []).map((c: any) => c.id);
+
+  // If user is employee and invoices/payments are empty due to RLS, fetch for visible clients via server admin
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (serviceKey && supabaseUrl && !serviceKey.includes("placeholder") && visibleClientIds.length > 0) {
+    if ((!invoicesRes.data || invoicesRes.data.length === 0) || (!paymentsRes.data || paymentsRes.data.length === 0)) {
+      const adminClient = createSupabaseClient(supabaseUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+      const [admInvs, admPmts, admAllocs] = await Promise.all([
+        adminClient
+          .from("invoices")
+          .select("id, client_id, total_amount, amount_paid, balance_due, status")
+          .in("client_id", visibleClientIds)
+          .not("status", "in", '("Draft","Void","Cancelled")'),
+        adminClient
+          .from("payments")
+          .select("client_id, amount, status")
+          .in("client_id", visibleClientIds),
+        adminClient
+          .from("invoice_payment_allocations")
+          .select("invoice_id, allocated_amount"),
+      ]);
+      if (admInvs.data && admInvs.data.length > 0) invoicesRes = admInvs;
+      if (admPmts.data && admPmts.data.length > 0) paymentsRes = admPmts;
+      if (admAllocs.data && admAllocs.data.length > 0) allocsRes = admAllocs;
+    }
+  }
 
   const clients = clientsRes.data || [];
   const services = servicesRes.data || [];

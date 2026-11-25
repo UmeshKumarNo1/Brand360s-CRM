@@ -29,6 +29,8 @@ import { InlineAssignEmployeeCell } from "@/components/services/InlineAssignEmpl
 interface ClientsTableProps {
   clients: ClientRecord[];
   isAdmin?: boolean;
+  currentUserId?: string | null;
+  currentUserName?: string | null;
   onDeleteClient?: (client: ClientRecord) => void;
   onArchiveClient?: (client: ClientRecord) => void;
   onRestoreClient?: (client: ClientRecord) => void;
@@ -161,6 +163,8 @@ function FulfillmentStepper({
 export function ClientsTable({
   clients,
   isAdmin = false,
+  currentUserId,
+  currentUserName,
   onDeleteClient,
   onArchiveClient,
   onRestoreClient,
@@ -301,6 +305,18 @@ export function ClientsTable({
                               <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200 shrink-0">
                                 Archived
                               </span>
+                            )}
+                            {/* Distinction badge for non-admin logged-in employee */}
+                            {!isAdmin && currentUserId && (
+                              client.assignedSalespersonId === currentUserId || (currentUserName && client.salesperson === currentUserName) ? (
+                                <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 shrink-0" title="You are the client owner/salesperson">
+                                  My Client
+                                </span>
+                              ) : (
+                                <span className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 shrink-0" title="Service assigned to you (client owned by another salesperson)">
+                                  Service Assigned
+                                </span>
+                              )
                             )}
                           </div>
                           {client.gstin ? (

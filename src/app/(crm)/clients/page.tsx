@@ -239,6 +239,7 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
                 })
                 : "-",
               createdAt: r.created_at || "-",
+              assignedSalespersonId: r.assigned_salesperson || null,
               salesperson: r.assigned_profile?.full_name || "Unassigned",
               servicesPurchased:
                 servicesList.length > 0
@@ -720,6 +721,8 @@ const nextActionDueDate = nextFollowup?.dueDate || undefined;
                 <ClientsTable
                   clients={paginatedClients}
                   isAdmin={isAdmin}
+                  currentUserId={currentUserProfile?.id}
+                  currentUserName={currentUserProfile?.full_name}
                   onDeleteClient={handleOpenDelete}
                   onArchiveClient={handleOpenDelete}
                   onRestoreClient={handleRestoreClient}

@@ -13,6 +13,12 @@ export interface DetailedServiceData {
   assignedEmployeeName: string;
   serviceFee: number;
   govtFee: number;
+  additionalFee: number;
+  discount: number;
+  taxableAmount: number;
+  taxRate: number;
+  taxAmount: number;
+  totalServiceValue: number;
   totalAmount: number;
   paymentTerms: string;
   startDate: string | null;
@@ -21,7 +27,6 @@ export interface DetailedServiceData {
   vendorDetails: string;
   // Fulfillment progression
   workflowPreset?: string | null;
-  taxRate?: number;
   fulfillmentStages?: any[] | null;
   currentStageName?: string | null;
   currentStageDescription?: string | null;
@@ -365,6 +370,15 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
 
     activities.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
+    const sFee = Number(cs.service_fee) || 0;
+    const gFee = Number(cs.govt_fee) || 0;
+    const addFee = Number(cs.additional_fee) || 0;
+    const disc = Number(cs.discount) || 0;
+    const taxableAmt = Math.max(0, sFee + addFee - disc);
+    const resolvedTaxRate = cs.tax_rate !== undefined && cs.tax_rate !== null ? Number(cs.tax_rate) : 18;
+    const computedGstAmt = Number(cs.tax_amount) > 0 ? Number(cs.tax_amount) : Math.round(((taxableAmt * resolvedTaxRate) / 100) * 100) / 100;
+    const totalServVal = taxableAmt + computedGstAmt + gFee;
+
     return {
       id: cs.id,
       clientId: cs.client_id,
@@ -373,8 +387,14 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       serviceStatus: cs.service_status || "Pending",
       assignedEmployeeId: cs.assigned_employee_id || null,
       assignedEmployeeName: cs.assigned_profile?.full_name || "Unassigned",
-      serviceFee: Number(cs.service_fee) || 0,
-      govtFee: Number(cs.govt_fee) || 0,
+      serviceFee: sFee,
+      govtFee: gFee,
+      additionalFee: addFee,
+      discount: disc,
+      taxableAmount: taxableAmt,
+      taxRate: resolvedTaxRate,
+      taxAmount: computedGstAmt,
+      totalServiceValue: totalServVal,
       totalAmount: metrics.contractValue,
       paymentTerms: "Due on Receipt",
       startDate: cs.start_date,
@@ -382,7 +402,6 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       notes: cs.notes,
       vendorDetails: vendorNames || "None",
       workflowPreset: cs.workflow_preset || null,
-      taxRate: cs.tax_rate !== undefined && cs.tax_rate !== null ? Number(cs.tax_rate) : 18,
       fulfillmentStages: cs.fulfillment_stages || null,
       currentStageName: cs.current_stage_name || null,
       currentStageDescription: cs.current_stage_description || null,

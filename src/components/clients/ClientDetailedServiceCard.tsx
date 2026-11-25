@@ -332,10 +332,10 @@ export function ClientDetailedServiceCard({
                   <h4 className="font-bold text-slate-900">Service &amp; Commercial Details</h4>
                 </div>
 
-                <div className="space-y-3 pt-3">
+                <div className="space-y-2.5 pt-3">
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Service Name</span>
-                    <strong className="text-slate-900 font-semibold">{service.serviceName}</strong>
+                    <strong className="text-slate-900 font-semibold text-right max-w-[65%] truncate" title={service.serviceName}>{service.serviceName}</strong>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-500">Category</span>
@@ -349,9 +349,33 @@ export function ClientDetailedServiceCard({
                     <span className="text-slate-500">Government Fee</span>
                     <span className="font-semibold text-slate-800 font-sans font-number">{formatINR(service.govtFee)}</span>
                   </div>
+                  {service.additionalFee > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Additional Fee</span>
+                      <span className="font-semibold text-slate-800 font-sans font-number">{formatINR(service.additionalFee)}</span>
+                    </div>
+                  )}
+                  {service.discount > 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-slate-500">Discount</span>
+                      <span className="font-semibold text-emerald-600 font-sans font-number">-{formatINR(service.discount)}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                    <span className="text-slate-500">Taxable Amount</span>
+                    <span className="font-semibold text-slate-800 font-sans font-number">{formatINR(service.taxableAmount)}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">GST Rate</span>
+                    <span className="font-semibold text-slate-700 font-sans font-number">{service.taxRate}%</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">GST Amount</span>
+                    <span className="font-semibold text-slate-800 font-sans font-number">{formatINR(service.taxAmount)}</span>
+                  </div>
                   <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                    <span className="font-bold text-slate-900">Total Service Value</span>
-                    <strong className="font-bold text-slate-900 text-sm font-sans font-number">{formatINR(service.totalAmount)}</strong>
+                    <span className="font-bold text-slate-900 leading-tight">Total Service Value<br/><span className="text-[10px] font-normal text-slate-500">(Including GST)</span></span>
+                    <strong className="font-bold text-slate-900 text-sm font-sans font-number">{formatINR(service.totalServiceValue)}</strong>
                   </div>
                 </div>
               </div>
@@ -368,6 +392,18 @@ export function ClientDetailedServiceCard({
                     onUpdated={() => onRefresh?.()}
                   />
                 </div>
+                {service.startDate && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500">Start Date</span>
+                    <span className="font-medium text-slate-700 font-sans font-number">
+                      {new Date(service.startDate).toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between">
                   <span className="text-slate-500">Target Completion</span>
                   <TargetDateCell

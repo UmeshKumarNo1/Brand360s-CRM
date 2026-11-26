@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import {
   Search,
   Plus,
@@ -38,6 +39,7 @@ import type { ProspectFollowup } from "@/data/mockProspects";
 const ITEMS_PER_PAGE = 6;
 
 export default function FollowupsPage() {
+  const router = useRouter();
   const [prospects, setProspects] = useState<ProspectFollowup[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "today" | "overdue" | "infollowup" | "likely">("all");
@@ -66,6 +68,51 @@ export default function FollowupsPage() {
   const [deletingFollowup, setDeletingFollowup] = useState<ProspectFollowup | null>(null);
   const [activeActionMenuId, setActiveActionMenuId] = useState<string | null>(null);
   const [actionMenuPos, setActionMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const closeMenuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const actionMenuRef = useRef<HTMLDivElement | null>(null);
+
+  const cancelCloseActionMenu = () => {
+    if (closeMenuTimerRef.current) {
+      clearTimeout(closeMenuTimerRef.current);
+      closeMenuTimerRef.current = null;
+    }
+  };
+
+  const scheduleCloseActionMenu = () => {
+    cancelCloseActionMenu();
+    closeMenuTimerRef.current = setTimeout(() => {
+      setActiveActionMenuId(null);
+      setActionMenuPos(null);
+    }, 120);
+  };
+
+  useEffect(() => {
+    if (!activeActionMenuId) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setActiveActionMenuId(null);
+        setActionMenuPos(null);
+      }
+    };
+    const handleMouseDown = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (actionMenuRef.current && target && !actionMenuRef.current.contains(target) && !target.closest("[data-action-menu-trigger]")) {
+        setActiveActionMenuId(null);
+        setActionMenuPos(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("mousedown", handleMouseDown);
+    };
+  }, [activeActionMenuId]);
+
+  useEffect(() => {
+    setActiveActionMenuId(null);
+    setActionMenuPos(null);
+  }, [currentPage]);
 
   const [isAdmin, setIsAdmin] = useState(false);
   const { success, error: toastError, info } = useToast();
@@ -702,7 +749,11 @@ export default function FollowupsPage() {
 
                             <div className="relative">
                               <button
+                                data-action-menu-trigger
+                                onMouseEnter={cancelCloseActionMenu}
+                                onMouseLeave={scheduleCloseActionMenu}
                                 onClick={(e) => {
+                                  cancelCloseActionMenu();
                                   if (activeActionMenuId === p.id) {
                                     setActiveActionMenuId(null);
                                     setActionMenuPos(null);
@@ -724,8 +775,11 @@ export default function FollowupsPage() {
                               {activeActionMenuId === p.id && actionMenuPos && typeof document !== "undefined" &&
                                 createPortal(
                                   <div
+                                    ref={actionMenuRef}
+                                    onMouseEnter={cancelCloseActionMenu}
+                                    onMouseLeave={scheduleCloseActionMenu}
                                     style={{ top: actionMenuPos.top, right: actionMenuPos.right }}
-                                    className="fixed w-44 bg-white border border-slate-200 rounded-lg shadow-xl z-[9999] py-1 text-left text-xs"
+                                    className="fixed w-44 bg-white border border-slate-200 rounded-lg shadow-xl z-[9999] py-1 text-left text-xs overflow-visible"
                                   >
                                   <button
                                     onClick={() => {
@@ -739,15 +793,9 @@ export default function FollowupsPage() {
                                   </button>
                                   <button
                                     onClick={() => {
-                                      setProspects((prev) =>
-                                        prev.map((item) =>
-                                          item.id === p.id
-                                            ? { ...item, status: "Converted to Client" }
-                                            : item
-                                        )
-                                      );
-                                      success("Converted", `${p.companyName} marked Converted to Client.`);
                                       setActiveActionMenuId(null);
+                                      setActionMenuPos(null);
+                                      router.push(`/clients/new?fromProspect=${encodeURIComponent(p.id)}`);
                                     }}
                                     className="w-full px-3 py-1.5 text-slate-700 hover:bg-slate-50 flex items-center gap-2 cursor-pointer"
                                   >

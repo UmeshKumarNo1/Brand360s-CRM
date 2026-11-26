@@ -12,6 +12,7 @@ export async function fetchProspectFollowupsAction(): Promise<ProspectFollowup[]
   const { data, error } = await supabase
     .from("follow_ups")
     .select("*")
+    .neq("status", "Converted to Client")
     .order("due_date", { ascending: true })
     .order("created_at", { ascending: false });
 
@@ -20,7 +21,9 @@ export async function fetchProspectFollowupsAction(): Promise<ProspectFollowup[]
     return [];
   }
 
-  return (data || []).map((d: any) => ({
+  return (data || [])
+    .filter((d: any) => !d.converted_client_id)
+    .map((d: any) => ({
     id: d.id,
     companyName: d.company_name,
     contactPerson: d.contact_person,
@@ -161,6 +164,35 @@ export async function updateProspectFollowupAction(
 
   revalidatePath("/follow-ups");
   return { success: true };
+}
+
+export async function fetchProspectFollowupByIdAction(id: string) {
+  if (!isSupabaseConfigured() || !id) return null;
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("follow_ups")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error || !data) return null;
+  return {
+    id: data.id,
+    companyName: data.company_name,
+    contactPerson: data.contact_person,
+    phone: data.phone || "",
+    serviceInterested: data.service_interested || "",
+    title: data.title || "",
+    followUpType: data.follow_up_type || "Phone Call",
+    priority: data.priority || "Medium",
+    status: data.status || "Due Today",
+    dueDate: data.due_date,
+    assignedToId: data.assigned_to || "",
+    assignedToName: data.assigned_name || "",
+    notes: data.notes || "",
+    convertedClientId: data.converted_client_id || null,
+  };
 }
 
 export async function deleteProspectFollowupAction(

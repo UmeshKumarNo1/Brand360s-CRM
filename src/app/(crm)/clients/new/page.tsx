@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState, useRef, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Building2,
@@ -24,6 +24,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { createClientAction, fetchSalespeopleAction, CreateClientState } from "@/app/actions/clients";
+import { fetchProspectFollowupByIdAction } from "@/app/actions/prospect-followups";
 import { useToast } from "@/components/common/ToastProvider";
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { PhoneInput } from "@/components/clients/PhoneInput";
@@ -65,6 +66,8 @@ const ENTITY_STRUCTURES = [
 
 export default function NewClientPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromProspectId = searchParams.get("fromProspect");
   const formRef = useRef<HTMLFormElement>(null);
   const { success, error: toastError } = useToast();
   const [state, formAction, isPending] = useActionState(createClientAction, null);
@@ -119,6 +122,24 @@ export default function NewClientPage() {
 
   // 7. Notes
   const [notes, setNotes] = useState("");
+
+  // Prefill from prospect when converting from /follow-ups
+  useEffect(() => {
+    if (!fromProspectId) return;
+    fetchProspectFollowupByIdAction(fromProspectId).then((prospect) => {
+      if (!prospect) return;
+      if (prospect.convertedClientId) {
+        toastError("Already Converted", "This prospect has already been converted to a client.");
+        router.replace(`/clients/${prospect.convertedClientId}`);
+        return;
+      }
+      if (prospect.companyName) setCompanyName(prospect.companyName);
+      if (prospect.contactPerson) setContactPerson(prospect.contactPerson);
+      if (prospect.phone) setPhone(prospect.phone);
+      if (prospect.notes) setNotes(prospect.notes);
+      if (prospect.assignedToId) setAssignedSalesperson(prospect.assignedToId);
+    });
+  }, [fromProspectId, router, toastError]);
 
   // Submit Intent: "save" (default) or "save_and_add_service"
   const [submitIntent, setSubmitIntent] = useState<"save" | "save_and_add_service">("save");
@@ -468,6 +489,9 @@ export default function NewClientPage() {
         }}
       >
         {/* Hidden inputs to guarantee all state values submit regardless of active step */}
+        {fromProspectId && (
+          <input type="hidden" name="from_prospect_id" value={fromProspectId} />
+        )}
         <input
           type="hidden"
           name="additional_contacts"

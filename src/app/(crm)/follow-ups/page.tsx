@@ -18,6 +18,11 @@ import {
   XCircle,
   Building,
   User,
+  FileSpreadsheet,
+  Layers,
+  UserCheck,
+  Check,
+  PhoneCall,
 } from "lucide-react";
 import {
   fetchFollowupsAction,
@@ -27,11 +32,15 @@ import {
   cancelFollowupAction,
   FollowupItem,
 } from "@/app/actions/followups";
+import { fetchUnconvertedLeadsAction } from "@/app/actions/leads";
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { CreateFollowupModal } from "@/components/followups/CreateFollowupModal";
 import { CompleteFollowupModal } from "@/components/followups/CompleteFollowupModal";
 import { FollowupDetailModal } from "@/components/followups/FollowupDetailModal";
 import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationModal";
+import { LeadImportModal } from "@/components/leads/LeadImportModal";
+import { LeadDetailModal } from "@/components/leads/LeadDetailModal";
+import { ConvertLeadModal } from "@/components/leads/ConvertLeadModal";
 import { useToast } from "@/components/common/ToastProvider";
 import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 import { FollowupStatsCards } from "@/components/followups/FollowupStatsCards";
@@ -43,14 +52,22 @@ export default function FollowupsPage() {
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
-  // Tabs: all | my | today | upcoming | overdue | completed
+  // Tabs: all | my | today | upcoming | overdue | completed | leads
   const [activeTab, setActiveTab] = useState<
-    "all" | "my" | "today" | "upcoming" | "overdue" | "completed"
+    "all" | "my" | "today" | "upcoming" | "overdue" | "completed" | "leads"
   >("all");
 
   const [searchQuery, setSearchQuery] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("All");
   const [typeFilter, setTypeFilter] = useState("All");
+
+  // Leads State
+  const [unconvertedLeads, setUnconvertedLeads] = useState<any[]>([]);
+  const [leadStatusFilter, setLeadStatusFilter] = useState("All");
+  const [leadSalespersonFilter, setLeadSalespersonFilter] = useState("All");
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [selectedLeadForDetail, setSelectedLeadForDetail] = useState<any | null>(null);
+  const [selectedLeadForConvert, setSelectedLeadForConvert] = useState<any | null>(null);
 
   // Modals state
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -78,9 +95,13 @@ export default function FollowupsPage() {
     setErrorMessage(null);
 
     try {
-      const data = await fetchFollowupsAction();
+      const [fData, lData] = await Promise.all([
+        fetchFollowupsAction(),
+        fetchUnconvertedLeadsAction(),
+      ]);
       if (currentReqId === requestIdRef.current) {
-        setFollowups(data || []);
+        setFollowups(fData || []);
+        setUnconvertedLeads(lData || []);
       }
     } catch (err: any) {
       if (currentReqId === requestIdRef.current) {
@@ -171,16 +192,48 @@ export default function FollowupsPage() {
     });
   }, [followups, activeTab, currentUserId, todayStr, priorityFilter, typeFilter, searchQuery]);
 
+  // Filtered Leads
+  const filteredLeads = useMemo(() => {
+    return unconvertedLeads.filter((l: any) => {
+      if (!isAdmin && l.assignedSalespersonId && l.assignedSalespersonId !== currentUserId) {
+        return false;
+      }
+      if (leadStatusFilter !== "All" && l.leadStatus !== leadStatusFilter) return false;
+      if (leadSalespersonFilter !== "All" && l.assignedSalespersonName !== leadSalespersonFilter) return false;
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        l.companyName.toLowerCase().includes(q) ||
+        (l.entityId && l.entityId.toLowerCase().includes(q)) ||
+        l.contactPerson.toLowerCase().includes(q) ||
+        (l.phone && l.phone.toLowerCase().includes(q)) ||
+        (l.email && l.email.toLowerCase().includes(q)) ||
+        (l.city && l.city.toLowerCase().includes(q)) ||
+        (l.state && l.state.toLowerCase().includes(q))
+      );
+    });
+  }, [unconvertedLeads, isAdmin, currentUserId, leadStatusFilter, leadSalespersonFilter, searchQuery]);
+
+  const uniqueLeadSalespeople = useMemo(() => {
+    const set = new Set<string>();
+    unconvertedLeads.forEach((l: any) => {
+      if (l.assignedSalespersonName && l.assignedSalespersonName !== "Unassigned") {
+        set.add(l.assignedSalespersonName);
+      }
+    });
+    return Array.from(set);
+  }, [unconvertedLeads]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[#E2E8F0]">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900">
-            Follow-ups & Reminders
+            Follow-ups &amp; Leads
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Track pending client communications, document submissions, compliance renewals, and sales callbacks.
+            Manage imported company leads, client follow-ups, and lead-to-client conversion.
           </p>
         </div>
 
@@ -188,9 +241,18 @@ export default function FollowupsPage() {
           <button
             onClick={() => loadData()}
             className="p-2 bg-white border border-[#E2E8F0] hover:bg-slate-50 text-slate-600 rounded-lg shadow-2xs transition-colors cursor-pointer"
-            title="Refresh follow-ups"
+            title="Refresh"
           >
             <RefreshCw size={15} className={isLoading ? "animate-spin text-[#0481A2]" : ""} />
+          </button>
+
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#243E76] hover:bg-[#1B2F5B] text-white text-xs sm:text-sm font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
+            title="Bulk Excel / CSV Lead Import with Round-Robin Assignment"
+          >
+            <FileSpreadsheet size={16} />
+            <span>Import Leads (Excel/CSV)</span>
           </button>
 
           <button
@@ -278,66 +340,244 @@ export default function FollowupsPage() {
         >
           Completed ({completedCount})
         </button>
+        <button
+          onClick={() => setActiveTab("leads")}
+          className={`py-2.5 px-3.5 rounded-t-lg transition-colors cursor-pointer flex items-center gap-1.5 ${
+            activeTab === "leads"
+              ? "bg-[#0481A2] text-white shadow-2xs font-bold"
+              : "hover:bg-slate-100 text-slate-600"
+          }`}
+        >
+          <Building size={13} />
+          <span>Unconverted Leads ({unconvertedLeads.length})</span>
+        </button>
       </div>
 
-      {/* Filter Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by title, client, or contact..."
-            className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2]"
-          />
-        </div>
+      {/* Filter Toolbar for Leads */}
+      {activeTab === "leads" ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search leads by company, entity ID, contact, phone..."
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2]"
+            />
+          </div>
 
-        <select
-          value={priorityFilter}
-          onChange={(e) => setPriorityFilter(e.target.value)}
-          className="px-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg text-slate-700 font-medium cursor-pointer"
-        >
-          <option value="All">All Priorities</option>
-          <option value="Urgent">Urgent</option>
-          <option value="High">High</option>
-          <option value="Medium">Medium</option>
-          <option value="Low">Low</option>
-        </select>
-
-        <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter(e.target.value)}
-          className="px-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg text-slate-700 font-medium cursor-pointer"
-        >
-          <option value="All">All Types</option>
-          <option value="Phone Call">Phone Call</option>
-          <option value="Email">Email</option>
-          <option value="Meeting">Meeting</option>
-          <option value="Payment Reminder">Payment Reminder</option>
-          <option value="Document Request">Document Request</option>
-          <option value="Service Update">Service Update</option>
-          <option value="Renewal Reminder">Renewal Reminder</option>
-        </select>
-
-        {(searchQuery || priorityFilter !== "All" || typeFilter !== "All") && (
-          <button
-            onClick={() => {
-              setSearchQuery("");
-              setPriorityFilter("All");
-              setTypeFilter("All");
-            }}
-            className="text-xs text-[#0481A2] hover:underline font-semibold cursor-pointer"
+          <select
+            value={leadStatusFilter}
+            onChange={(e) => setLeadStatusFilter(e.target.value)}
+            className="px-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg text-slate-700 font-medium cursor-pointer"
           >
-            Reset Filters
-          </button>
-        )}
-      </div>
+            <option value="All">All Lead Statuses</option>
+            <option value="New">New</option>
+            <option value="Contacted">Contacted</option>
+            <option value="In Discussion">In Discussion</option>
+            <option value="Follow-up Scheduled">Follow-up Scheduled</option>
+            <option value="Lost">Lost / Dropped</option>
+          </select>
 
-      {/* Follow-ups Responsive Table */}
+          {isAdmin && (
+            <select
+              value={leadSalespersonFilter}
+              onChange={(e) => setLeadSalespersonFilter(e.target.value)}
+              className="px-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg text-slate-700 font-medium cursor-pointer"
+            >
+              <option value="All">All Salespersons</option>
+              {uniqueLeadSalespeople.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          )}
+
+          {(searchQuery || leadStatusFilter !== "All" || leadSalespersonFilter !== "All") && (
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setLeadStatusFilter("All");
+                setLeadSalespersonFilter("All");
+              }}
+              className="text-xs text-[#0481A2] hover:underline font-semibold cursor-pointer"
+            >
+              Reset Filters
+            </button>
+          )}
+        </div>
+      ) : (
+        /* Filter Toolbar for Normal Tasks */
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by title, client, or contact..."
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg focus:outline-none focus:border-[#0481A2]"
+            />
+          </div>
+
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            className="px-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg text-slate-700 font-medium cursor-pointer"
+          >
+            <option value="All">All Priorities</option>
+            <option value="Urgent">Urgent</option>
+            <option value="High">High</option>
+            <option value="Medium">Medium</option>
+            <option value="Low">Low</option>
+          </select>
+
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="px-3 py-1.5 text-xs bg-white border border-[#E2E8F0] rounded-lg text-slate-700 font-medium cursor-pointer"
+          >
+            <option value="All">All Types</option>
+            <option value="Phone Call">Phone Call</option>
+            <option value="Email">Email</option>
+            <option value="Meeting">Meeting</option>
+            <option value="Payment Reminder">Payment Reminder</option>
+            <option value="Document Request">Document Request</option>
+            <option value="Service Update">Service Update</option>
+            <option value="Renewal Reminder">Renewal Reminder</option>
+          </select>
+
+          {(searchQuery || priorityFilter !== "All" || typeFilter !== "All") && (
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setPriorityFilter("All");
+                setTypeFilter("All");
+              }}
+              className="text-xs text-[#0481A2] hover:underline font-semibold cursor-pointer"
+            >
+              Reset Filters
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Tables View */}
       {errorMessage ? (
         <ErrorRetryState message={errorMessage} onRetry={loadData} />
+      ) : activeTab === "leads" ? (
+        /* Unconverted Leads Table */
+        <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs sm:text-sm">
+              <thead>
+                <tr className="bg-[#243E76] text-white font-semibold text-xs tracking-wide">
+                  <th className="py-3 px-3 w-10 text-center">No.</th>
+                  <th className="py-3 px-3.5">Company Name &amp; Entity ID</th>
+                  <th className="py-3 px-3">Primary Director &amp; Contact</th>
+                  <th className="py-3 px-3">City &amp; State</th>
+                  <th className="py-3 px-3 text-center">Assigned Salesperson</th>
+                  <th className="py-3 px-3 text-center">Lead Status</th>
+                  <th className="py-3 px-3 text-center">Next Follow-up</th>
+                  <th className="py-3 px-3 text-center w-36 whitespace-nowrap">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-700">
+                {isLoading ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-slate-400 text-xs">
+                      <RefreshCw size={18} className="animate-spin text-[#0481A2] mx-auto mb-2" />
+                      Loading unconverted company leads...
+                    </td>
+                  </tr>
+                ) : filteredLeads.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-12 text-center text-slate-400 text-xs">
+                      No unconverted company leads match the current filters.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredLeads.map((lead: any, idx: number) => (
+                    <tr key={lead.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="py-3 px-3 text-center font-mono text-xs text-slate-400">
+                        {idx + 1}
+                      </td>
+                      <td className="py-3 px-3.5">
+                        <button
+                          onClick={() => setSelectedLeadForDetail(lead)}
+                          className="font-bold text-slate-900 hover:text-[#0481A2] text-left transition-colors cursor-pointer block"
+                        >
+                          {lead.companyName}
+                        </button>
+                        <p className="text-[11px] font-mono text-slate-400">
+                          {lead.entityId ? `Entity ID: ${lead.entityId}` : `Code: ${lead.clientCode || "-"}`}
+                        </p>
+                      </td>
+                      <td className="py-3 px-3">
+                        <p className="font-medium text-slate-800">{lead.contactPerson || "-"}</p>
+                        <p className="text-[11px] text-slate-500 font-mono">
+                          {lead.phone || lead.email || "-"}
+                        </p>
+                      </td>
+                      <td className="py-3 px-3 text-slate-600">
+                        <p>{lead.city || "-"}</p>
+                        <p className="text-[11px] text-slate-400">{lead.state || "-"}</p>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700">
+                          {lead.assignedSalespersonName}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          lead.leadStatus === "New"
+                            ? "bg-sky-50 text-sky-700 border border-sky-200"
+                            : lead.leadStatus === "Contacted"
+                            ? "bg-blue-50 text-blue-700 border border-blue-200"
+                            : lead.leadStatus === "In Discussion"
+                            ? "bg-amber-50 text-amber-700 border border-amber-200"
+                            : "bg-purple-50 text-purple-700 border border-purple-200"
+                        }`}>
+                          {lead.leadStatus || "New"}
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center font-mono text-xs">
+                        {lead.nextFollowupDate ? (
+                          <div>
+                            <p className="font-bold text-[#0481A2]">{lead.nextFollowupDate}</p>
+                            <p className="text-[10px] text-slate-400">{lead.nextFollowupType || "Call"}</p>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 text-[11px]">None scheduled</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-center whitespace-nowrap">
+                        <div className="inline-flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => setSelectedLeadForDetail(lead)}
+                            className="px-2.5 py-1.5 rounded-lg bg-[#F0F8FA] hover:bg-[#E0F2F7] text-[#0481A2] border border-[#D5EBF1] font-semibold text-xs transition-all shadow-2xs cursor-pointer"
+                            title="Manage Lead & View Details"
+                          >
+                            Manage
+                          </button>
+                          <button
+                            onClick={() => setSelectedLeadForConvert(lead)}
+                            className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all shadow-2xs cursor-pointer"
+                            title="Convert to full active Client"
+                          >
+                            Convert
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : (
+        /* Regular Follow-ups Responsive Table */
         <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden">
           <div>
             <table className="w-full text-left border-collapse text-xs sm:text-sm">
@@ -607,6 +847,39 @@ export default function FollowupsPage() {
           title="Delete Follow-up Task"
           recordName={deletingFollowup.title}
           consequences="This follow-up task and reminder will be permanently removed from the system. This action cannot be undone."
+        />
+      )}
+
+      {/* Bulk Excel / CSV Lead Import Modal */}
+      {isImportModalOpen && (
+        <LeadImportModal
+          isOpen={isImportModalOpen}
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => loadData()}
+        />
+      )}
+
+      {/* Lead Detail & Activity History Modal */}
+      {selectedLeadForDetail && (
+        <LeadDetailModal
+          isOpen={!!selectedLeadForDetail}
+          onClose={() => setSelectedLeadForDetail(null)}
+          lead={selectedLeadForDetail}
+          onConvertClick={(leadToConvert: any) => {
+            setSelectedLeadForDetail(null);
+            setSelectedLeadForConvert(leadToConvert);
+          }}
+          onRefresh={() => loadData()}
+        />
+      )}
+
+      {/* Convert Lead to Active Client Modal */}
+      {selectedLeadForConvert && (
+        <ConvertLeadModal
+          isOpen={!!selectedLeadForConvert}
+          onClose={() => setSelectedLeadForConvert(null)}
+          lead={selectedLeadForConvert}
+          onSuccess={() => loadData()}
         />
       )}
     </div>

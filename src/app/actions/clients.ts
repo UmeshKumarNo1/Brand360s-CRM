@@ -509,14 +509,22 @@ export async function fetchClientsAction() {
         return [];
       }
 
-      return fallbackData || [];
+      const fallbackConverted = (fallbackData || []).filter(
+        (c: any) => !c.is_lead && c.client_status !== "Lead" && !(c.notes && c.notes.startsWith("[LEAD:"))
+      );
+      return fallbackConverted;
     }
 
+    // Filter out unconverted leads so only converted clients appear in the Clients portfolio
+    const convertedClientsOnly = (data || []).filter(
+      (c: any) => !c.is_lead && c.client_status !== "Lead" && !(c.notes && c.notes.startsWith("[LEAD:"))
+    );
+
     // Extract all client IDs and service IDs to fetch invoices, payments and allocations in batch
-    const allClientIds = (data || []).map((c: any) => c.id);
+    const allClientIds = convertedClientsOnly.map((c: any) => c.id);
     const allServiceIds: string[] = [];
 
-    (data || []).forEach((c: any) => {
+    convertedClientsOnly.forEach((c: any) => {
       (c.services || []).forEach((s: any) => {
         if (s.id) allServiceIds.push(s.id);
       });
@@ -555,7 +563,7 @@ export async function fetchClientsAction() {
     const allocations = allocsRes.data || [];
 
     // Enrich each client and their services with standardized financial calculations
-    return (data || []).map((client: any) => {
+    return convertedClientsOnly.map((client: any) => {
       const clientInvs = invoicesByClient[client.id] || [];
       const clientPmts = paymentsByClient[client.id] || [];
       const clientInvIds = new Set(clientInvs.map((i: any) => i.id));
@@ -672,8 +680,9 @@ export async function fetchClientsDropdownAction() {
 
   const { data, error } = await supabase
     .from("clients")
-    .select("id, company_name, client_code, contract_value, balance_receivable, client_status")
+    .select("id, company_name, client_code, contract_value, balance_receivable, client_status, is_lead")
     .neq("client_status", "Archived")
+    .neq("client_status", "Lead")
     .order("company_name", { ascending: true });
 
   if (error) {
@@ -681,7 +690,7 @@ export async function fetchClientsDropdownAction() {
     return [];
   }
 
-  return data || [];
+  return (data || []).filter((c: any) => !c.is_lead);
 }
 
 /**
@@ -820,7 +829,9 @@ export async function fetchClientsKpiSummaryAction() {
       .select("invoice_id, allocated_amount"),
   ]);
 
-  const clients = clientsRes.data || [];
+  const clients = (clientsRes.data || []).filter(
+    (c: any) => !c.is_lead && c.client_status !== "Lead" && !(c.notes && c.notes.startsWith("[LEAD:"))
+  );
   const services = servicesRes.data || [];
   const invoices = invoicesRes.data || [];
   const payments = paymentsRes.data || [];

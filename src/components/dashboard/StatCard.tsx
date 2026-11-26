@@ -1,60 +1,60 @@
-import { LucideIcon, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface StatCardProps {
   label: string;
   value: string;
-  change: string;
-  isPositive: boolean;
-  description: string;
+  change?: string | null;
+  isPositive?: boolean;
+  isWarning?: boolean;
   icon: LucideIcon;
   iconColor: string;
   iconBg: string;
-  isWarning?: boolean;
 }
 
 export function StatCard({
   label,
   value,
   change,
-  isPositive,
-  description,
+  isPositive = true,
+  isWarning = false,
   icon: Icon,
   iconColor,
   iconBg,
-  isWarning = false,
 }: StatCardProps) {
+  // If isWarning is set, upward change is colored red
+  const textColor = isWarning
+    ? "text-rose-600"
+    : isPositive
+    ? "text-emerald-600"
+    : "text-rose-600";
+
+  const arrow = isWarning ? "▲" : isPositive ? (change?.includes("-") ? "▼" : "▲") : "▼";
+
   return (
-    <div className="bg-white border border-[#E2E8F0] rounded-xl p-4 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-xs font-medium text-slate-500 truncate">{label}</span>
-        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", iconBg)}>
-          <Icon size={16} className={iconColor} />
+    <div className="bg-white border border-[#E2E8F0] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col justify-between hover:border-slate-300 transition-all">
+      {/* Top Row: Icon on left, Label next to it */}
+      <div className="flex items-center gap-2.5 mb-2">
+        <div className={cn("w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center shrink-0", iconBg)}>
+          <Icon size={15} className={iconColor} />
         </div>
+        <span className="text-xs font-semibold text-slate-700 truncate">{label}</span>
       </div>
 
-      <div>
-        <div className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 mb-1.5 truncate font-sans font-number">
-          {value}
-        </div>
-        <div className="flex items-center gap-1.5 text-xs font-sans">
-          <span 
-            className={cn(
-              "font-semibold flex items-center text-[11px] font-sans font-number",
-              isWarning 
-                ? "text-red-600" 
-                : isPositive 
-                  ? "text-emerald-600" 
-                  : "text-red-600"
-            )}
-          >
-            {isPositive ? <ArrowUpRight size={13} /> : <ArrowDownRight size={13} />}
-            {change}
-          </span>
-          <span className="text-slate-400 text-[11px] truncate font-sans">{description}</span>
-        </div>
+      {/* Main Metric Value */}
+      <div className="text-xl sm:text-2xl xl:text-[26px] font-bold tracking-tight text-slate-900 my-1 truncate font-sans font-number">
+        {value}
       </div>
+
+      {/* Trend Subtitle */}
+      {change ? (
+        <div className="flex items-center gap-1.5 text-xs font-sans mt-0.5">
+          <span className={cn("font-semibold flex items-center gap-1 text-[11px] font-sans font-number", textColor)}>
+            <span className="text-[9px]">{arrow}</span>
+            <span>{change}</span>
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }
-

@@ -710,7 +710,7 @@ export default function FollowupsPage() {
                               </button>
 
                               {activeActionMenuId === p.id && (
-                                <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-lg shadow-xl z-20 py-1 text-left text-xs">
+                                <div className="absolute right-0 bottom-full mb-1 w-44 bg-white border border-slate-200 rounded-lg shadow-xl z-50 py-1 text-left text-xs">
                                   <button
                                     onClick={() => {
                                       setViewingFollowup(p);

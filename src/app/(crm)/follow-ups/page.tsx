@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   Search,
   Plus,
@@ -64,6 +65,7 @@ export default function FollowupsPage() {
   const [viewingFollowup, setViewingFollowup] = useState<ProspectFollowup | null>(null);
   const [deletingFollowup, setDeletingFollowup] = useState<ProspectFollowup | null>(null);
   const [activeActionMenuId, setActiveActionMenuId] = useState<string | null>(null);
+  const [actionMenuPos, setActionMenuPos] = useState<{ top: number; right: number } | null>(null);
 
   const [isAdmin, setIsAdmin] = useState(false);
   const { success, error: toastError, info } = useToast();
@@ -700,17 +702,31 @@ export default function FollowupsPage() {
 
                             <div className="relative">
                               <button
-                                onClick={() =>
-                                  setActiveActionMenuId(activeActionMenuId === p.id ? null : p.id)
-                                }
+                                onClick={(e) => {
+                                  if (activeActionMenuId === p.id) {
+                                    setActiveActionMenuId(null);
+                                    setActionMenuPos(null);
+                                  } else {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setActionMenuPos({
+                                      top: rect.bottom + 4,
+                                      right: window.innerWidth - rect.right,
+                                    });
+                                    setActiveActionMenuId(p.id);
+                                  }
+                                }}
                                 className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-md transition-colors cursor-pointer"
                                 title="More actions"
                               >
                                 <MoreHorizontal size={13} />
                               </button>
 
-                              {activeActionMenuId === p.id && (
-                                <div className="absolute right-0 bottom-full mb-1 w-44 bg-white border border-slate-200 rounded-lg shadow-xl z-50 py-1 text-left text-xs">
+                              {activeActionMenuId === p.id && actionMenuPos && typeof document !== "undefined" &&
+                                createPortal(
+                                  <div
+                                    style={{ top: actionMenuPos.top, right: actionMenuPos.right }}
+                                    className="fixed w-44 bg-white border border-slate-200 rounded-lg shadow-xl z-[9999] py-1 text-left text-xs"
+                                  >
                                   <button
                                     onClick={() => {
                                       setViewingFollowup(p);
@@ -748,7 +764,8 @@ export default function FollowupsPage() {
                                     <Trash2 size={12} />
                                     <span>Delete Record</span>
                                   </button>
-                                </div>
+                                </div>,
+                                document.body
                               )}
                             </div>
                           </div>

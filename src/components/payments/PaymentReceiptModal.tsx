@@ -16,6 +16,8 @@ import {
   FileText,
   Clock,
   RotateCcw,
+  MessageSquare,
+  Send,
 } from "lucide-react";
 import { formatINR, numberToWordsINR } from "@/lib/utils";
 import { useToast } from "@/components/common/ToastProvider";
@@ -53,6 +55,8 @@ export function PaymentReceiptModal({
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [customEmail, setCustomEmail] = useState("");
   const [showEmailInput, setShowEmailInput] = useState(false);
+  const [customPhone, setCustomPhone] = useState("");
+  const [showWhatsAppInput, setShowWhatsAppInput] = useState(false);
   const { success, error: toastError } = useToast();
 
   const [activeLookupId, setActiveLookupId] = useState<string | undefined>(receiptId || paymentId);
@@ -76,6 +80,7 @@ export function PaymentReceiptModal({
       if (recRes.success && recRes.receipt) {
         setReceipt(recRes.receipt);
         setCustomEmail(recRes.receipt.client?.email || "");
+        setCustomPhone(recRes.receipt.client?.phone || "");
         setFetchError(null);
       } else {
         setFetchError(recRes.error || "Failed to load payment receipt.");
@@ -98,6 +103,7 @@ export function PaymentReceiptModal({
       setReceipt(null);
       setFetchError(null);
       setShowEmailInput(false);
+      setShowWhatsAppInput(false);
     }
   }, [isOpen, receiptId, paymentId]);
 
@@ -172,6 +178,45 @@ export function PaymentReceiptModal({
     }
   };
 
+  const handleOpenMailApp = () => {
+    const recNum = receipt?.receiptNumber;
+    const recipient = customEmail.trim() || receipt?.client?.email || "";
+    const subject = `Payment Receipt ${recNum} | BRAND 360s`;
+    const body = `Dear ${receipt?.client?.contactPerson || receipt?.client?.companyName || "Valued Client"},\n\nWe acknowledge receipt of ${formatINR(receipt?.amountReceived || 0)}.\nReceipt No: ${recNum}\nPayment Method: ${receipt?.paymentMethod || "-"}\n\nThank you,\nBRAND 360s`;
+    window.open(`mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, "_blank");
+  };
+
+  const handleSendWhatsApp = () => {
+    const recNum = receipt?.receiptNumber;
+    const clientName = receipt?.client?.companyName || "Valued Client";
+    const contact = receipt?.client?.contactPerson || clientName;
+    const phoneToUse = customPhone.trim() || receipt?.client?.phone || "";
+
+    const msg = [
+      `*PAYMENT RECEIPT - BRAND 360s*`,
+      ``,
+      `Hello *${contact}*,`,
+      `We have received and verified your payment. Thank you!`,
+      ``,
+      `🧾 *Receipt No:* ${recNum}`,
+      `🏢 *Client:* ${clientName}`,
+      `💵 *Amount Received:* ${formatINR(receipt?.amountReceived || 0)}`,
+      `💳 *Payment Method:* ${receipt?.paymentMethod || "-"}`,
+      receipt?.transactionRef ? `🔖 *Ref / UTR:* ${receipt.transactionRef}` : null,
+      `📅 *Date:* ${receipt?.paymentDate || "-"}`,
+      ``,
+      `Thank you for your business!`,
+      `*BRAND 360s Team*`,
+    ].filter(Boolean).join("\n");
+
+    let cleanPhone = phoneToUse.replace(/\D/g, "");
+    if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
+    const url = cleanPhone
+      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   const company = {
     name: settings?.company_name || "BRAND 360S PRIVATE LIMITED",
     address: settings?.company_address || "2nd Floor, Innovation Hub, Madurai Main Road, Sivaganga, TN - 630561",
@@ -210,7 +255,22 @@ export function PaymentReceiptModal({
             {receipt && (
               <>
                 <button
-                  onClick={() => setShowEmailInput(!showEmailInput)}
+                  onClick={() => {
+                    setShowWhatsAppInput(!showWhatsAppInput);
+                    if (showEmailInput) setShowEmailInput(false);
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer"
+                  title="Share receipt via WhatsApp"
+                >
+                  <MessageSquare size={13} />
+                  <span className="hidden sm:inline">WhatsApp</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowEmailInput(!showEmailInput);
+                    if (showWhatsAppInput) setShowWhatsAppInput(false);
+                  }}
                   className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer"
                   title="Email receipt to client"
                 >
@@ -248,16 +308,37 @@ export function PaymentReceiptModal({
           </div>
         </div>
 
+        {/* WhatsApp Input Bar */}
+        {showWhatsAppInput && receipt && (
+          <div className="bg-emerald-50/80 border-b border-emerald-100 px-6 py-2.5 flex items-center gap-2 sm:gap-3 flex-wrap animate-in fade-in slide-in-from-top-1 duration-150">
+            <span className="text-xs font-semibold text-emerald-800">Client WhatsApp Phone:</span>
+            <input
+              type="text"
+              value={customPhone}
+              onChange={(e) => setCustomPhone(e.target.value)}
+              placeholder="e.g. 9876543210 (10 digits or with +91)"
+              className="flex-1 min-w-[200px] max-w-sm px-3 py-1 text-xs border border-emerald-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-600 bg-white text-slate-900"
+            />
+            <button
+              onClick={handleSendWhatsApp}
+              className="px-3 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+            >
+              <MessageSquare size={12} />
+              <span>Open WhatsApp</span>
+            </button>
+          </div>
+        )}
+
         {/* Email Input Bar */}
         {showEmailInput && receipt && (
-          <div className="bg-sky-50/80 border-b border-sky-100 px-6 py-2.5 flex items-center gap-3">
+          <div className="bg-sky-50/80 border-b border-sky-100 px-6 py-2.5 flex items-center gap-2 sm:gap-3 flex-wrap animate-in fade-in slide-in-from-top-1 duration-150">
             <span className="text-xs font-semibold text-slate-700">Recipient Email:</span>
             <input
               type="email"
               value={customEmail}
               onChange={(e) => setCustomEmail(e.target.value)}
               placeholder="billing@clientcompany.com"
-              className="flex-1 max-w-sm px-3 py-1 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#077EA1] bg-white"
+              className="flex-1 min-w-[200px] max-w-sm px-3 py-1 text-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#077EA1] bg-white"
             />
             <button
               onClick={handleSendEmail}
@@ -265,7 +346,15 @@ export function PaymentReceiptModal({
               className="px-3 py-1 text-xs font-bold rounded-lg bg-[#077EA1] hover:bg-[#05607C] text-white flex items-center gap-1 cursor-pointer disabled:opacity-50"
             >
               {isSendingEmail ? <Loader2 size={12} className="animate-spin" /> : <Mail size={12} />}
-              <span>Send Now</span>
+              <span>Send via Server</span>
+            </button>
+            <button
+              onClick={handleOpenMailApp}
+              className="px-3 py-1 text-xs font-semibold rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1 cursor-pointer"
+              title="Open in your default email client (Outlook, Mail, etc.)"
+            >
+              <Send size={12} />
+              <span>Open Mail App</span>
             </button>
           </div>
         )}

@@ -17,6 +17,8 @@ import {
 
 import { recordAuditLog } from "@/lib/audit/audit-logger";
 import { calculateClientFinancials, calculateServiceFinancials } from "@/lib/financial/financial-calculator";
+import { assignClientServiceAction } from "@/app/actions/services";
+import { createFollowupAction } from "@/app/actions/followups";
 
 export interface CreateClientState {
   error?: string | null;
@@ -376,6 +378,73 @@ export async function createClientAction(
         duplicate_override: allowDuplicateOverride,
       },
     });
+
+    // Feature: Process initial services if added in client registration wizard
+    const rawInitialServices = formData.get("initial_services") as string;
+    if (rawInitialServices) {
+      try {
+        const servicesList = JSON.parse(rawInitialServices);
+        if (Array.isArray(servicesList) && servicesList.length > 0) {
+          for (const svc of servicesList) {
+            if (!svc.service_name || !svc.service_name.trim()) continue;
+            const svcFormData = new FormData();
+            svcFormData.append("client_id", data.id);
+            svcFormData.append("service_name", svc.service_name.trim());
+            svcFormData.append("service_category", svc.service_category || "General");
+            svcFormData.append("service_fee", String(Number(svc.service_fee) || 0));
+            svcFormData.append("govt_fee", String(Number(svc.govt_fee) || 0));
+            svcFormData.append("tax_rate", String(Number(svc.tax_rate) || 18));
+            svcFormData.append("start_date", svc.start_date || new Date().toISOString().split("T")[0]);
+            if (svc.expected_completion_date) {
+              svcFormData.append("expected_completion_date", svc.expected_completion_date);
+            }
+            if (svc.assigned_employee_id) {
+              svcFormData.append("assigned_employee_id", svc.assigned_employee_id);
+            } else if (assigned_salesperson) {
+              svcFormData.append("assigned_employee_id", assigned_salesperson);
+            }
+            if (svc.notes) {
+              svcFormData.append("notes", svc.notes);
+            }
+            if (svc.is_renewable) {
+              svcFormData.append("is_renewable", "true");
+              svcFormData.append("renewal_frequency", svc.renewal_frequency || "Annually");
+              svcFormData.append("renewal_duration_months", String(svc.renewal_duration_months || 12));
+              svcFormData.append("renewal_amount", String(Number(svc.renewal_amount) || Number(svc.service_fee) || 0));
+            }
+
+            await assignClientServiceAction(null, svcFormData);
+          }
+        }
+      } catch (svcErr) {
+        console.error("Error creating initial client services:", svcErr);
+      }
+    }
+
+    // Feature: Process initial follow-up if scheduled in client registration wizard
+    const rawInitialFollowup = formData.get("initial_followup") as string;
+    if (rawInitialFollowup) {
+      try {
+        const fuData = JSON.parse(rawInitialFollowup);
+        if (fuData && fuData.title && fuData.due_date) {
+          const fuFormData = new FormData();
+          fuFormData.append("client_id", data.id);
+          fuFormData.append("title", fuData.title.trim());
+          fuFormData.append("follow_up_type", fuData.follow_up_type || "Call");
+          fuFormData.append("due_date", fuData.due_date);
+          if (fuData.due_time) fuFormData.append("due_time", fuData.due_time);
+          fuFormData.append("priority", fuData.priority || "Medium");
+          fuFormData.append("assigned_to", fuData.assigned_to || assigned_salesperson || user.id);
+          if (fuData.notes) fuFormData.append("notes", fuData.notes);
+          fuFormData.append("contact_person", contact_person || "");
+          fuFormData.append("contact_method", fuData.contact_method || "Phone");
+
+          await createFollowupAction(null, fuFormData);
+        }
+      } catch (fuErr) {
+        console.error("Error creating initial client follow-up:", fuErr);
+      }
+    }
   }
 
   revalidatePath("/clients");

@@ -84,7 +84,7 @@ interface ClientDetailViewProps {
   client: any;
   isAdmin: boolean;
   canEdit: boolean;
-  initialTab?: "overview" | "payments" | "services" | "followups";
+  initialTab?: "overview" | "payments" | "services" | "followups" | "activity";
   initialAddService?: boolean;
   initialServiceId?: string | null;
 }
@@ -93,13 +93,13 @@ export function ClientDetailView({
   client,
   isAdmin,
   canEdit,
-  initialTab = "overview",
+  initialTab = "services",
   initialAddService = false,
   initialServiceId = null,
 }: ClientDetailViewProps) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"services" | "overview" | "payments" | "followups" | "activity">(
-    initialTab === "services" || initialTab === "overview" ? "services" : initialTab
+    initialTab || "services"
   );
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(initialServiceId);
   const [highlightedServiceId, setHighlightedServiceId] = useState<string | null>(initialServiceId);
@@ -157,26 +157,43 @@ export function ClientDetailView({
     loadDetailedServices();
   }, [loadDetailedServices]);
 
+  const hasScrolledRef = useRef<string | null>(null);
+
+  const handleTabChange = useCallback(
+    (tab: "services" | "overview" | "payments" | "followups" | "activity") => {
+      setActiveTab(tab);
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", tab);
+        if (tab !== "services") {
+          url.searchParams.delete("serviceId");
+          setSelectedServiceId(null);
+        }
+        window.history.replaceState(null, "", url.toString());
+      }
+    },
+    []
+  );
+
   // Sync initialServiceId or search params when prop changes
   useEffect(() => {
     if (initialServiceId) {
       setSelectedServiceId(initialServiceId);
       setHighlightedServiceId(initialServiceId);
+      hasScrolledRef.current = null;
     }
   }, [initialServiceId]);
 
   // Auto-scroll to selected service once services are loaded and rendered
   useEffect(() => {
     if (!selectedServiceId || isLoadingServices) return;
+    if (hasScrolledRef.current === selectedServiceId) return;
 
     // Check if target service exists in detailedServices
     const serviceExists = detailedServices.some((s) => s.id === selectedServiceId);
     if (!serviceExists) return;
 
-    // Ensure we are on the services tab
-    if (activeTab !== "services") {
-      setActiveTab("services");
-    }
+    hasScrolledRef.current = selectedServiceId;
 
     const timer = setTimeout(() => {
       const el = document.getElementById(`service-${selectedServiceId}`);
@@ -193,7 +210,7 @@ export function ClientDetailView({
       clearTimeout(timer);
       clearTimeout(highlightTimer);
     };
-  }, [selectedServiceId, isLoadingServices, detailedServices, activeTab]);
+  }, [selectedServiceId, isLoadingServices, detailedServices]);
 
   const isArchived = client.clientStatus === "Archived";
 
@@ -388,7 +405,7 @@ export function ClientDetailView({
           <button
             type="button"
             onClick={() => {
-              setActiveTab("services");
+              handleTabChange("services");
               setIsAddServiceModalOpen(true);
             }}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-xl shadow-sm transition-colors cursor-pointer"
@@ -514,7 +531,7 @@ export function ClientDetailView({
       {/* Navigation Tabs Bar */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-1.5 flex items-center gap-1 shadow-2xs overflow-x-auto">
         <button
-          onClick={() => setActiveTab("services")}
+          onClick={() => handleTabChange("services")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "services"
               ? "bg-[#1B3260] text-white shadow-xs"
@@ -526,7 +543,7 @@ export function ClientDetailView({
         </button>
 
         <button
-          onClick={() => setActiveTab("overview")}
+          onClick={() => handleTabChange("overview")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "overview"
               ? "bg-[#1B3260] text-white shadow-xs"
@@ -538,7 +555,7 @@ export function ClientDetailView({
         </button>
 
         <button
-          onClick={() => setActiveTab("payments")}
+          onClick={() => handleTabChange("payments")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "payments"
               ? "bg-[#1B3260] text-white shadow-xs"
@@ -550,7 +567,7 @@ export function ClientDetailView({
         </button>
 
         <button
-          onClick={() => setActiveTab("followups")}
+          onClick={() => handleTabChange("followups")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "followups"
               ? "bg-[#1B3260] text-white shadow-xs"
@@ -562,7 +579,7 @@ export function ClientDetailView({
         </button>
 
         <button
-          onClick={() => setActiveTab("activity")}
+          onClick={() => handleTabChange("activity")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "activity"
               ? "bg-[#1B3260] text-white shadow-xs"

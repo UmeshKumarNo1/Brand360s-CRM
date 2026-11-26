@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { CreditCard, X, Loader2, IndianRupee, Calendar, FileText, Plus, Trash2, CheckCircle2, Sparkles, AlertCircle, ShieldAlert } from "lucide-react";
 import { recordPaymentAction, fetchClientInvoicesForAllocationAction } from "@/app/actions/payments";
 import { fetchClientsAction, fetchClientContractSummaryAction } from "@/app/actions/clients";
@@ -71,6 +72,27 @@ export function RecordPaymentModal({
   const reqIdRef = useRef(0);
   const { success } = useToast();
 
+  // Lock background scroll and handle Escape key while modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   // Load client contract summary for live validation
   useEffect(() => {
     if (!selectedClientId) {
@@ -109,9 +131,11 @@ export function RecordPaymentModal({
     fetchClientInvoicesForAllocationAction(cId)
       .then((invs) => {
         if (currentReq !== reqIdRef.current) return;
-        // Exclude paid and cancelled invoices
+        // Exclude cancelled/void/draft invoices and only show invoices with real outstanding balance
         const openInvoices = (invs || []).filter(
-          (inv) => inv.status !== "Paid" && inv.status !== "Cancelled" && inv.balanceDue > 0
+          (inv) =>
+            !["Cancelled", "Void", "Draft"].includes(inv.status) &&
+            (Number(inv.balanceDue) || 0) > 0.009
         );
         setClientInvoices(openInvoices);
       })
@@ -133,6 +157,15 @@ export function RecordPaymentModal({
 
   // Load client invoices when client changes, clear allocations, and reset manual flag on genuine client switch
   useEffect(() => {
+    if (!selectedClientId) {
+      prevClientIdRef.current = "";
+      setClientInvoices([]);
+      setAllocationLines([]);
+      setContractSummary(null);
+      setAmountValue("");
+      isUserEditedAmountRef.current = false;
+      return;
+    }
     if (prevClientIdRef.current !== selectedClientId) {
       prevClientIdRef.current = selectedClientId;
       isUserEditedAmountRef.current = false;
@@ -288,10 +321,10 @@ export function RecordPaymentModal({
     (contractSummary !== null && maxPermitted <= 0) ||
     (totalAllocating > paymentAmountNum && paymentAmountNum > 0);
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
       <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-lg w-full overflow-hidden max-h-[92vh] flex flex-col">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
@@ -746,6 +779,7 @@ export function RecordPaymentModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

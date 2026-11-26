@@ -3,16 +3,29 @@ export type NotificationType =
   | "payment_due"
   | "payment_overdue"
   | "invoice_created"
+  | "invoice_updated"
   | "invoice_overdue"
   | "renewal_due"
   | "renewal_overdue"
   | "renewal_completed"
+  | "renewal_generated"
+  | "renewal_confirmed"
   | "followup_due"
   | "followup_overdue"
+  | "followup_created"
+  | "followup_completed"
   | "installment_due"
   | "installment_overdue"
+  | "service_deadline_today"
+  | "service_deadline_upcoming"
+  | "service_deadline_overdue"
+  | "service_assigned"
+  | "service_updated"
+  | "service_completed"
   | "client_created"
   | "client_updated"
+  | "client_reassigned"
+  | "document_uploaded"
   | "system_alert";
 
 export type NotificationCategory = "alert" | "update";
@@ -24,12 +37,21 @@ export interface NotificationItem {
   message: string;
   type: NotificationType;
   category: NotificationCategory;
+  badge_label?: string | null;
+  badge_color?: "red" | "orange" | "yellow" | "green" | "blue" | "purple" | "slate";
   entity_type?: string | null;
   entity_id?: string | null;
   action_url?: string | null;
   is_read: boolean;
   read_at?: string | null;
   created_at: string;
+}
+
+export interface NotificationCounts {
+  all: number;
+  alert: number;
+  update: number;
+  unread: number;
 }
 
 export interface CreateNotificationParams {

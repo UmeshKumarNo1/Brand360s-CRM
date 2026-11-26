@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { computeServiceFulfillment } from "@/lib/services/fulfillment-workflows";
+import { calculateServiceFinancials } from "@/lib/financial/financial-calculator";
 
 export interface AssignedServiceItem {
   id: string;
@@ -113,7 +114,7 @@ export async function fetchAssignedServicesAction(): Promise<AssignedServiceItem
     clientIds.length > 0
       ? supabase
           .from("invoices")
-          .select("id, client_id, total_amount, amount_paid, balance_due, status")
+          .select("id, client_id, subtotal, tax_amount, total_amount, amount_paid, balance_due, status, items:invoice_items(id, unit_price, quantity, tax_amount, total, client_service_id)")
           .in("client_id", clientIds)
           .not("status", "in", '("Draft","Void","Cancelled")')
       : Promise.resolve({ data: [] }),
@@ -128,15 +129,6 @@ export async function fetchAssignedServicesAction(): Promise<AssignedServiceItem
   const invoices = invoicesRes.data || [];
   const allocations = allocsRes.data || [];
 
-  // Map allocations by service
-  const paidByService: Record<string, number> = {};
-  allocations.forEach((a: any) => {
-    if (a.client_service_id) {
-      paidByService[a.client_service_id] =
-        (paidByService[a.client_service_id] || 0) + (Number(a.allocated_amount) || 0);
-    }
-  });
-
   return services.map((s: any) => {
     const client = Array.isArray(s.client) ? s.client[0] : s.client;
     const salespersonProfile = client?.salesperson_profile
@@ -150,27 +142,35 @@ export async function fetchAssignedServicesAction(): Promise<AssignedServiceItem
         : s.assigned_profile
       : null;
 
-    const contractVal =
-      Number(s.total_amount) ||
-      (Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0);
+    // Filter matching invoices for this service
+    const matchingInvoices = invoices.filter((inv: any) => {
+      if (inv.client_id !== s.client_id) return false;
+      if (inv.items && inv.items.some((it: any) => it.client_service_id === s.id)) return true;
+      // Single service fallback
+      const otherServices = services.filter((os: any) => os.client_id === s.client_id && os.id !== s.id);
+      if (otherServices.length === 0 && !inv.items?.some((it: any) => it.client_service_id && it.client_service_id !== s.id)) {
+        return true;
+      }
+      return false;
+    });
 
-    const amountPaid = paidByService[s.id] || 0;
-    const outstanding = Math.max(0, contractVal - amountPaid);
+    const matchingInvIds = new Set(matchingInvoices.map((i: any) => i.id));
+    let serviceAllocatedAmount = allocations
+      .filter((a: any) => a.client_service_id === s.id || matchingInvIds.has(a.invoice_id))
+      .reduce((sum: number, a: any) => sum + (Number(a.allocated_amount) || 0), 0);
+
+    if (serviceAllocatedAmount === 0 && matchingInvoices.length > 0) {
+      serviceAllocatedAmount = matchingInvoices.reduce((sum, inv) => sum + (Number(inv.amount_paid) || 0), 0);
+    }
+
+    const metrics = calculateServiceFinancials({
+      service: s,
+      serviceInvoices: matchingInvoices,
+      serviceAllocatedAmount,
+    });
 
     // Compute live fulfillment & stages
     const fulfillment = computeServiceFulfillment(s);
-
-    // Determine payment status
-    let paymentStatus: AssignedServiceItem["paymentStatus"] = "Unpaid";
-    if (amountPaid >= contractVal - 0.01 && contractVal > 0) {
-      paymentStatus = "Paid";
-    } else if (amountPaid > 0.01) {
-      paymentStatus = "Partially Paid";
-    } else if (client?.payment_status === "Overdue") {
-      paymentStatus = "Overdue";
-    } else {
-      paymentStatus = "Unpaid";
-    }
 
     // Determine dynamic next action
     let nextAction = "Review Deliverables";
@@ -192,11 +192,11 @@ export async function fetchAssignedServicesAction(): Promise<AssignedServiceItem
       clientSalespersonId: client?.assigned_salesperson || null,
       serviceName: s.service_name,
       serviceCategory: s.service_category || "General",
-      contractValue: contractVal,
-      paymentStatus,
-      invoicedAmount: contractVal,
-      amountPaid,
-      outstandingAmount: outstanding,
+      contractValue: metrics.contractValue,
+      paymentStatus: (metrics.paymentStatus === "Partial" ? "Partially Paid" : metrics.paymentStatus) as AssignedServiceItem["paymentStatus"],
+      invoicedAmount: metrics.invoicedAmount,
+      amountPaid: metrics.collectedAmount,
+      outstandingAmount: metrics.outstandingAmount,
       progressPercentage: fulfillment.progressPercentage,
       currentStageName: fulfillment.currentStageName || s.current_stage_name || "In Progress",
       currentStageDescription: s.current_stage_description || null,

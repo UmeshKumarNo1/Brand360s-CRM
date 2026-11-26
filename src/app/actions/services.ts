@@ -373,6 +373,11 @@ export async function assignClientServiceAction(
   const serviceCategory = (formData.get("service_category") as string) || "General";
   const serviceFee = parseFloat(formData.get("service_fee") as string) || 0;
   const govtFee = parseFloat(formData.get("govt_fee") as string) || 0;
+  const pricingMode = (formData.get("pricing_mode") as string) === "govt_fee_included" ? "govt_fee_included" : "govt_fee_added";
+  const netProfessionalFee =
+    pricingMode === "govt_fee_included"
+      ? Math.max(0, Math.round((serviceFee - govtFee) * 100) / 100)
+      : serviceFee;
   const startDate = (formData.get("start_date") as string) || null;
   const rawExpectedCompletion = (formData.get("expected_completion_date") as string) || null;
   // Enforce working day only for target delivery date
@@ -426,6 +431,8 @@ export async function assignClientServiceAction(
       service_category: serviceCategory,
       service_fee: serviceFee,
       govt_fee: govtFee,
+      pricing_mode: pricingMode,
+      net_professional_fee: netProfessionalFee,
       tax_amount: taxAmount,
       total_amount: totalAmount,
       tax_rate: taxRate,

@@ -296,6 +296,12 @@ export function InvoicePreviewModal({
   const taxRate = Number(invoice?.taxRate || invoice?.tax_rate) || 18;
   const taxAmount = Number(invoice?.taxAmount || invoice?.tax_amount) || 0;
   const totalAmount = Number(invoice?.totalAmount || invoice?.total_amount) || 0;
+  const discountAmount = Number(invoice?.discountAmount || invoice?.discount_amount) || 0;
+  const originalServiceAmount = discountAmount > 0 ? taxable + discountAmount : taxable;
+  const discountPct =
+    discountAmount > 0 && originalServiceAmount > 0
+      ? Math.round((discountAmount / originalServiceAmount) * 10000) / 100
+      : 0;
   const validAllocations = Array.isArray(invoice?.allocations)
     ? invoice.allocations.filter((alloc: any) => {
         const pmt = Array.isArray(alloc?.payment) ? alloc.payment[0] : alloc?.payment;
@@ -512,8 +518,21 @@ export function InvoicePreviewModal({
                   </div>
                 )}
 
+                {discountAmount > 0 && (
+                  <>
+                    <div className="flex justify-between py-1 border-b border-slate-100">
+                      <span className="text-slate-600">Original Service Amount:</span>
+                      <span className="font-semibold text-slate-800">{formatINR(originalServiceAmount)}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-100 text-emerald-700">
+                      <span>Discount ({discountPct}%):</span>
+                      <span className="font-semibold">-{formatINR(discountAmount)}</span>
+                    </div>
+                  </>
+                )}
+
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-600">Taxable Amount:</span>
+                  <span className="text-slate-600">{discountAmount > 0 ? "Revised Taxable Amount:" : "Taxable Amount:"}</span>
                   <span className="font-semibold text-slate-800">{formatINR(taxable)}</span>
                 </div>
 

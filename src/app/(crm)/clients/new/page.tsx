@@ -118,7 +118,7 @@ export default function NewClientPage() {
   const [clientSince, setClientSince] = useState(new Date().toISOString().split("T")[0]);
 
   // 6. Client Status
-  const [clientStatus, setClientStatus] = useState<"Active" | "Pending Onboarding" | "On Hold" | "Completed" | "Inactive">("Active");
+  const [clientStatus, setClientStatus] = useState<string>("Active");
 
   // 7. Notes
   const [notes, setNotes] = useState("");
@@ -1083,11 +1083,16 @@ export default function NewClientPage() {
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     {[
-                      { value: "Active", label: "Active", desc: "Regular active client relationship" },
-                      { value: "Pending Onboarding", label: "Pending Onboarding", desc: "Awaiting onboarding & agreement" },
-                      { value: "On Hold", label: "On Hold", desc: "Temporarily paused relationship" },
-                      { value: "Completed", label: "Completed", desc: "All projects successfully completed" },
-                      { value: "Inactive", label: "Inactive", desc: "Dormant or archived account" },
+                      { value: "Active", label: "Active", desc: "Regular active client relationship." },
+                      { value: "Pending Onboarding", label: "Pending Onboarding", desc: "Awaiting onboarding and agreement." },
+                      { value: "Documentation in Progress", label: "Documentation in Progress", desc: "Required documents are being collected, prepared or verified." },
+                      { value: "Work in Progress", label: "Work in Progress", desc: "Service execution and process-related activities are currently underway." },
+                      { value: "Awaiting External Approval", label: "Awaiting External Approval", desc: "Pending approval from government authorities or third-party agencies." },
+                      { value: "Awaiting Professional Review", label: "Awaiting Professional Review", desc: "Documentation or application is awaiting review by a CA or Advocate." },
+                      { value: "Completed – Professional Review", label: "Completed – Professional Review", desc: "Review and verification completed by the assigned CA or Advocate." },
+                      { value: "On Hold", label: "On Hold", desc: "Temporarily paused due to pending information, approval or client decision." },
+                      { value: "Completed", label: "Completed", desc: "All agreed services and deliverables successfully completed." },
+                      { value: "Inactive", label: "Inactive", desc: "Dormant or archived client account." },
                     ].map((opt) => (
                       <label
                         key={opt.value}

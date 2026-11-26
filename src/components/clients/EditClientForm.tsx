@@ -190,6 +190,11 @@ export function EditClientForm({ client, isAdmin }: EditClientFormProps) {
               >
                 <option value="Active">Active</option>
                 <option value="Pending Onboarding">Pending Onboarding</option>
+                <option value="Documentation in Progress">Documentation in Progress</option>
+                <option value="Work in Progress">Work in Progress</option>
+                <option value="Awaiting External Approval">Awaiting External Approval</option>
+                <option value="Awaiting Professional Review">Awaiting Professional Review</option>
+                <option value="Completed – Professional Review">Completed – Professional Review</option>
                 <option value="On Hold">On Hold</option>
                 <option value="Completed">Completed</option>
                 <option value="Inactive">Inactive</option>

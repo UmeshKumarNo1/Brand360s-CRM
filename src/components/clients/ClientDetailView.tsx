@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Building2,
@@ -84,7 +84,7 @@ interface ClientDetailViewProps {
   client: any;
   isAdmin: boolean;
   canEdit: boolean;
-  initialTab?: "overview" | "payments" | "services" | "followups";
+  initialTab?: "overview" | "payments" | "services" | "followups" | "activity";
   initialAddService?: boolean;
   initialServiceId?: string | null;
 }
@@ -98,11 +98,14 @@ export function ClientDetailView({
   initialServiceId = null,
 }: ClientDetailViewProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<"services" | "overview" | "payments" | "followups" | "activity">(
-    initialTab === "services" || initialTab === "overview" ? "services" : initialTab
+    initialTab
   );
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(initialServiceId);
   const [highlightedServiceId, setHighlightedServiceId] = useState<string | null>(initialServiceId);
+  const hasScrolledToServiceRef = useRef<string | null>(null);
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isReassignModalOpen, setIsReassignModalOpen] = useState(false);
@@ -157,26 +160,39 @@ export function ClientDetailView({
     loadDetailedServices();
   }, [loadDetailedServices]);
 
+  // Sync activeTab with URL ?tab= for browser back/forward navigation
+  useEffect(() => {
+    const urlTab = searchParams.get("tab");
+    if (
+      urlTab === "services" ||
+      urlTab === "overview" ||
+      urlTab === "payments" ||
+      urlTab === "followups" ||
+      urlTab === "activity"
+    ) {
+      setActiveTab(urlTab);
+    }
+  }, [searchParams]);
+
   // Sync initialServiceId or search params when prop changes
   useEffect(() => {
     if (initialServiceId) {
       setSelectedServiceId(initialServiceId);
       setHighlightedServiceId(initialServiceId);
+      hasScrolledToServiceRef.current = null;
     }
   }, [initialServiceId]);
 
-  // Auto-scroll to selected service once services are loaded and rendered
+  // Auto-scroll to selected service once services are loaded and rendered (only once per selectedServiceId)
   useEffect(() => {
     if (!selectedServiceId || isLoadingServices) return;
+    if (hasScrolledToServiceRef.current === selectedServiceId) return;
 
     // Check if target service exists in detailedServices
     const serviceExists = detailedServices.some((s) => s.id === selectedServiceId);
     if (!serviceExists) return;
 
-    // Ensure we are on the services tab
-    if (activeTab !== "services") {
-      setActiveTab("services");
-    }
+    hasScrolledToServiceRef.current = selectedServiceId;
 
     const timer = setTimeout(() => {
       const el = document.getElementById(`service-${selectedServiceId}`);
@@ -193,7 +209,19 @@ export function ClientDetailView({
       clearTimeout(timer);
       clearTimeout(highlightTimer);
     };
-  }, [selectedServiceId, isLoadingServices, detailedServices, activeTab]);
+  }, [selectedServiceId, isLoadingServices, detailedServices]);
+
+  const handleTabChange = (tab: "services" | "overview" | "payments" | "followups" | "activity") => {
+    setActiveTab(tab);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("tab", tab);
+    if (tab === "services" && selectedServiceId) {
+      params.set("serviceId", selectedServiceId);
+    } else {
+      params.delete("serviceId");
+    }
+    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   const isArchived = client.clientStatus === "Archived";
 
@@ -514,7 +542,7 @@ export function ClientDetailView({
       {/* Navigation Tabs Bar */}
       <div className="bg-white border border-slate-200/80 rounded-2xl p-1.5 flex items-center gap-1 shadow-2xs overflow-x-auto">
         <button
-          onClick={() => setActiveTab("services")}
+          onClick={() => handleTabChange("services")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "services"
               ? "bg-[#1B3260] text-white shadow-xs"
@@ -526,7 +554,7 @@ export function ClientDetailView({
         </button>
 
         <button
-          onClick={() => setActiveTab("overview")}
+          onClick={() => handleTabChange("overview")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "overview"
               ? "bg-[#1B3260] text-white shadow-xs"
@@ -538,7 +566,7 @@ export function ClientDetailView({
         </button>
 
         <button
-          onClick={() => setActiveTab("payments")}
+          onClick={() => handleTabChange("payments")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "payments"
               ? "bg-[#1B3260] text-white shadow-xs"
@@ -550,7 +578,7 @@ export function ClientDetailView({
         </button>
 
         <button
-          onClick={() => setActiveTab("followups")}
+          onClick={() => handleTabChange("followups")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "followups"
               ? "bg-[#1B3260] text-white shadow-xs"
@@ -562,7 +590,7 @@ export function ClientDetailView({
         </button>
 
         <button
-          onClick={() => setActiveTab("activity")}
+          onClick={() => handleTabChange("activity")}
           className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "activity"
               ? "bg-[#1B3260] text-white shadow-xs"

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { calculateServiceFinancials } from "@/lib/financial/financial-calculator";
+import { fetchAuthorizedClientsFinancialRecords } from "@/lib/financial/financial-data-fetcher";
 
 export interface DetailedServiceData {
   id: string;
@@ -121,57 +122,9 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
     return [];
   }
 
-  // 2. Fetch all invoices with line items for this client
-  const { data: clientInvoices } = await supabase
-    .from("invoices")
-    .select(`
-      id,
-      invoice_number,
-      issue_date,
-      due_date,
-      subtotal,
-      tax_amount,
-      total_amount,
-      amount_paid,
-      balance_due,
-      status,
-      payment_terms,
-      created_at,
-      items:invoice_items (
-        id,
-        description,
-        unit_price,
-        quantity,
-        tax_amount,
-        total,
-        client_service_id
-      )
-    `)
-    .eq("client_id", clientId)
-    .order("issue_date", { ascending: false });
-
-  // 3. Fetch all payments and allocations for this client
-  const { data: clientPayments } = await supabase
-    .from("payments")
-    .select(`
-      id,
-      amount,
-      payment_date,
-      payment_method,
-      transaction_ref,
-      status,
-      created_at,
-      allocations:invoice_payment_allocations (
-        id,
-        invoice_id,
-        allocated_amount,
-        client_service_id,
-        invoice_item_id,
-        created_at
-      )
-    `)
-    .eq("client_id", clientId)
-    .order("payment_date", { ascending: false });
+  // 2 & 3. Fetch all invoices, payments, and allocations for this client using shared financial data fetcher
+  const { invoices: clientInvoices, payments: clientPayments } =
+    await fetchAuthorizedClientsFinancialRecords(supabase, [clientId]);
 
   const activeServices = (clientServices || []).filter(
     (s: any) => (s.service_status || s.status) !== "Cancelled"
@@ -251,19 +204,14 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       }
     });
 
-    // Fallback: If only one service exists, and payments exist but allocations table was empty
+    // Fallback: If only one service exists, and valid payments exist but allocations table was empty
+    // (Never fall back to stale inv.amount_paid)
     if (clientServices.length === 1 && serviceAllocatedAmount === 0) {
-      // Check if invoice itself has amount_paid
-      const invoicePaidSum = matchingInvoices.reduce((sum, inv) => sum + (Number(inv.amountPaid) || 0), 0);
-      if (invoicePaidSum > 0) {
-        serviceAllocatedAmount = invoicePaidSum;
-      } else {
-        const verifiedPayments = (clientPayments || []).filter((p: any) =>
-          ["Verified", "Completed", "Received"].includes(p.status) ||
-          (!["Pending", "Failed", "Cancelled", "Reversed"].includes(p.status) && p.status !== undefined)
-        );
-        serviceAllocatedAmount = verifiedPayments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
-      }
+      const verifiedPayments = (clientPayments || []).filter((p: any) =>
+        ["Verified", "Completed", "Received"].includes(p.status) ||
+        (!["Pending", "Failed", "Cancelled", "Reversed", "Deleted", "Rejected"].includes(p.status) && p.status !== undefined)
+      );
+      serviceAllocatedAmount = verifiedPayments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
     }
 
     // Call Central Financial Calculator for this service

@@ -208,10 +208,19 @@ export function calculateClientFinancials(params: {
     0
   );
 
-  // 4. Allocated Amount = Sum of verified payment allocations to issued invoices
+  // 4. Allocated Amount = Sum of valid payment allocations to issued invoices
+  const invalidPaymentIds = new Set(
+    (payments || [])
+      .filter((p: any) =>
+        ["Reversed", "Failed", "Cancelled", "Deleted", "Rejected"].includes(p.status)
+      )
+      .map((p: any) => p.id)
+  );
   const issuedInvoiceIds = new Set(issuedInvoices.map((i: any) => i.id));
-  const validAllocations = (allocations || []).filter((a: any) =>
-    issuedInvoiceIds.has(a.invoice_id)
+  const validAllocations = (allocations || []).filter(
+    (a: any) =>
+      issuedInvoiceIds.has(a.invoice_id) &&
+      (!a.payment_id || !invalidPaymentIds.has(a.payment_id))
   );
 
   const allocatedAmount = validAllocations.reduce(
@@ -232,22 +241,11 @@ export function calculateClientFinancials(params: {
   });
 
   // 6. Invoice Outstanding = Sum of unpaid balance on issued invoices
-  // Prioritizes live verified payment allocations over potentially desynchronized static invoice fields
+  // Strictly derived from live valid payment allocations (never stale static balance_due / amount_paid)
   const invoiceOutstanding = issuedInvoices.reduce((sum: number, inv: any) => {
     const invTotal = Number(inv.total_amount ?? inv.totalAmount) || 0;
-    const invAllocated = allocationsByInvoice[inv.id];
-
-    // If allocations exist for this invoice, balance = total - allocated
-    // Otherwise fallback to static balance_due or total_amount - amount_paid
-    let bal: number;
-    if (typeof invAllocated === "number") {
-      bal = Math.max(0, invTotal - invAllocated);
-    } else if (inv.balance_due !== undefined && inv.balance_due !== null) {
-      bal = Number(inv.balance_due);
-    } else {
-      bal = Math.max(0, invTotal - (Number(inv.amount_paid) || 0));
-    }
-    return sum + bal;
+    const invAllocated = allocationsByInvoice[inv.id] || 0;
+    return sum + Math.max(0, invTotal - invAllocated);
   }, 0);
 
   // 7. Contract Balance = Contract Value - Collections credited

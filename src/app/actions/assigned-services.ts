@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { computeServiceFulfillment } from "@/lib/services/fulfillment-workflows";
 import { calculateServiceFinancials } from "@/lib/financial/financial-calculator";
+import { fetchAuthorizedClientsFinancialRecords } from "@/lib/financial/financial-data-fetcher";
 
 export interface AssignedServiceItem {
   id: string;
@@ -106,28 +107,18 @@ export async function fetchAssignedServicesAction(): Promise<AssignedServiceItem
     return [];
   }
 
-  // Fetch invoice payment allocations and invoices to accurately calculate payment status per service
-  const serviceIds = services.map((s: any) => s.id);
+  // Fetch invoices, payments, and payment allocations using shared financial data fetcher
   const clientIds = Array.from(new Set(services.map((s: any) => s.client_id)));
+  const { invoices, payments, allocations } = await fetchAuthorizedClientsFinancialRecords(
+    supabase,
+    clientIds
+  );
 
-  const [invoicesRes, allocsRes] = await Promise.all([
-    clientIds.length > 0
-      ? supabase
-          .from("invoices")
-          .select("id, client_id, subtotal, tax_amount, total_amount, amount_paid, balance_due, status, items:invoice_items(id, unit_price, quantity, tax_amount, total, client_service_id)")
-          .in("client_id", clientIds)
-          .not("status", "in", '("Draft","Void","Cancelled")')
-      : Promise.resolve({ data: [] }),
-    serviceIds.length > 0
-      ? supabase
-          .from("invoice_payment_allocations")
-          .select("invoice_id, client_service_id, allocated_amount")
-          .in("client_service_id", serviceIds)
-      : Promise.resolve({ data: [] }),
-  ]);
-
-  const invoices = invoicesRes.data || [];
-  const allocations = allocsRes.data || [];
+  const validPaymentIds = new Set(
+    payments
+      .filter((p: any) => !["Reversed", "Failed", "Cancelled", "Deleted", "Rejected"].includes(p.status))
+      .map((p: any) => p.id)
+  );
 
   return services.map((s: any) => {
     const client = Array.isArray(s.client) ? s.client[0] : s.client;
@@ -156,12 +147,12 @@ export async function fetchAssignedServicesAction(): Promise<AssignedServiceItem
 
     const matchingInvIds = new Set(matchingInvoices.map((i: any) => i.id));
     let serviceAllocatedAmount = allocations
-      .filter((a: any) => a.client_service_id === s.id || matchingInvIds.has(a.invoice_id))
+      .filter(
+        (a: any) =>
+          (!a.payment_id || validPaymentIds.has(a.payment_id)) &&
+          (a.client_service_id === s.id || matchingInvIds.has(a.invoice_id))
+      )
       .reduce((sum: number, a: any) => sum + (Number(a.allocated_amount) || 0), 0);
-
-    if (serviceAllocatedAmount === 0 && matchingInvoices.length > 0) {
-      serviceAllocatedAmount = matchingInvoices.reduce((sum, inv) => sum + (Number(inv.amount_paid) || 0), 0);
-    }
 
     const metrics = calculateServiceFinancials({
       service: s,

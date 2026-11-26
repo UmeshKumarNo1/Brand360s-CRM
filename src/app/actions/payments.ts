@@ -5,6 +5,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { revalidatePath } from "next/cache";
 import { recordAuditLog } from "@/lib/audit/audit-logger";
 import { generatePaymentReceiptAction } from "./receipts";
+import { fetchAuthorizedClientsFinancialRecords } from "@/lib/financial/financial-data-fetcher";
+import { calculateClientFinancials } from "@/lib/financial/financial-calculator";
 
 export interface PaymentActionState {
   error?: string | null;
@@ -362,19 +364,19 @@ export async function recordPaymentAction(
     return { error: "Client record not found." };
   }
 
-  // Fetch issued, eligible invoices (excluding Draft, Void, Cancelled)
-  const { data: clientInvoices } = await supabase
-    .from("invoices")
-    .select("id, total_amount, amount_paid, balance_due, status")
-    .eq("client_id", clientId)
-    .not("status", "in", '("Draft","Void","Cancelled")');
+  // Fetch issued, eligible invoices & live allocations (Single Source of Truth)
+  const { invoices: clientInvoices, payments: clientPayments, allocations: clientAllocs } =
+    await fetchAuthorizedClientsFinancialRecords(supabase, [clientId]);
 
-  const remainingInvoiceBalance = (clientInvoices || []).reduce((sum, inv) => {
-    const bal = inv.balance_due !== undefined && inv.balance_due !== null
-      ? Number(inv.balance_due)
-      : Math.max(0, (Number(inv.total_amount) || 0) - (Number(inv.amount_paid) || 0));
-    return sum + bal;
-  }, 0);
+  const clientFinancials = calculateClientFinancials({
+    clientId,
+    services: [],
+    invoices: clientInvoices,
+    payments: clientPayments,
+    allocations: clientAllocs,
+  });
+
+  const remainingInvoiceBalance = clientFinancials.invoiceOutstanding;
 
   if (status === "Verified") {
     if (remainingInvoiceBalance <= 0) {
@@ -409,17 +411,38 @@ export async function recordPaymentAction(
       return { error: `Total allocated to invoices (₹${totalAlloc.toLocaleString("en-IN")}) exceeds payment amount (₹${amount.toLocaleString("en-IN")}).` };
     }
 
+    const invalidPaymentIds = new Set(
+      (clientPayments || [])
+        .filter((p: any) =>
+          ["Reversed", "Failed", "Cancelled", "Deleted", "Rejected"].includes(p.status)
+        )
+        .map((p: any) => p.id)
+    );
+
     for (const alloc of parsedAllocations) {
+      if (!alloc.invoiceId) {
+        return { error: "Please select an invoice for each allocation row." };
+      }
       const invMatch = (clientInvoices || []).find((i: any) => i.id === alloc.invoiceId);
-      if (invMatch) {
-        const invBal = invMatch.balance_due !== undefined && invMatch.balance_due !== null
-          ? Number(invMatch.balance_due)
-          : Math.max(0, (Number(invMatch.total_amount) || 0) - (Number(invMatch.amount_paid) || 0));
-        if (Number(alloc.amount) > invBal + 0.009) {
-          return {
-            error: `Allocated amount ₹${Number(alloc.amount).toLocaleString("en-IN")} exceeds invoice balance ₹${invBal.toLocaleString("en-IN")}.`,
-          };
-        }
+      if (!invMatch) {
+        return {
+          error: `Selected invoice could not be found for this client. Please refresh and try again.`,
+        };
+      }
+      const invTotal = Number(invMatch.total_amount) || 0;
+      const invAllocated = (clientAllocs || [])
+        .filter(
+          (a: any) =>
+            a.invoice_id === invMatch.id &&
+            (!a.payment_id || !invalidPaymentIds.has(a.payment_id))
+        )
+        .reduce((sum: number, a: any) => sum + (Number(a.allocated_amount) || 0), 0);
+      const invBal = Math.max(0, invTotal - invAllocated);
+
+      if (Number(alloc.amount) > invBal + 0.009) {
+        return {
+          error: `Allocated amount ₹${Number(alloc.amount).toLocaleString("en-IN")} exceeds invoice balance ₹${invBal.toLocaleString("en-IN")}.`,
+        };
       }
     }
   }
@@ -443,17 +466,27 @@ export async function recordPaymentAction(
     .single();
 
   if (paymentError || !newPayment) {
+    console.error("[recordPaymentAction] Payments INSERT failed:", {
+      authUserId: user.id,
+      clientId,
+      recordedBy: user.id,
+      status,
+      errorCode: paymentError?.code,
+      errorMessage: paymentError?.message,
+    });
     return { error: paymentError?.message || "Failed to record payment transaction." };
   }
   newPaymentId = newPayment.id;
 
   // 1b. Check if invoice allocations were passed with this payment
   if (parsedAllocations.length > 0 && status === "Verified" && newPaymentId) {
-    try {
-      // Run allocation action for this new payment
-      await allocatePaymentToInvoicesAction(newPaymentId, parsedAllocations);
-    } catch (allocErr: any) {
-      console.error("Error processing initial invoice allocations:", allocErr);
+    const allocRes = await allocatePaymentToInvoicesAction(newPaymentId, parsedAllocations);
+    if (!allocRes.success) {
+      // Roll back the newly inserted payment so a failed allocation does not leave an unallocated payment
+      await supabase.from("payments").delete().eq("id", newPaymentId);
+      return {
+        error: allocRes.error || "Failed to allocate payment to selected invoices.",
+      };
     }
   }
 
@@ -828,45 +861,34 @@ export async function fetchClientInvoicesForAllocationAction(clientId: string) {
   const supabase = await createClient();
   const cleanClientId = clientId.trim();
 
-  // 1. Fetch invoices directly for this client UUID
-  const { data: invoices, error } = await supabase
-    .from("invoices")
-    .select(`
-      id,
-      invoice_number,
-      client_id,
-      issue_date,
-      due_date,
-      total_amount,
-      amount_paid,
-      balance_due,
-      status
-    `)
-    .eq("client_id", cleanClientId)
-    .order("issue_date", { ascending: true });
+  // Verify user is authorized to view this client via RLS
+  const { data: authorizedClient } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("id", cleanClientId)
+    .single();
 
-  if (error) {
-    console.error("Error fetching client invoices for allocation:", error);
+  if (!authorizedClient) {
     return [];
   }
 
-  // 2. Fetch existing allocations for these invoices to calculate real live balances
-  const invoiceIds = (invoices || []).map((i: any) => i.id);
-  let liveAllocationsByInvoice: Record<string, number> = {};
+  // Fetch invoices, payments, and allocations using shared financial data fetcher
+  const { invoices, payments, allocations } =
+    await fetchAuthorizedClientsFinancialRecords(supabase, [cleanClientId]);
 
-  if (invoiceIds.length > 0) {
-    const { data: allocationsData } = await supabase
-      .from("invoice_payment_allocations")
-      .select("invoice_id, allocated_amount")
-      .in("invoice_id", invoiceIds);
+  const validPaymentIds = new Set(
+    payments
+      .filter((p: any) => !["Reversed", "Failed", "Cancelled", "Deleted", "Rejected"].includes(p.status))
+      .map((p: any) => p.id)
+  );
 
-    if (allocationsData && allocationsData.length > 0) {
-      allocationsData.forEach((a: any) => {
-        liveAllocationsByInvoice[a.invoice_id] =
-          (liveAllocationsByInvoice[a.invoice_id] || 0) + (Number(a.allocated_amount) || 0);
-      });
+  const liveAllocationsByInvoice: Record<string, number> = {};
+  allocations.forEach((a: any) => {
+    if (a.invoice_id && (!a.payment_id || validPaymentIds.has(a.payment_id))) {
+      liveAllocationsByInvoice[a.invoice_id] =
+        (liveAllocationsByInvoice[a.invoice_id] || 0) + (Number(a.allocated_amount) || 0);
     }
-  }
+  });
 
   const today = new Date().toISOString().split("T")[0];
 
@@ -878,9 +900,8 @@ export async function fetchClientInvoicesForAllocationAction(clientId: string) {
     })
     .map((inv: any) => {
       const total = Number(inv.total_amount) || 0;
-      // Use sum from invoice_payment_allocations if available, otherwise fallback to inv.amount_paid
-      const allocSum = liveAllocationsByInvoice[inv.id];
-      const paid = typeof allocSum === "number" ? allocSum : Number(inv.amount_paid) || 0;
+      // Strictly use live sum from valid invoice_payment_allocations (never stale inv.amount_paid)
+      const paid = liveAllocationsByInvoice[inv.id] || 0;
       const balance = Math.max(0, total - paid);
 
       let computedStatus = inv.status || "Issued";
@@ -924,14 +945,18 @@ export async function allocatePaymentToInvoicesAction(
     return { success: false, error: "Please specify at least one invoice allocation." };
   }
 
-  // 1. Verify user role & permissions
+  // 1. Verify user role, active status & permissions
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, is_active")
     .eq("id", user.id)
     .maybeSingle();
 
-  const isAdmin = profile?.role === "admin";
+  if (!profile || profile.is_active === false) {
+    return { success: false, error: "Your account is inactive or unauthorized." };
+  }
+
+  const isAdmin = profile.role === "admin";
 
   // 2. Fetch payment record with client details & existing allocations
   const { data: payment, error: paymentError } = await supabase
@@ -958,7 +983,19 @@ export async function allocatePaymentToInvoicesAction(
   }
 
   const client = Array.isArray(payment.client) ? payment.client[0] : payment.client;
-  const isAuthorized = isAdmin || client?.assigned_salesperson === user.id || client?.created_by === user.id;
+  let isAuthorized =
+    isAdmin || client?.assigned_salesperson === user.id || client?.created_by === user.id;
+
+  if (!isAuthorized && payment.client_id) {
+    const { data: hasService } = await supabase
+      .rpc("has_assigned_service_for_client", {
+        p_client_id: payment.client_id,
+        p_user_id: user.id,
+      });
+    if (hasService) {
+      isAuthorized = true;
+    }
+  }
 
   if (!isAuthorized) {
     return {
@@ -1035,10 +1072,26 @@ export async function allocatePaymentToInvoicesAction(
       return { success: false, error: "Cannot allocate payment to a cancelled invoice." };
     }
 
-    if (allocAmount > (Number(inv.balance_due) + 0.001)) {
+    // Compute live invoice balance from valid allocations (never stale inv.balance_due)
+    const { data: invAllocs } = await supabase
+      .from("invoice_payment_allocations")
+      .select("allocated_amount, payment:payments!payment_id(status)")
+      .eq("invoice_id", inv.id);
+
+    const liveAllocated = (invAllocs || []).reduce((sum: number, a: any) => {
+      const pmtStatus = Array.isArray(a.payment) ? a.payment[0]?.status : a.payment?.status;
+      if (pmtStatus && ["Reversed", "Failed", "Cancelled", "Deleted", "Rejected"].includes(pmtStatus)) {
+        return sum;
+      }
+      return sum + (Number(a.allocated_amount) || 0);
+    }, 0);
+
+    const liveInvBalance = Math.max(0, (Number(inv.total_amount) || 0) - liveAllocated);
+
+    if (allocAmount > (liveInvBalance + 0.001)) {
       return {
         success: false,
-        error: `Allocation amount ₹${allocAmount} exceeds invoice balance ₹${inv.balance_due}.`,
+        error: `Allocation amount ₹${allocAmount} exceeds invoice balance ₹${liveInvBalance}.`,
       };
     }
 

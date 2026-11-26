@@ -17,6 +17,7 @@ import {
 
 import { recordAuditLog } from "@/lib/audit/audit-logger";
 import { calculateClientFinancials, calculateServiceFinancials } from "@/lib/financial/financial-calculator";
+import { fetchAuthorizedClientsFinancialRecords } from "@/lib/financial/financial-data-fetcher";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 export interface CreateClientState {
@@ -454,28 +455,17 @@ export async function fetchClientsAction() {
       });
     });
 
-    // Batch fetch issued invoices, payments, and allocations
-    // If user client returns empty due to restrictive RLS on non-owned client invoices/payments,
-    // fallback to server admin client so service assignees can see accurate client-level financial totals.
-    let [invoicesRes, paymentsRes, allocsRes] = await Promise.all([
-      supabase
-        .from("invoices")
-        .select("id, client_id, subtotal, tax_amount, total_amount, amount_paid, balance_due, status, items:invoice_items(id, unit_price, quantity, tax_amount, total, client_service_id)")
-        .in("client_id", allClientIds)
-        .not("status", "in", '("Draft","Void","Cancelled")'),
-      supabase
-        .from("payments")
-        .select("id, client_id, amount, status")
-        .in("client_id", allClientIds),
-      allServiceIds.length > 0 || allClientIds.length > 0
-        ? supabase
-            .from("invoice_payment_allocations")
-            .select("id, invoice_id, payment_id, allocated_amount, client_service_id")
-        : Promise.resolve({ data: [] }),
-    ]);
+    // Batch fetch issued invoices, payments, and allocations using shared financial data fetcher
+    const {
+      invoices: fetchedInvoices,
+      payments: fetchedPayments,
+      allocations: fetchedAllocations,
+    } = await fetchAuthorizedClientsFinancialRecords(supabase, allClientIds);
 
-    // Check if any client visible to this user has services, but 0 invoices/payments returned
-    // This happens when an employee is only an assigned service handler, but invoices/payments are owned by another salesperson
+    const invoicesRes = { data: fetchedInvoices };
+    const paymentsRes = { data: fetchedPayments };
+    const allocsRes = { data: fetchedAllocations };
+
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     let adminClient: any = null;
@@ -483,28 +473,6 @@ export async function fetchClientsAction() {
       adminClient = createSupabaseClient(supabaseUrl, serviceKey, {
         auth: { autoRefreshToken: false, persistSession: false },
       });
-    }
-
-    if (adminClient && allClientIds.length > 0 && (!invoicesRes.data || invoicesRes.data.length === 0)) {
-      const [adminInvs, adminPmts, adminAllocs] = await Promise.all([
-        adminClient
-          .from("invoices")
-          .select("id, client_id, subtotal, tax_amount, total_amount, amount_paid, balance_due, status, items:invoice_items(id, unit_price, quantity, tax_amount, total, client_service_id)")
-          .in("client_id", allClientIds)
-          .not("status", "in", '("Draft","Void","Cancelled")'),
-        adminClient
-          .from("payments")
-          .select("id, client_id, amount, status")
-          .in("client_id", allClientIds),
-        allServiceIds.length > 0 || allClientIds.length > 0
-          ? adminClient
-              .from("invoice_payment_allocations")
-              .select("id, invoice_id, payment_id, allocated_amount, client_service_id")
-          : Promise.resolve({ data: [] }),
-      ]);
-      if (adminInvs.data && adminInvs.data.length > 0) invoicesRes = adminInvs;
-      if (adminPmts.data && adminPmts.data.length > 0) paymentsRes = adminPmts;
-      if (adminAllocs.data && adminAllocs.data.length > 0) allocsRes = adminAllocs;
     }
 
     // Resolve any missing profiles (e.g. if RLS restricted profile select for non-admin) using server-side admin client
@@ -576,20 +544,24 @@ export async function fetchClientsAction() {
           return false;
         });
 
-        // Find service allocations
+        // Find service allocations (strictly from valid, non-reversed/non-deleted payments)
         const matchingInvIds = new Set(matchingInvoices.map((i: any) => i.id));
+        const validPaymentIds = new Set(
+          clientPmts
+            .filter((p: any) => !["Reversed", "Failed", "Cancelled", "Deleted", "Rejected"].includes(p.status))
+            .map((p: any) => p.id)
+        );
         let serviceAllocatedAmount = clientAllocs
-          .filter((a: any) => a.client_service_id === s.id || matchingInvIds.has(a.invoice_id))
+          .filter(
+            (a: any) =>
+              (!a.payment_id || validPaymentIds.has(a.payment_id)) &&
+              (a.client_service_id === s.id || matchingInvIds.has(a.invoice_id))
+          )
           .reduce((sum: number, a: any) => sum + (Number(a.allocated_amount ?? a.amount) || 0), 0);
 
-        // Fallback for single service with invoice paid amount
-        if ((client.services || []).length === 1 && serviceAllocatedAmount === 0) {
-          const invPaid = matchingInvoices.reduce((sum, inv) => sum + (Number(inv.amount_paid) || 0), 0);
-          if (invPaid > 0) {
-            serviceAllocatedAmount = invPaid;
-          } else {
-            serviceAllocatedAmount = clientFinancials.collectedAmount;
-          }
+        // Fallback for single service: use actual verified/valid collectedAmount from payments (never stale inv.amount_paid)
+        if ((client.services || []).length === 1 && serviceAllocatedAmount === 0 && clientFinancials.collectedAmount > 0) {
+          serviceAllocatedAmount = clientFinancials.collectedAmount;
         }
 
         const svcFiancials = calculateServiceFinancials({
@@ -717,7 +689,7 @@ export async function fetchClientContractSummaryAction(clientId: string) {
   if (!clientId) return null;
   const supabase = await createClient();
 
-  const [clientRes, servicesRes, invoicesRes, paymentsRes, allocsRes] = await Promise.all([
+  const [clientRes, servicesRes] = await Promise.all([
     supabase
       .from("clients")
       .select("id, company_name, client_code, contract_value, balance_receivable")
@@ -727,75 +699,28 @@ export async function fetchClientContractSummaryAction(clientId: string) {
       .from("client_services")
       .select("id, total_amount, service_fee, govt_fee, additional_fee, discount, service_status")
       .eq("client_id", clientId),
-    supabase
-      .from("invoices")
-      .select("id, total_amount, amount_paid, balance_due, status")
-      .eq("client_id", clientId)
-      .not("status", "in", '("Draft","Void","Cancelled")'),
-    supabase
-      .from("payments")
-      .select("amount, status")
-      .eq("client_id", clientId)
-      .eq("status", "Verified"),
-    supabase
-      .from("invoice_payment_allocations")
-      .select("invoice_id, allocated_amount"),
   ]);
 
   if (clientRes.error || !clientRes.data) return null;
   const client = clientRes.data;
 
-  // 1. Contract Value = active services contract fees (excl GST)
-  const activeServices = (servicesRes.data || []).filter(
-    (s: any) => s.service_status !== "Cancelled"
-  );
-  const contractValue = activeServices.length > 0
-    ? activeServices.reduce((sum: number, s: any) => {
-        const amt = Number(s.total_amount) || ((Number(s.service_fee) || 0) + (Number(s.govt_fee) || 0) + (Number(s.additional_fee) || 0) - (Number(s.discount) || 0));
-        return sum + amt;
-      }, 0)
-    : Number(client.contract_value) || 0;
+  // Use shared financial data fetcher & calculator (Single Source of Truth)
+  const { invoices: validInvoices, payments: clientPayments, allocations: clientAllocs } =
+    await fetchAuthorizedClientsFinancialRecords(supabase, [clientId]);
 
-  // 2. Total Invoiced = eligible issued invoices (incl GST)
-  const validInvoices = invoicesRes.data || [];
-  const totalInvoiced = validInvoices.reduce(
-    (sum: number, inv: any) => sum + (Number(inv.total_amount) || 0),
-    0
-  );
-
-  // 3. Previously Received = verified payments
-  const totalVerifiedReceived = (paymentsRes.data || []).reduce(
-    (sum: number, p: any) => sum + (Number(p.amount) || 0),
-    0
-  );
-
-  const allocationsByInvoice: Record<string, number> = {};
-  (allocsRes.data || []).forEach((a: any) => {
-    if (a.invoice_id) {
-      allocationsByInvoice[a.invoice_id] =
-        (allocationsByInvoice[a.invoice_id] || 0) + (Number(a.allocated_amount) || 0);
-    }
+  const clientFinancials = calculateClientFinancials({
+    clientId: client.id,
+    services: servicesRes.data || [],
+    invoices: validInvoices,
+    payments: clientPayments,
+    allocations: clientAllocs,
   });
 
-  // 4. Remaining Invoice Balance = SUM(balance of issued valid invoices based on live allocations)
-  const remainingInvoiceBalance = validInvoices.reduce((sum: number, inv: any) => {
-    const invTotal = Number(inv.total_amount) || 0;
-    const invAllocated = allocationsByInvoice[inv.id];
-    let bal: number;
-    if (typeof invAllocated === "number") {
-      bal = Math.max(0, invTotal - invAllocated);
-    } else if (inv.balance_due !== undefined && inv.balance_due !== null) {
-      bal = Number(inv.balance_due);
-    } else {
-      bal = Math.max(0, invTotal - (Number(inv.amount_paid) || 0));
-    }
-    return sum + bal;
-  }, 0);
-
-  // Remaining contract balance (for informational tracking)
+  const contractValue = clientFinancials.contractValue || Number(client.contract_value) || 0;
+  const totalInvoiced = clientFinancials.invoicedAmount;
+  const totalVerifiedReceived = clientFinancials.collectedAmount;
+  const remainingInvoiceBalance = clientFinancials.invoiceOutstanding;
   const remainingContractBalance = Math.max(0, contractValue - totalVerifiedReceived);
-
-  // Payment Limit: Maximum Permitted is the outstanding balance of issued invoices
   const maximumPermittedPayment = Math.max(0, remainingInvoiceBalance);
 
   return {

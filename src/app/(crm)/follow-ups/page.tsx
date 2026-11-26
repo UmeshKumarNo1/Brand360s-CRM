@@ -25,14 +25,19 @@ import { DeleteConfirmationModal } from "@/components/common/DeleteConfirmationM
 import { useToast } from "@/components/common/ToastProvider";
 import { FollowupStatsCards } from "@/components/followups/FollowupStatsCards";
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
-import { fetchFollowupsAction } from "@/app/actions/followups";
+import {
+  fetchProspectFollowupsAction,
+  createProspectFollowupAction,
+  updateProspectFollowupAction,
+  deleteProspectFollowupAction,
+} from "@/app/actions/prospect-followups";
 import { fetchSalespeopleAction } from "@/app/actions/clients";
-import { MOCK_PROSPECTS, ProspectFollowup } from "@/data/mockProspects";
+import type { ProspectFollowup } from "@/data/mockProspects";
 
 const ITEMS_PER_PAGE = 6;
 
 export default function FollowupsPage() {
-  const [prospects, setProspects] = useState<ProspectFollowup[]>(MOCK_PROSPECTS);
+  const [prospects, setProspects] = useState<ProspectFollowup[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<"all" | "today" | "overdue" | "infollowup" | "likely">("all");
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -74,37 +79,12 @@ export default function FollowupsPage() {
       }
     });
 
-    // Merge Supabase followups if present
-    fetchFollowupsAction().then((dbData) => {
-      if (dbData && dbData.length > 0) {
-        const mappedDb: ProspectFollowup[] = dbData.map((d: any) => ({
-          id: d.id,
-          companyName: d.companyName || "Client Follow-up",
-          contactPerson: d.contactPerson || "-",
-          phone: "+91 98765 00000",
-          serviceInterested: d.followUpType || "General Service",
-          service: d.followUpType || "General Service",
-          lastFollowup: "Recent",
-          nextFollowup: d.dueDate || "Today",
-          dueDate: d.dueDate,
-          status: d.isOverdue ? `Overdue (${d.overdueDays}d)` : d.status === "Completed" ? "Completed" : "In Follow-up",
-          assignedToName: d.assignedToName || "Staff",
-          assignedStaffInitials: d.assignedToName?.slice(0, 2).toUpperCase() || "ST",
-          assignedColor: "bg-blue-100 text-blue-700",
-          notes: d.notes || "",
-          title: d.title || "",
-          priority: d.priority || "Medium",
-          clientId: d.clientId,
-          isOverdue: d.isOverdue,
-        }));
-
-        setProspects((prev) => {
-          const existingIds = new Set(mappedDb.map((m) => m.id));
-          const uniqueExisting = prev.filter((s) => !existingIds.has(s.id));
-          return [...mappedDb, ...uniqueExisting];
-        });
-      }
-    }).catch(() => {});
+    // Load prospect follow-ups from Supabase (separate from client follow_ups)
+    fetchProspectFollowupsAction()
+      .then((dbData) => {
+        setProspects(dbData || []);
+      })
+      .catch(() => {});
   }, []);
 
   // Connected dynamic counts
@@ -261,16 +241,51 @@ export default function FollowupsPage() {
   };
 
   // Add / Update Followup Callback
-  const handleSaveProspectFollowup = (newItem: ProspectFollowup) => {
-    setProspects((prev) => {
-      const idx = prev.findIndex((p) => p.id === newItem.id);
-      if (idx >= 0) {
-        const updated = [...prev];
-        updated[idx] = newItem;
-        return updated;
+  const handleSaveProspectFollowup = async (newItem: any) => {
+    const isExisting = prospects.some((p) => p.id === newItem.id);
+    if (isExisting) {
+      const res = await updateProspectFollowupAction(newItem.id, {
+        companyName: newItem.companyName,
+        contactPerson: newItem.contactPerson,
+        phone: newItem.phone,
+        serviceInterested: newItem.serviceInterested || newItem.service,
+        title: newItem.title,
+        followUpType: newItem.followUpType || newItem.type,
+        priority: newItem.priority,
+        status: newItem.status,
+        dueDate: newItem.dueDate || newItem.nextFollowup,
+        dueTime: newItem.dueTime,
+        assignedToId: newItem.assignedToId,
+        assignedToName: newItem.assignedToName || newItem.assignedStaff,
+        notes: newItem.notes,
+      });
+      if (res.error) {
+        toastError("Failed to update prospect follow-up", res.error);
+        return;
       }
-      return [newItem, ...prev];
-    });
+      setProspects((prev) => prev.map((p) => (p.id === newItem.id ? newItem : p)));
+    } else {
+      const res = await createProspectFollowupAction({
+        companyName: newItem.companyName,
+        contactPerson: newItem.contactPerson,
+        phone: newItem.phone,
+        serviceInterested: newItem.serviceInterested || newItem.service || "Pvt. Ltd. Registration",
+        title: newItem.title || "Follow-up",
+        followUpType: newItem.followUpType || newItem.type || "Phone Call",
+        priority: newItem.priority || "Medium",
+        status: newItem.status || "Due Today",
+        dueDate: newItem.dueDate || newItem.nextFollowup || new Date().toISOString().split("T")[0],
+        dueTime: newItem.dueTime,
+        assignedToId: newItem.assignedToId,
+        assignedToName: newItem.assignedToName || newItem.assignedStaff,
+        notes: newItem.notes,
+      });
+      if (res.error || !res.data) {
+        toastError("Failed to save prospect follow-up", res.error || "Unknown error");
+        return;
+      }
+      setProspects((prev) => [res.data!, ...prev]);
+    }
     setCurrentPage(1);
   };
 

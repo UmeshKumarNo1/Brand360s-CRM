@@ -88,6 +88,9 @@ interface FollowupModalProps {
   initialData?: any | null;
   defaultClientId?: string;
   defaultClientName?: string;
+  defaultContactPerson?: string;
+  defaultPhone?: string;
+  defaultAssignedTo?: string | null;
   isAdmin?: boolean;
   onAddProspectFollowup?: (data: any) => void;
   employeesList?: any[];
@@ -101,6 +104,9 @@ export function CreateFollowupModal({
   initialData,
   defaultClientId,
   defaultClientName,
+  defaultContactPerson,
+  defaultPhone,
+  defaultAssignedTo,
   isAdmin = false,
   onAddProspectFollowup,
   employeesList,
@@ -157,13 +163,13 @@ export function CreateFollowupModal({
       const cId = initialData?.clientId || initialData?.client_id || defaultClientId || "";
       setSelectedClientId(cId);
 
-      const aId = initialData?.assignedToId || initialData?.assigned_to || "";
+      const aId = initialData?.assignedToId || initialData?.assigned_to || defaultAssignedTo || "";
       setSelectedAssignedTo(aId);
 
       if (initialData) {
-        setCompanyName(initialData.companyName || "");
-        setContactPerson(initialData.contactPerson || "");
-        setPhone(initialData.phone || "");
+        setCompanyName(initialData.companyName || defaultClientName || "");
+        setContactPerson(initialData.contactPerson || defaultContactPerson || "");
+        setPhone(initialData.phone || defaultPhone || "");
         setServiceInterested(initialData.serviceInterested || initialData.service || "Pvt. Ltd. Registration");
         setTitle(initialData.title || "");
         setFollowUpType(initialData.followUpType || initialData.type || "Phone Call");
@@ -174,9 +180,9 @@ export function CreateFollowupModal({
         setAssignedStaff(initialData.assignedToName || initialData.assignedStaff || "Admin User");
         setNotes(initialData.notes || initialData.description || "");
       } else {
-        setCompanyName("");
-        setContactPerson("");
-        setPhone("");
+        setCompanyName(defaultClientName || "");
+        setContactPerson(defaultContactPerson || "");
+        setPhone(defaultPhone || "");
         setServiceInterested("Pvt. Ltd. Registration");
         setTitle("");
         setFollowUpType("Phone Call");
@@ -184,11 +190,12 @@ export function CreateFollowupModal({
         setStatus("Due Today");
         setDueDate(new Date().toISOString().split("T")[0]);
         setDueTime("");
-        setAssignedStaff(employees[0]?.full_name || "Admin User");
+        const matchedEmp = employees.find((e) => e.id === defaultAssignedTo);
+        setAssignedStaff(matchedEmp?.full_name || employees[0]?.full_name || "Admin User");
         setNotes("");
       }
     }
-  }, [isOpen, initialData, defaultClientId, employees]);
+  }, [isOpen, initialData, defaultClientId, defaultClientName, defaultContactPerson, defaultPhone, defaultAssignedTo, employees]);
 
   // Handle successful server action submission if not in prospect callback mode
   useEffect(() => {
@@ -292,6 +299,7 @@ export function CreateFollowupModal({
           className="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs flex-1"
         >
           {isEdit && <input type="hidden" name="id" value={initialData.id} />}
+          {selectedClientId && <input type="hidden" name="client_id" value={selectedClientId} />}
 
           {state?.error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center gap-2 font-medium">
@@ -304,7 +312,7 @@ export function CreateFollowupModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Prospect / Company Name *
+                Prospect / Company Name <span className="text-red-500">*</span>
               </label>
               <div className="relative">
                 <input
@@ -321,7 +329,7 @@ export function CreateFollowupModal({
 
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Contact Person *
+                Contact Person <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -353,7 +361,7 @@ export function CreateFollowupModal({
 
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Service Interested *
+                Service Interested <span className="text-red-500">*</span>
               </label>
               <select
                 name="service_interested"
@@ -370,14 +378,15 @@ export function CreateFollowupModal({
             </div>
           </div>
 
-          {/* Follow-up Title (Optional / Defaulted) */}
+          {/* Follow-up Title */}
           <div>
             <label className="block text-slate-700 font-semibold mb-1">
-              Follow-up Purpose / Title
+              Follow-up Purpose / Title <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               name="title"
+              required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g. Share service proposal / Follow up for documents"
@@ -389,7 +398,7 @@ export function CreateFollowupModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Follow-up Type *
+                Follow-up Type <span className="text-red-500">*</span>
               </label>
               <select
                 name="follow_up_type"
@@ -407,7 +416,7 @@ export function CreateFollowupModal({
 
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Priority *
+                Priority <span className="text-red-500">*</span>
               </label>
               <select
                 name="priority"
@@ -428,7 +437,7 @@ export function CreateFollowupModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Next Follow-up Date *
+                Next Follow-up Date <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -458,7 +467,7 @@ export function CreateFollowupModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Status *
+                Status <span className="text-red-500">*</span>
               </label>
               <select
                 name="status"

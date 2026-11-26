@@ -1090,6 +1090,9 @@ export function ClientDetailView({
             <ClientFollowupsTab
               clientId={client.id}
               clientName={client.companyName}
+              clientContactPerson={client.contactPerson}
+              clientPhone={client.phone}
+              clientAssignedSalespersonId={client.assignedSalespersonId}
             />
           </div>
         )}

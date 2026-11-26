@@ -10,9 +10,18 @@ import { ErrorRetryState } from "@/components/common/ErrorRetryState";
 interface ClientFollowupsTabProps {
   clientId: string;
   clientName: string;
+  clientContactPerson?: string;
+  clientPhone?: string;
+  clientAssignedSalespersonId?: string | null;
 }
 
-export function ClientFollowupsTab({ clientId, clientName }: ClientFollowupsTabProps) {
+export function ClientFollowupsTab({
+  clientId,
+  clientName,
+  clientContactPerson,
+  clientPhone,
+  clientAssignedSalespersonId,
+}: ClientFollowupsTabProps) {
   const [followups, setFollowups] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -244,6 +253,9 @@ export function ClientFollowupsTab({ clientId, clientName }: ClientFollowupsTabP
         onSuccess={handleModalSuccess}
         defaultClientId={clientId}
         defaultClientName={clientName}
+        defaultContactPerson={clientContactPerson}
+        defaultPhone={clientPhone}
+        defaultAssignedTo={clientAssignedSalespersonId}
       />
 
       {editingFollowup && (

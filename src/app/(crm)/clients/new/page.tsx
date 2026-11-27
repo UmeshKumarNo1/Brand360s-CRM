@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useState, useRef, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Building2,
@@ -31,6 +31,7 @@ import { createClientAction, fetchSalespeopleAction, CreateClientState } from "@
 import { fetchServicesCatalogAction } from "@/app/actions/services";
 import { BRAND360_CATEGORIES } from "@/lib/services/service-catalogue-master";
 import { formatINR } from "@/lib/utils";
+import { fetchProspectFollowupByIdAction } from "@/app/actions/prospect-followups";
 import { useToast } from "@/components/common/ToastProvider";
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
 import { PhoneInput } from "@/components/clients/PhoneInput";
@@ -88,6 +89,8 @@ const ENTITY_STRUCTURES = [
 
 export default function NewClientPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const fromProspectId = searchParams.get("fromProspect");
   const formRef = useRef<HTMLFormElement>(null);
   const { success, error: toastError } = useToast();
   const [state, formAction, isPending] = useActionState(createClientAction, null);
@@ -138,7 +141,7 @@ export default function NewClientPage() {
   const [clientSince, setClientSince] = useState(new Date().toISOString().split("T")[0]);
 
   // 6. Client Status
-  const [clientStatus, setClientStatus] = useState<"Active" | "Pending Onboarding" | "On Hold" | "Completed" | "Inactive">("Active");
+  const [clientStatus, setClientStatus] = useState<string>("Active");
 
   // 7. Notes
   const [notes, setNotes] = useState("");
@@ -227,6 +230,24 @@ export default function NewClientPage() {
       )
     );
   };
+
+  // Prefill from prospect when converting from /follow-ups
+  useEffect(() => {
+    if (!fromProspectId) return;
+    fetchProspectFollowupByIdAction(fromProspectId).then((prospect) => {
+      if (!prospect) return;
+      if (prospect.convertedClientId) {
+        toastError("Already Converted", "This prospect has already been converted to a client.");
+        router.replace(`/clients/${prospect.convertedClientId}`);
+        return;
+      }
+      if (prospect.companyName) setCompanyName(prospect.companyName);
+      if (prospect.contactPerson) setContactPerson(prospect.contactPerson);
+      if (prospect.phone) setPhone(prospect.phone);
+      if (prospect.notes) setNotes(prospect.notes);
+      if (prospect.assignedToId) setAssignedSalesperson(prospect.assignedToId);
+    });
+  }, [fromProspectId, router, toastError]);
 
   // Submit Intent: "save" (default) or "save_and_add_service"
   const [submitIntent, setSubmitIntent] = useState<"save" | "save_and_add_service">("save");
@@ -609,6 +630,9 @@ export default function NewClientPage() {
         }}
       >
         {/* Hidden inputs to guarantee all state values submit regardless of active step */}
+        {fromProspectId && (
+          <input type="hidden" name="from_prospect_id" value={fromProspectId} />
+        )}
         <input
           type="hidden"
           name="additional_contacts"
@@ -1225,11 +1249,16 @@ export default function NewClientPage() {
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                     {[
-                      { value: "Active", label: "Active", desc: "Regular active client relationship" },
-                      { value: "Pending Onboarding", label: "Pending Onboarding", desc: "Awaiting onboarding & agreement" },
-                      { value: "On Hold", label: "On Hold", desc: "Temporarily paused relationship" },
-                      { value: "Completed", label: "Completed", desc: "All projects successfully completed" },
-                      { value: "Inactive", label: "Inactive", desc: "Dormant or archived account" },
+                      { value: "Active", label: "Active", desc: "Regular active client relationship." },
+                      { value: "Pending Onboarding", label: "Pending Onboarding", desc: "Awaiting onboarding and agreement." },
+                      { value: "Documentation in Progress", label: "Documentation in Progress", desc: "Required documents are being collected, prepared or verified." },
+                      { value: "Work in Progress", label: "Work in Progress", desc: "Service execution and process-related activities are currently underway." },
+                      { value: "Awaiting External Approval", label: "Awaiting External Approval", desc: "Pending approval from government authorities or third-party agencies." },
+                      { value: "Awaiting Professional Review", label: "Awaiting Professional Review", desc: "Documentation or application is awaiting review by a CA or Advocate." },
+                      { value: "Completed – Professional Review", label: "Completed – Professional Review", desc: "Review and verification completed by the assigned CA or Advocate." },
+                      { value: "On Hold", label: "On Hold", desc: "Temporarily paused due to pending information, approval or client decision." },
+                      { value: "Completed", label: "Completed", desc: "All agreed services and deliverables successfully completed." },
+                      { value: "Inactive", label: "Inactive", desc: "Dormant or archived client account." },
                     ].map((opt) => (
                       <label
                         key={opt.value}

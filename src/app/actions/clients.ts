@@ -449,6 +449,58 @@ export async function createClientAction(
     }
   }
 
+  const fromProspectId = (formData.get("from_prospect_id") as string)?.trim() || null;
+
+  if (fromProspectId) {
+    const { data: existingProspect } = await supabase
+      .from("follow_ups")
+      .select("id, converted_client_id, status")
+      .eq("id", fromProspectId)
+      .maybeSingle();
+
+    if (existingProspect?.converted_client_id || existingProspect?.status === "Converted to Client") {
+      return {
+        error: "This prospect has already been converted to a client.",
+      };
+    }
+  }
+
+  if (fromProspectId && data?.id) {
+    const { data: prospectRow } = await supabase
+      .from("follow_ups")
+      .select("*")
+      .eq("id", fromProspectId)
+      .maybeSingle();
+
+    if (prospectRow && !prospectRow.converted_client_id) {
+      // Preserve prospect follow-up history in client_follow_ups
+      await supabase.from("client_follow_ups").insert({
+        client_id: data.id,
+        assigned_to: prospectRow.assigned_to || assigned_salesperson || user.id,
+        title: prospectRow.title || `Converted from prospect: ${prospectRow.company_name}`,
+        follow_up_type: "Call",
+        due_date: prospectRow.due_date || new Date().toISOString().split("T")[0],
+        due_time: prospectRow.due_time || null,
+        priority: ["Low", "Medium", "High"].includes(prospectRow.priority) ? prospectRow.priority : "Medium",
+        status: prospectRow.status === "Completed" ? "Completed" : "Pending",
+        notes: prospectRow.notes || null,
+        contact_person: prospectRow.contact_person || contact_person,
+        created_by: user.id,
+      });
+
+      // Mark prospect as converted so it no longer appears in unconverted list
+      await supabase
+        .from("follow_ups")
+        .update({
+          status: "Converted to Client",
+          converted_client_id: data.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", fromProspectId);
+    }
+    revalidatePath("/follow-ups");
+  }
+
   revalidatePath("/clients");
   revalidatePath("/invoices");
   revalidatePath("/payments");

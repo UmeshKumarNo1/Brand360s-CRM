@@ -14,6 +14,7 @@ function LoginForm() {
 
   const [state, formAction, isPending] = useActionState(loginAction, null);
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
 
   const displayError = state?.error || (urlError === "account-deactivated" ? "Your employee account has been deactivated. Please contact an administrator." : null);
 
@@ -46,6 +47,8 @@ function LoginForm() {
               type="email"
               autoComplete="email"
               required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               placeholder="Enter your email address"
               className="block w-full pl-10 pr-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0481A2]/20 focus:border-[#0481A2] placeholder:text-slate-400"
             />
@@ -63,6 +66,14 @@ function LoginForm() {
             </label>
             <Link
               href="/forgot-password"
+              onClick={() => {
+                const trimmed = email.trim();
+                if (trimmed) {
+                  sessionStorage.setItem("brand360s_forgot_password_email", trimmed);
+                } else {
+                  sessionStorage.removeItem("brand360s_forgot_password_email");
+                }
+              }}
               className="text-xs font-semibold text-[#0481A2] hover:text-[#036c88] hover:underline"
             >
               Forgot password?

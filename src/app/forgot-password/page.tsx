@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { forgotPasswordAction } from "@/app/actions/auth";
@@ -8,6 +8,15 @@ import { Mail, ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
 
 export default function ForgotPasswordPage() {
   const [state, formAction, isPending] = useActionState(forgotPasswordAction, null);
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem("brand360s_forgot_password_email");
+    if (stored) {
+      setEmail(stored.trim());
+      sessionStorage.removeItem("brand360s_forgot_password_email");
+    }
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#0F172A] flex flex-col justify-center py-12 sm:px-6 lg:px-8 relative overflow-hidden">
@@ -68,6 +77,8 @@ export default function ForgotPasswordPage() {
                     type="email"
                     name="email"
                     required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     placeholder="name@brand360s.co"
                     className="w-full pl-10 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:border-[#0481A2] focus:ring-1 focus:ring-[#0481A2] text-slate-900 placeholder:text-slate-400"
                   />

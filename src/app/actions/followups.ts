@@ -80,7 +80,7 @@ export async function fetchFollowupsAction() {
   const supabase = await createClient();
 
   const { data, error } = await supabase
-    .from("follow_ups")
+    .from("client_follow_ups")
     .select(`
       *,
       assigned_profile:profiles!assigned_to (id, full_name, email)
@@ -170,6 +170,14 @@ export async function fetchFollowupsAction() {
 /**
  * Create a new follow-up
  */
+function normalizeStatus(raw: string | null | undefined): "Pending" | "In Progress" | "Completed" | "Cancelled" {
+  const val = (raw || "").trim();
+  if (val === "Completed" || val === "Converted to Client") return "Completed";
+  if (val === "Cancelled") return "Cancelled";
+  if (val === "In Progress" || val === "In Follow-up" || val === "Likely to Convert") return "In Progress";
+  return "Pending";
+}
+
 export async function createFollowupAction(
   prevState: FollowupActionState | null,
   formData: FormData
@@ -198,7 +206,7 @@ export async function createFollowupAction(
   const dueDate = formData.get("due_date") as string;
   const dueTime = (formData.get("due_time") as string) || null;
   const priority = normalizePriority(formData.get("priority") as string);
-  const status = (formData.get("status") as string) || "Pending";
+  const status = normalizeStatus(formData.get("status") as string);
   const notes = (formData.get("notes") as string)?.trim() || null;
   const contactPerson = (formData.get("contact_person") as string)?.trim() || null;
   const contactMethod = (formData.get("contact_method") as string) || "Phone";
@@ -234,7 +242,7 @@ export async function createFollowupAction(
   }
 
   const { data: created, error } = await supabase
-    .from("follow_ups")
+    .from("client_follow_ups")
     .insert({
       converted_client_id: clientId,
       company_name: clientData?.company_name || null,
@@ -310,7 +318,7 @@ export async function updateFollowupAction(
   const dueDate = formData.get("due_date") as string;
   const dueTime = (formData.get("due_time") as string) || null;
   const priority = normalizePriority(formData.get("priority") as string);
-  const status = (formData.get("status") as string) || "Pending";
+  const status = normalizeStatus(formData.get("status") as string);
   const notes = (formData.get("notes") as string)?.trim() || null;
   const contactPerson = (formData.get("contact_person") as string)?.trim() || null;
   const contactMethod = (formData.get("contact_method") as string) || "Phone";
@@ -385,7 +393,7 @@ export async function updateFollowupAction(
   }
 
   const { error: updateErr } = await supabase
-    .from("follow_ups")
+    .from("client_follow_ups")
     .update(updatePayload)
     .eq("id", id);
 
@@ -683,7 +691,7 @@ export async function cancelFollowupAction(followupId: string): Promise<Followup
   if (!user) return { error: "Authentication required." };
 
   const { error } = await supabase
-    .from("follow_ups")
+    .from("client_follow_ups")
     .update({
       status: "Cancelled",
       updated_at: new Date().toISOString(),
@@ -711,7 +719,7 @@ export async function markInProgressFollowupAction(followupId: string): Promise<
   const supabase = await createClient();
 
   const { error } = await supabase
-    .from("follow_ups")
+    .from("client_follow_ups")
     .update({
       status: "In Progress",
       updated_at: new Date().toISOString(),
@@ -748,7 +756,7 @@ export async function deleteFollowupAction(
   const isAdmin = currentProfile?.role === "admin";
 
   const { data: existing } = await supabase
-    .from("follow_ups")
+    .from("client_follow_ups")
     .select("title, assigned_to, status")
     .eq("id", followupId)
     .single();
@@ -761,7 +769,7 @@ export async function deleteFollowupAction(
   }
 
   const { error } = await supabase
-    .from("follow_ups")
+    .from("client_follow_ups")
     .delete()
     .eq("id", followupId);
 
@@ -788,7 +796,7 @@ export async function fetchClientFollowupsAction(clientId: string) {
   const supabase = await createClient();
 
   const { data, error } = await supabase
-    .from("follow_ups")
+    .from("client_follow_ups")
     .select(`
       *,
       assigned_profile:profiles!assigned_to (id, full_name, email)
@@ -820,7 +828,7 @@ export async function updateFollowupStatusAction(
   const supabase = await createClient();
 
   const { error } = await supabase
-    .from("follow_ups")
+    .from("client_follow_ups")
     .update({ status: newStatus, updated_at: new Date().toISOString() })
     .eq("id", followupId);
 
@@ -871,7 +879,7 @@ export async function fetchPendingFollowupsCountAction(): Promise<number> {
   try {
     const supabase = await createClient();
     const { count, error } = await supabase
-      .from("follow_ups")
+      .from("client_follow_ups")
       .select("id", { count: "exact", head: true })
       .eq("status", "Pending")
       .neq("last_follow_up", "Imported");

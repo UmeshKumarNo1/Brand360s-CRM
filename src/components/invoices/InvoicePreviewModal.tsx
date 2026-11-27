@@ -345,8 +345,26 @@ export function InvoicePreviewModal({
   const taxRate = Number(invoice?.taxRate || invoice?.tax_rate) || 18;
   const taxAmount = Number(invoice?.taxAmount || invoice?.tax_amount) || 0;
   const totalAmount = Number(invoice?.totalAmount || invoice?.total_amount) || 0;
-  const amountPaid = Number(invoice?.amountPaid || invoice?.amount_paid) || 0;
-  const balanceDue = Math.max(0, totalAmount - amountPaid);
+  const discountAmount = Number(invoice?.discountAmount || invoice?.discount_amount) || 0;
+  const originalServiceAmount = discountAmount > 0 ? taxable + discountAmount : taxable;
+  const discountPct =
+    discountAmount > 0 && originalServiceAmount > 0
+      ? Math.round((discountAmount / originalServiceAmount) * 10000) / 100
+      : 0;
+  const validAllocations = Array.isArray(invoice?.allocations)
+    ? invoice.allocations.filter((alloc: any) => {
+        const pmt = Array.isArray(alloc?.payment) ? alloc.payment[0] : alloc?.payment;
+        if (!pmt) return true;
+        return !["Reversed", "Failed", "Cancelled", "Deleted", "Rejected", "Pending"].includes(pmt.status);
+      })
+    : [];
+  const amountPaid = Math.round(
+    validAllocations.reduce(
+      (sum: number, alloc: any) => sum + (Number(alloc?.allocated_amount ?? alloc?.amount) || 0),
+      0
+    ) * 100
+  ) / 100;
+  const balanceDue = Math.max(0, Math.round((totalAmount - amountPaid) * 100) / 100);
 
   return renderContent(
     <div className="fixed inset-0 top-0 left-0 right-0 bottom-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
@@ -599,8 +617,21 @@ export function InvoicePreviewModal({
                   </div>
                 )}
 
+                {discountAmount > 0 && (
+                  <>
+                    <div className="flex justify-between py-1 border-b border-slate-100">
+                      <span className="text-slate-600">Original Service Amount:</span>
+                      <span className="font-semibold text-slate-800">{formatINR(originalServiceAmount)}</span>
+                    </div>
+                    <div className="flex justify-between py-1 border-b border-slate-100 text-emerald-700">
+                      <span>Discount ({discountPct}%):</span>
+                      <span className="font-semibold">-{formatINR(discountAmount)}</span>
+                    </div>
+                  </>
+                )}
+
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-600">Taxable Amount:</span>
+                  <span className="text-slate-600">{discountAmount > 0 ? "Revised Taxable Amount:" : "Taxable Amount:"}</span>
                   <span className="font-semibold text-slate-800">{formatINR(taxable)}</span>
                 </div>
 

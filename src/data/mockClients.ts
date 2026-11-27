@@ -43,7 +43,18 @@ export interface ClientRecord {
   nextPaymentDueAmount: number;
   nextPaymentDueDate: string;
   paymentStatus: 'Paid in full' | 'Overdue' | 'Upcoming' | 'Partially Paid';
-  clientStatus?: 'Active' | 'Pending Onboarding' | 'On Hold' | 'Completed' | 'Inactive' | 'Archived';
+  clientStatus?:
+    | 'Active'
+    | 'Pending Onboarding'
+    | 'Documentation in Progress'
+    | 'Work in Progress'
+    | 'Awaiting External Approval'
+    | 'Awaiting Professional Review'
+    | 'Completed – Professional Review'
+    | 'On Hold'
+    | 'Completed'
+    | 'Inactive'
+    | 'Archived';
   gstin?: string;
   gstNumber?: string;
   services?: ClientServiceItem[];

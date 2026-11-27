@@ -16,6 +16,11 @@ export async function updateSession(request: NextRequest) {
   let user: any = null;
   let userRole = "employee";
   let isActive = true;
+  let isTransientAuthError = false;
+
+  const hasSupabaseAuthCookie = request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith("sb-") && c.name.includes("-auth-token"));
 
   try {
     const supabase = createServerClient(
@@ -41,9 +46,23 @@ export async function updateSession(request: NextRequest) {
 
     const {
       data: { user: authUser },
+      error: authError,
     } = await supabase.auth.getUser();
 
     user = authUser;
+
+    if (!user && authError && hasSupabaseAuthCookie) {
+      const msg = (authError.message || "").toLowerCase();
+      const status = (authError as any).status ?? 0;
+      if (status >= 500 || status === 0 || msg.includes("fetch") || msg.includes("network") || msg.includes("timeout")) {
+        isTransientAuthError = true;
+        console.warn("[proxy] Transient auth error while auth cookie present:", {
+          path: request.nextUrl.pathname,
+          status,
+          code: (authError as any).code,
+        });
+      }
+    }
 
     if (user) {
       const { data: profile } = await supabase
@@ -57,8 +76,14 @@ export async function updateSession(request: NextRequest) {
         isActive = profile.is_active;
       }
     }
-  } catch {
-    // If Supabase fetch fails, fallback to demo session
+  } catch (err: any) {
+    if (hasSupabaseAuthCookie) {
+      isTransientAuthError = true;
+      console.warn("[proxy] Auth fetch exception while auth cookie present:", {
+        path: request.nextUrl.pathname,
+        message: err?.message || "unknown",
+      });
+    }
   }
 
   // If no Supabase user, check demo session cookie
@@ -96,7 +121,8 @@ export async function updateSession(request: NextRequest) {
   }
 
   // 2. If user is NOT authenticated and attempts to access protected CRM routes, redirect to /login
-  if (!user && !isAuthRoute) {
+  // Do not redirect on transient network/5xx errors when an auth cookie is present
+  if (!user && !isAuthRoute && !isTransientAuthError) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("returnUrl", path);

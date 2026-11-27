@@ -3,11 +3,11 @@ const nextConfig = {
   devIndicators: false,
   experimental: {
     serverActions: {
-      bodySizeLimit: "50mb",
+      bodySizeLimit: "100mb",
     },
   },
   serverActions: {
-    bodySizeLimit: "50mb",
+    bodySizeLimit: "100mb",
   },
   async headers() {
     return [

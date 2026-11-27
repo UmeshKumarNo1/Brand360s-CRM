@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { calculateServiceFinancials } from "@/lib/financial/financial-calculator";
+import { fetchAuthorizedClientsFinancialRecords } from "@/lib/financial/financial-data-fetcher";
 
 export interface DetailedServiceData {
   id: string;
@@ -13,6 +14,12 @@ export interface DetailedServiceData {
   assignedEmployeeName: string;
   serviceFee: number;
   govtFee: number;
+  additionalFee: number;
+  discount: number;
+  taxableAmount: number;
+  taxRate: number;
+  taxAmount: number;
+  totalServiceValue: number;
   totalAmount: number;
   paymentTerms: string;
   startDate: string | null;
@@ -21,7 +28,6 @@ export interface DetailedServiceData {
   vendorDetails: string;
   // Fulfillment progression
   workflowPreset?: string | null;
-  taxRate?: number;
   fulfillmentStages?: any[] | null;
   currentStageName?: string | null;
   currentStageDescription?: string | null;
@@ -116,57 +122,9 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
     return [];
   }
 
-  // 2. Fetch all invoices with line items for this client
-  const { data: clientInvoices } = await supabase
-    .from("invoices")
-    .select(`
-      id,
-      invoice_number,
-      issue_date,
-      due_date,
-      subtotal,
-      tax_amount,
-      total_amount,
-      amount_paid,
-      balance_due,
-      status,
-      payment_terms,
-      created_at,
-      items:invoice_items (
-        id,
-        description,
-        unit_price,
-        quantity,
-        tax_amount,
-        total,
-        client_service_id
-      )
-    `)
-    .eq("client_id", clientId)
-    .order("issue_date", { ascending: false });
-
-  // 3. Fetch all payments and allocations for this client
-  const { data: clientPayments } = await supabase
-    .from("payments")
-    .select(`
-      id,
-      amount,
-      payment_date,
-      payment_method,
-      transaction_ref,
-      status,
-      created_at,
-      allocations:invoice_payment_allocations (
-        id,
-        invoice_id,
-        allocated_amount,
-        client_service_id,
-        invoice_item_id,
-        created_at
-      )
-    `)
-    .eq("client_id", clientId)
-    .order("payment_date", { ascending: false });
+  // 2 & 3. Fetch all invoices, payments, and allocations for this client using shared financial data fetcher
+  const { invoices: clientInvoices, payments: clientPayments } =
+    await fetchAuthorizedClientsFinancialRecords(supabase, [clientId]);
 
   const activeServices = (clientServices || []).filter(
     (s: any) => (s.service_status || s.status) !== "Cancelled"
@@ -246,19 +204,14 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       }
     });
 
-    // Fallback: If only one service exists, and payments exist but allocations table was empty
+    // Fallback: If only one service exists, and valid payments exist but allocations table was empty
+    // (Never fall back to stale inv.amount_paid)
     if (clientServices.length === 1 && serviceAllocatedAmount === 0) {
-      // Check if invoice itself has amount_paid
-      const invoicePaidSum = matchingInvoices.reduce((sum, inv) => sum + (Number(inv.amountPaid) || 0), 0);
-      if (invoicePaidSum > 0) {
-        serviceAllocatedAmount = invoicePaidSum;
-      } else {
-        const verifiedPayments = (clientPayments || []).filter((p: any) =>
-          ["Verified", "Completed", "Received"].includes(p.status) ||
-          (!["Pending", "Failed", "Cancelled", "Reversed"].includes(p.status) && p.status !== undefined)
-        );
-        serviceAllocatedAmount = verifiedPayments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
-      }
+      const verifiedPayments = (clientPayments || []).filter((p: any) =>
+        ["Verified", "Completed", "Received"].includes(p.status) ||
+        (!["Pending", "Failed", "Cancelled", "Reversed", "Deleted", "Rejected"].includes(p.status) && p.status !== undefined)
+      );
+      serviceAllocatedAmount = verifiedPayments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
     }
 
     // Call Central Financial Calculator for this service
@@ -365,6 +318,15 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
 
     activities.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
+    const sFee = Number(cs.service_fee) || 0;
+    const gFee = Number(cs.govt_fee) || 0;
+    const addFee = Number(cs.additional_fee) || 0;
+    const disc = Number(cs.discount) || 0;
+    const taxableAmt = Math.max(0, sFee + addFee - disc);
+    const resolvedTaxRate = cs.tax_rate !== undefined && cs.tax_rate !== null ? Number(cs.tax_rate) : 18;
+    const computedGstAmt = Number(cs.tax_amount) > 0 ? Number(cs.tax_amount) : Math.round(((taxableAmt * resolvedTaxRate) / 100) * 100) / 100;
+    const totalServVal = taxableAmt + computedGstAmt + gFee;
+
     return {
       id: cs.id,
       clientId: cs.client_id,
@@ -373,8 +335,14 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       serviceStatus: cs.service_status || "Pending",
       assignedEmployeeId: cs.assigned_employee_id || null,
       assignedEmployeeName: cs.assigned_profile?.full_name || "Unassigned",
-      serviceFee: Number(cs.service_fee) || 0,
-      govtFee: Number(cs.govt_fee) || 0,
+      serviceFee: sFee,
+      govtFee: gFee,
+      additionalFee: addFee,
+      discount: disc,
+      taxableAmount: taxableAmt,
+      taxRate: resolvedTaxRate,
+      taxAmount: computedGstAmt,
+      totalServiceValue: totalServVal,
       totalAmount: metrics.contractValue,
       paymentTerms: "Due on Receipt",
       startDate: cs.start_date,
@@ -382,7 +350,6 @@ export async function fetchClientDetailedServicesAction(clientId: string): Promi
       notes: cs.notes,
       vendorDetails: vendorNames || "None",
       workflowPreset: cs.workflow_preset || null,
-      taxRate: cs.tax_rate !== undefined && cs.tax_rate !== null ? Number(cs.tax_rate) : 18,
       fulfillmentStages: cs.fulfillment_stages || null,
       currentStageName: cs.current_stage_name || null,
       currentStageDescription: cs.current_stage_description || null,

@@ -190,24 +190,22 @@ export function ClientsTable({
             {/* 1. No. */}
             <col style={{ width: "4%" }} />
             {/* 2. Client / Company */}
-            <col style={{ width: "17%" }} />
+            <col style={{ width: "19%" }} />
             {/* 3. Salesperson */}
-            <col style={{ width: "11%" }} />
-            {/* 4. Contract */}
-            <col style={{ width: "9%" }} />
-            {/* 5. Invoiced */}
-            <col style={{ width: "9%" }} />
-            {/* 6. Collected */}
-            <col style={{ width: "9%" }} />
-            {/* 7. Outstanding */}
-            <col style={{ width: "9%" }} />
-            {/* 8. Services Progress */}
             <col style={{ width: "12%" }} />
-            {/* 9. Next Action */}
-            <col style={{ width: "11%" }} />
-            {/* 10. Next Due Date */}
-            <col style={{ width: "8%" }} />
-            {/* 11. Actions */}
+            {/* 4. Invoiced */}
+            <col style={{ width: "10%" }} />
+            {/* 5. Collected */}
+            <col style={{ width: "10%" }} />
+            {/* 6. Outstanding */}
+            <col style={{ width: "10%" }} />
+            {/* 7. Services Progress */}
+            <col style={{ width: "13%" }} />
+            {/* 8. Next Action */}
+            <col style={{ width: "12%" }} />
+            {/* 9. Next Due Date */}
+            <col style={{ width: "9%" }} />
+            {/* 10. Actions */}
             <col style={{ width: "8%" }} />
           </colgroup>
 
@@ -222,9 +220,6 @@ export function ClientsTable({
               </th>
               <th className="py-3 px-2 sm:px-3 text-left font-semibold leading-tight">
                 Client Salesperson
-              </th>
-              <th className="py-3 px-2 sm:px-3 text-right font-semibold leading-tight">
-                Contract
               </th>
               <th className="py-3 px-2 sm:px-3 text-right font-semibold leading-tight">
                 Invoiced
@@ -253,7 +248,7 @@ export function ClientsTable({
           <tbody className="divide-y divide-slate-100 text-slate-700">
             {clients.length === 0 ? (
               <tr>
-                <td colSpan={11} className="py-12 text-center text-slate-400 text-sm">
+                <td colSpan={10} className="py-12 text-center text-slate-400 text-sm">
                   No client records found matching your filters.
                 </td>
               </tr>
@@ -346,22 +341,17 @@ export function ClientsTable({
                         </span>
                       </td>
 
-                      {/* 4. Contract Value */}
-                      <td className="py-3 px-2 sm:px-3 text-right font-bold text-slate-900 font-sans font-number whitespace-nowrap align-middle">
-                        {formatINR(client.contractValue)}
-                      </td>
-
-                      {/* 5. Invoiced */}
+                      {/* 4. Invoiced */}
                       <td className="py-3 px-2 sm:px-3 text-right font-bold text-slate-700 font-sans font-number whitespace-nowrap align-middle">
                         {formatINR(client.invoicedAmount ?? client.contractValue)}
                       </td>
 
-                      {/* 6. Collected */}
+                      {/* 5. Collected */}
                       <td className="py-3 px-2 sm:px-3 text-right font-bold text-emerald-600 font-sans font-number whitespace-nowrap align-middle">
                         {formatINR(client.paymentsReceived)}
                       </td>
 
-                      {/* 7. Outstanding */}
+                      {/* 6. Outstanding */}
                       <td className="py-3 px-2 sm:px-3 text-right font-bold font-sans font-number whitespace-nowrap align-middle">
                         {client.balanceReceivable > 0 ? (
                           <span className="text-red-500">{formatINR(client.balanceReceivable)}</span>
@@ -370,7 +360,7 @@ export function ClientsTable({
                         )}
                       </td>
 
-                      {/* 8. Services Progress Bar & Count */}
+                      {/* 7. Services Progress Bar & Count */}
                       <td className="py-3 px-2 sm:px-3 align-middle">
                         <div className="flex flex-col items-center gap-1 w-full max-w-[140px] mx-auto">
                           <div className="w-full h-2 rounded-full bg-slate-100 border border-slate-200/70 overflow-hidden shadow-2xs">
@@ -483,7 +473,7 @@ export function ClientsTable({
 
                     {/* Child Services Portfolio (Always Opened, Minimal Clean UI) */}
                     <tr className="bg-slate-50/50 border-b border-slate-200 transition-all">
-                        <td colSpan={11} className="py-2.5 px-3 sm:px-4">
+                        <td colSpan={10} className="py-2.5 px-3 sm:px-4">
                           <div className="bg-white rounded-xl border border-slate-200/90 shadow-2xs overflow-hidden">
                             {/* 1. Minimal Light Child Header */}
                             <div className="px-4 py-2.5 bg-[#F0F5FA] border-b border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -512,13 +502,6 @@ export function ClientsTable({
 
                               {/* Right: Clean Financial Metrics separated by subtle pipes */}
                               <div className="flex items-center gap-3 text-xs text-slate-600 flex-wrap font-medium">
-                                <span>
-                                  Contract:{" "}
-                                  <strong className="text-slate-900 font-sans font-number font-bold">
-                                    {formatINR(client.contractValue)}
-                                  </strong>
-                                </span>
-                                <span className="text-slate-300">|</span>
                                 <span>
                                   Invoiced:{" "}
                                   <strong className="text-slate-900 font-sans font-number font-bold">
@@ -573,7 +556,7 @@ export function ClientsTable({
                                   <thead className="bg-slate-50/70 border-b border-slate-100">
                                     <tr className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">
                                       <th className="py-2 px-3.5 text-left">SERVICE</th>
-                                      <th className="py-2 px-3 text-center">CONTRACT VALUE</th>
+                                      <th className="py-2 px-3 text-center">INVOICED VALUE</th>
                                       <th className="py-2 px-3 text-center">PAYMENT</th>
                                       <th className="py-2 px-3 text-center min-w-[260px]">
                                         FULFILLMENT PROGRESS (STAGES)
@@ -630,9 +613,13 @@ export function ClientsTable({
                                             </div>
                                           </td>
 
-                                          {/* CONTRACT VALUE */}
-                                          <td className="py-2.5 px-3 text-center align-middle whitespace-nowrap font-bold text-slate-800 font-sans font-number text-xs">
-                                            {formatINR(service.total_amount)}
+                                          {/* INVOICED VALUE */}
+                                          <td className="py-2.5 px-3 text-center align-middle whitespace-nowrap font-bold font-sans font-number text-xs">
+                                            {(service.invoicedAmount || 0) > 0 ? (
+                                              <span className="text-slate-800">{formatINR(service.invoicedAmount)}</span>
+                                            ) : (
+                                              <span className="text-slate-400 font-medium">₹0</span>
+                                            )}
                                           </td>
 
                                           {/* PAYMENT: Minimal pill + amount subtext */}

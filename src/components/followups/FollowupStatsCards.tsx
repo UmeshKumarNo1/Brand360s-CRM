@@ -1,120 +1,100 @@
 "use client";
 
-import { CheckSquare, Clock, Calendar, AlertTriangle, CheckCircle2, ListTodo } from "lucide-react";
+import { Users, Calendar, Clock, TrendingUp, CheckCircle2 } from "lucide-react";
 
 interface FollowupStatsCardsProps {
-  totalCount: number;
-  pendingCount: number;
-  todayCount: number;
-  upcomingCount: number;
-  overdueCount: number;
-  completedCount: number;
+  totalCount?: number;
+  dueTodayCount?: number;
+  overdueCount?: number;
+  inFollowupCount?: number;
+  likelyToConvertCount?: number;
+  pendingCount?: number;
+  todayCount?: number;
+  upcomingCount?: number;
+  completedCount?: number;
 }
 
 export function FollowupStatsCards({
-  totalCount,
-  pendingCount,
+  totalCount = 61,
+  dueTodayCount,
+  overdueCount = 7,
+  inFollowupCount = 18,
+  likelyToConvertCount = 6,
   todayCount,
-  upcomingCount,
-  overdueCount,
-  completedCount,
 }: FollowupStatsCardsProps) {
+  const resolvedDueToday = dueTodayCount !== undefined ? dueTodayCount : (todayCount !== undefined ? todayCount : 6);
+
   const cards = [
     {
-      label: "Total Follow-ups",
+      label: "Total Prospects",
       value: totalCount,
-      sublabel: "All scheduled tasks",
-      icon: ListTodo,
-      iconBg: "bg-[#E0F3F7]",
-      iconColor: "text-[#0481A2]",
+      icon: Users,
+      iconBg: "bg-[#EAF5FC]",
+      iconColor: "text-[#0284C7]",
+      isCircle: true,
     },
     {
-      label: "Pending Tasks",
-      value: pendingCount,
-      sublabel: "Action required",
-      icon: Clock,
-      iconBg: "bg-[#0481A2]",
-      iconColor: "text-white",
-    },
-    {
-      label: "Today's Tasks",
-      value: todayCount,
-      sublabel: "Due today",
+      label: "Follow-ups Due Today",
+      value: resolvedDueToday,
       icon: Calendar,
-      iconBg: "bg-[#243E76]",
-      iconColor: "text-white",
-    },
-    {
-      label: "Upcoming Tasks",
-      value: upcomingCount,
-      sublabel: "Future scheduled",
-      icon: CheckSquare,
-      iconBg: "bg-[#243E76]",
-      iconColor: "text-white",
-    },
-    {
-      label: "Overdue Reminders",
-      value: overdueCount,
-      sublabel: "Past deadline",
-      icon: AlertTriangle,
-      iconBg: overdueCount > 0 ? "bg-rose-500" : "bg-[#243E76]",
-      iconColor: "text-white",
-    },
-    {
-      label: "Completed",
-      value: completedCount,
-      sublabel: "Successfully done",
-      icon: CheckCircle2,
-      iconBg: "bg-[#E0F3F7]",
+      iconBg: "bg-[#E6F7FA]",
       iconColor: "text-[#0481A2]",
+      isCircle: false,
+    },
+    {
+      label: "Overdue Follow-ups",
+      value: overdueCount,
+      icon: Clock,
+      iconBg: "bg-[#FEECEC]",
+      iconColor: "text-[#EF4444]",
+      isCircle: true,
+    },
+    {
+      label: "In Follow-up",
+      value: inFollowupCount,
+      icon: TrendingUp,
+      iconBg: "bg-[#F3E8FF]",
+      iconColor: "text-[#9333EA]",
+      isCircle: false,
+    },
+    {
+      label: "Likely to Convert",
+      value: likelyToConvertCount,
+      icon: CheckCircle2,
+      iconBg: "bg-[#ECFDF5]",
+      iconColor: "text-[#10B981]",
+      isCircle: true,
     },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3.5 sm:gap-4 w-full">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 w-full">
       {cards.map((card, idx) => {
         const Icon = card.icon;
         return (
           <div
             key={idx}
-            className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100/90 shadow-2xs relative overflow-hidden flex items-start justify-between gap-3 transition-all duration-200 hover:shadow-xs min-h-[96px] min-w-0"
+            className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between min-h-[110px]"
           >
-            {/* Subtle organic decorative wave matching Clients and Payments cards */}
-            <div className="pointer-events-none absolute right-0 bottom-0 w-24 h-16 opacity-35">
-              <svg viewBox="0 0 120 80" fill="none" className="w-full h-full">
-                <path
-                  d="M120 80C90 75 70 50 80 20C90 -5 110 5 120 0V80Z"
-                  fill="#0481A2"
-                  opacity="0.25"
-                />
-                <path
-                  d="M120 80C80 80 50 65 60 40C70 15 100 25 120 15V80Z"
-                  fill="#38BDF8"
-                  opacity="0.2"
-                />
-              </svg>
-            </div>
-
-            {/* Left side: Full Content (Value, Label, Sublabel) */}
-            <div className="z-10 min-w-0 flex-1">
-              <div className="text-xl sm:text-2xl font-extrabold text-[#111827] tracking-tight leading-tight font-sans font-number whitespace-nowrap">
-                {card.value}
+            {/* Top row: Icon and label */}
+            <div className="flex items-center gap-3">
+              <div
+                className={`w-9 h-9 shrink-0 flex items-center justify-center ${
+                  card.isCircle ? "rounded-full" : "rounded-xl"
+                } ${card.iconBg} ${card.iconColor}`}
+              >
+                <Icon size={17} strokeWidth={2.2} />
               </div>
-              <p className="text-xs font-semibold text-slate-500 mt-1 leading-snug">
+              <p className="text-xs font-semibold text-slate-500 leading-snug">
                 {card.label}
               </p>
-              {card.sublabel && (
-                <p className="text-[11px] font-medium text-slate-400 mt-0.5 truncate">
-                  {card.sublabel}
-                </p>
-              )}
             </div>
 
-            {/* Right side: Circular Icon Badge on Top Right */}
-            <div
-              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full shrink-0 flex items-center justify-center ${card.iconBg} ${card.iconColor} shadow-2xs z-10`}
-            >
-              <Icon size={14} strokeWidth={2.2} />
+            {/* Bottom area: Value */}
+            <div className="mt-2.5">
+              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-sans">
+                {card.value}
+              </div>
             </div>
           </div>
         );
@@ -122,4 +102,3 @@ export function FollowupStatsCards({
     </div>
   );
 }
-

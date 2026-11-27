@@ -371,13 +371,25 @@ export async function assignClientServiceAction(
   const clientId = formData.get("client_id") as string;
   const serviceName = formData.get("service_name") as string;
   const serviceCategory = (formData.get("service_category") as string) || "General";
-  const serviceFee = parseFloat(formData.get("service_fee") as string) || 0;
+  const enteredPackageAmount = parseFloat(formData.get("service_fee") as string) || 0;
   const govtFee = parseFloat(formData.get("govt_fee") as string) || 0;
-  const pricingMode = (formData.get("pricing_mode") as string) === "govt_fee_included" ? "govt_fee_included" : "govt_fee_added";
-  const netProfessionalFee =
+  const pricingMode =
+    (formData.get("pricing_mode") as string) === "govt_fee_added"
+      ? "govt_fee_added"
+      : "govt_fee_included";
+
+  if (pricingMode === "govt_fee_included" && govtFee > enteredPackageAmount) {
+    return { error: "Government Fee cannot exceed the entered Service Fee." };
+  }
+
+  const serviceFee =
     pricingMode === "govt_fee_included"
-      ? Math.max(0, Math.round((serviceFee - govtFee) * 100) / 100)
-      : serviceFee;
+      ? Math.max(0, Math.round((enteredPackageAmount - govtFee) * 100) / 100)
+      : enteredPackageAmount;
+  const netProfessionalFee = serviceFee;
+  const discountPct = Math.max(0, Math.min(100, parseFloat(formData.get("discount_percentage") as string) || 0));
+  const discountAmount = Math.round(serviceFee * (discountPct / 100) * 100) / 100;
+  const discountedServiceFee = Math.max(0, Math.round((serviceFee - discountAmount) * 100) / 100);
   const startDate = (formData.get("start_date") as string) || null;
   const rawExpectedCompletion = (formData.get("expected_completion_date") as string) || null;
   // Enforce working day only for target delivery date
@@ -400,8 +412,8 @@ export async function assignClientServiceAction(
     return { error: "Client and service name are required." };
   }
 
-  const totalAmount = serviceFee + govtFee;
-  const taxAmount = Math.round(((serviceFee * taxRate) / 100) * 100) / 100;
+  const taxableBase = Math.round((discountedServiceFee + govtFee) * 100) / 100;
+  const taxAmount = Math.round(((taxableBase * taxRate) / 100) * 100) / 100;
 
   // Determine initial workflow stages
   const stageNames = getServiceFulfillmentPreset(serviceName, serviceCategory, workflowPreset);
@@ -433,8 +445,12 @@ export async function assignClientServiceAction(
       govt_fee: govtFee,
       pricing_mode: pricingMode,
       net_professional_fee: netProfessionalFee,
+      discount: discountAmount,
+      discount_approved_pct: discountPct,
+      discount_requested_pct: discountPct,
+      discount_status: discountPct > 0 ? "Approved" : "Not Requested",
       tax_amount: taxAmount,
-      total_amount: totalAmount,
+      total_amount: Math.round((discountedServiceFee + govtFee) * 100) / 100,
       tax_rate: taxRate,
       workflow_preset: resolvedWorkflowPreset,
       fulfillment_stages: initialStages,
@@ -477,13 +493,14 @@ export async function assignClientServiceAction(
 
   // Feature: Auto-generate invoice for this service deliverable with correct GST-exclusive billing
   let generatedInvoiceId: string | null = null;
-  if (totalAmount > 0 && newClientService?.id) {
+  if (taxableBase > 0 && newClientService?.id) {
     try {
       const invRes = await autoGenerateInvoiceForClientAction(clientId, {
         serviceName,
         clientServiceId: newClientService.id,
-        serviceFee,
+        serviceFee: discountedServiceFee,
         govtFee,
+        discountAmount,
         taxRate,
         isEligiblePureAgent: true,
         description: `${serviceName} - Professional Deliverable`,

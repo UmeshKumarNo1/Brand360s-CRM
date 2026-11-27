@@ -304,7 +304,7 @@ export async function createInvoiceAction(
       billing_type: "Full Payment",
       payment_terms: "Due on Receipt",
       subtotal,
-      discount_amount: 0,
+      discount_amount: Number(formData.get("discount_amount")) || 0,
       tax_rate: taxRate,
       tax_type: "CGST + SGST",
       cgst_amount: taxAmount / 2,
@@ -775,6 +775,7 @@ export async function autoGenerateInvoiceForClientAction(
     serviceFee?: number;
     govtFee?: number;
     taxRate?: number;
+    discountAmount?: number;
     isEligiblePureAgent?: boolean;
     description?: string;
     dueDate?: string;
@@ -847,14 +848,16 @@ export async function autoGenerateInvoiceForClientAction(
   let taxRateParam = options?.taxRate !== undefined ? options.taxRate : 18;
 
   // Fallback to fetch from service record or client contract
+  let discountAmtParam = Number(options?.discountAmount) || 0;
   if (svcParamFee === undefined && options?.clientServiceId) {
     const { data: svcRec } = await supabase
       .from("client_services")
-      .select("service_fee, govt_fee, tax_rate, total_amount")
+      .select("service_fee, govt_fee, discount, tax_rate, total_amount")
       .eq("id", options.clientServiceId)
       .single();
     if (svcRec) {
-      svcParamFee = Number(svcRec.service_fee) || 0;
+      discountAmtParam = Number(svcRec.discount) || 0;
+      svcParamFee = Math.max(0, (Number(svcRec.service_fee) || 0) - discountAmtParam);
       govtParamFee = Number(svcRec.govt_fee) || 0;
       taxRateParam = Number(svcRec.tax_rate) !== undefined ? Number(svcRec.tax_rate) : 18;
     }
@@ -909,7 +912,7 @@ export async function autoGenerateInvoiceForClientAction(
       billing_type: "Full Payment",
       payment_terms: "Due on Receipt",
       subtotal,
-      discount_amount: 0,
+      discount_amount: discountAmtParam,
       tax_rate: taxRate,
       tax_type: taxType,
       cgst_amount: cgstAmount,
@@ -939,7 +942,7 @@ export async function autoGenerateInvoiceForClientAction(
       description: desc,
       quantity: 1,
       unit_price: subtotal,
-      discount_amount: 0,
+      discount_amount: discountAmtParam,
       tax_rate: taxRate,
       tax_amount: taxAmount,
       total: subtotal + taxAmount,

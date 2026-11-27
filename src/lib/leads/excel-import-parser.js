@@ -1,4 +1,4 @@
-const XLSX = require("xlsx");
+import * as XLSX from "xlsx";
 
 /**
  * Normalizes column header keys to standard property names
@@ -267,7 +267,7 @@ function generateSkippedReportBuffer(skippedRows) {
   return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 }
 
-module.exports = {
+export {
   parseExcelWorkbook,
   groupAndValidateLeads,
   generateSkippedReportBuffer,

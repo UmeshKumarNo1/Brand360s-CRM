@@ -1,19 +1,19 @@
 "use server";
 
-const { createClient } = require("@/lib/supabase/server");
-const { isSupabaseConfigured } = require("@/lib/supabase/config");
-const { revalidatePath } = require("next/cache");
-const {
+import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { revalidatePath } from "next/cache";
+import {
   parseExcelWorkbook,
   groupAndValidateLeads,
   generateSkippedReportBuffer,
-} = require("@/lib/leads/excel-import-parser");
+} from "@/lib/leads/excel-import-parser";
 
 /**
  * Fetch active salespersons for round-robin assignment
  * Excludes: Admins, Inactive users, Disabled accounts
  */
-async function fetchActiveSalespeopleAction() {
+export async function fetchActiveSalespeopleAction() {
   if (!isSupabaseConfigured()) {
     return [
       { id: "00000000-0000-0000-0000-000000000002", full_name: "Adhithya", email: "sr.consultant.brand360s@gmail.com", role: "employee" },
@@ -80,7 +80,7 @@ async function updateRoundRobinPointer(supabase, newIndex, lastSalespersonId) {
 /**
  * Preview uploaded Excel or CSV file
  */
-async function previewLeadsFileAction(formData) {
+export async function previewLeadsFileAction(formData) {
   const file = formData.get("file");
   const sheetName = formData.get("sheetName") ? String(formData.get("sheetName")) : undefined;
 
@@ -143,7 +143,7 @@ async function previewLeadsFileAction(formData) {
 /**
  * Execute Excel/CSV bulk import
  */
-async function executeLeadsImportAction(formData) {
+export async function executeLeadsImportAction(formData) {
   const file = formData.get("file");
   const sheetName = formData.get("sheetName") ? String(formData.get("sheetName")) : undefined;
   const initialFollowupDate = formData.get("initialFollowupDate")
@@ -429,7 +429,7 @@ async function executeLeadsImportAction(formData) {
 /**
  * Fetch unconverted leads for Follow-ups page
  */
-async function fetchUnconvertedLeadsAction() {
+export async function fetchUnconvertedLeadsAction() {
   if (!isSupabaseConfigured()) {
     return [];
   }
@@ -536,7 +536,7 @@ async function fetchUnconvertedLeadsAction() {
 /**
  * Manual Lead-to-Client Conversion
  */
-async function convertLeadToClientAction(leadId, completionData) {
+export async function convertLeadToClientAction(leadId, completionData) {
   if (!leadId) {
     return { success: false, error: "Lead ID is required for conversion." };
   }
@@ -621,7 +621,7 @@ async function convertLeadToClientAction(leadId, completionData) {
 /**
  * Log call outcome, update lead status, or schedule next follow-up
  */
-async function updateLeadFollowupActivityAction(payload) {
+export async function updateLeadFollowupActivityAction(payload) {
   const { leadId, leadStatus, callOutcome, notes, nextDueDate, nextDueType } = payload;
   if (!leadId) {
     return { success: false, error: "Lead ID required." };
@@ -679,7 +679,7 @@ async function updateLeadFollowupActivityAction(payload) {
 /**
  * Download skipped records as Excel buffer
  */
-async function downloadSkippedRecordsBufferAction(skippedRecords) {
+export async function downloadSkippedRecordsBufferAction(skippedRecords) {
   try {
     const buffer = generateSkippedReportBuffer(skippedRecords);
     return {
@@ -691,12 +691,4 @@ async function downloadSkippedRecordsBufferAction(skippedRecords) {
   }
 }
 
-module.exports = {
-  fetchActiveSalespeopleAction,
-  previewLeadsFileAction,
-  executeLeadsImportAction,
-  fetchUnconvertedLeadsAction,
-  convertLeadToClientAction,
-  updateLeadFollowupActivityAction,
-  downloadSkippedRecordsBufferAction,
-};
+

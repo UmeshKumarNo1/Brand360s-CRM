@@ -1,13 +1,13 @@
 const fs = require("fs");
 const path = require("path");
 const XLSX = require("xlsx");
-const {
-  parseExcelWorkbook,
-  groupAndValidateLeads,
-  generateSkippedReportBuffer,
-} = require("../src/lib/leads/excel-import-parser");
 
-function runTests() {
+async function runTests() {
+  const {
+    parseExcelWorkbook,
+    groupAndValidateLeads,
+    generateSkippedReportBuffer,
+  } = await import("../src/lib/leads/excel-import-parser.js");
   console.log("================================================================================");
   console.log("BRAND 360s CRM — LEADS, ROUND-ROBIN, FOLLOW-UPS & CONVERSION TEST SUITE");
   console.log("================================================================================\n");

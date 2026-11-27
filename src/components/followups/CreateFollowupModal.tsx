@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState, useRef } from "react";
-import { CheckSquare, X, Loader2, Calendar, Clock, AlertTriangle, User, Phone, Bell } from "lucide-react";
+import { CheckSquare, X, Loader2, Calendar, Clock, AlertTriangle, User, Phone, Bell, Building2 } from "lucide-react";
 import { createFollowupAction, updateFollowupAction } from "@/app/actions/followups";
 import { fetchClientsAction, fetchSalespeopleAction } from "@/app/actions/clients";
 import { useToast } from "@/components/common/ToastProvider";
@@ -112,16 +112,39 @@ export function CreateFollowupModal({
 
   if (!isOpen) return null;
 
+  const isLeadFollowup =
+    isEdit &&
+    (!initialData?.clientId ||
+      initialData?.isLead ||
+      (typeof initialData?.notes === "string" && initialData.notes.trim().startsWith("{")));
+
   const resolvedTitle = initialData?.title || "";
   const resolvedType = initialData?.followUpType || initialData?.type || "Phone Call";
   const resolvedDueDate = initialData?.dueDate || initialData?.due_date || new Date().toISOString().split("T")[0];
   const resolvedDueTime = initialData?.dueTime || initialData?.due_time || "";
   const resolvedPriority = initialData?.priority || "Medium";
   const resolvedStatus = initialData?.status || "Pending";
-  const resolvedNotes = initialData?.notes || initialData?.description || "";
+  
+  const rawNotes = initialData?.notes || initialData?.description || "";
+  let resolvedNotes = rawNotes;
+  let isJsonLead = false;
+  if (typeof rawNotes === "string" && rawNotes.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(rawNotes.trim());
+      resolvedNotes = parsed.userNotes || parsed.notes || "";
+      isJsonLead = true;
+    } catch {
+      resolvedNotes = rawNotes;
+    }
+  }
+
   const resolvedContactPerson = initialData?.contactPerson || initialData?.contact_person || "";
   const resolvedContactMethod = initialData?.contactMethod || initialData?.contact_method || "Phone";
   const resolvedReminder = initialData?.reminderSetting || initialData?.reminder_setting || "none";
+  const leadCompanyName =
+    initialData?.companyName ||
+    (resolvedTitle.startsWith("Lead Outreach - ") ? resolvedTitle.replace("Lead Outreach - ", "") : "") ||
+    "Lead Company";
 
   const selectedClient = clients.find((c) => c.id === selectedClientId);
 
@@ -181,45 +204,67 @@ export function CreateFollowupModal({
             )}
           </div>
 
-          {/* Client Selection */}
-          <div>
-            <label className="block text-slate-700 font-semibold mb-1">
-              Associated Client *
-            </label>
-            {defaultClientId && !isEdit ? (
-              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-semibold">
-                {defaultClientName || "Selected Client"}
-                <input type="hidden" name="client_id" value={defaultClientId} />
+          {/* Client or Lead Selection */}
+          {isLeadFollowup ? (
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">
+                Associated Lead Company
+              </label>
+              <div className="p-3 bg-purple-50/60 border border-purple-200/80 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-purple-100 text-purple-700 rounded-lg">
+                    <Building2 size={16} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 text-xs">{leadCompanyName}</p>
+                    <span className="text-[10px] text-purple-700 font-medium">
+                      Unconverted Lead • Follow-up will not affect Clients page
+                    </span>
+                  </div>
+                </div>
+                <input type="hidden" name="client_id" value="" />
               </div>
-            ) : (
-              <select
-                name="client_id"
-                required
-                value={selectedClientId}
-                onChange={(e) => setSelectedClientId(e.target.value)}
-                className={`w-full px-3 py-2 border rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer ${
-                  state?.fieldErrors?.client_id ? "border-red-300" : "border-slate-200"
-                }`}
-              >
-                <option value="">Select a client...</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.company_name} ({c.client_code})
-                    {c.client_status === "Archived" ? " [Archived]" : ""}
-                  </option>
-                ))}
-              </select>
-            )}
+            </div>
+          ) : (
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">
+                Associated Client *
+              </label>
+              {defaultClientId && !isEdit ? (
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-semibold">
+                  {defaultClientName || "Selected Client"}
+                  <input type="hidden" name="client_id" value={defaultClientId} />
+                </div>
+              ) : (
+                <select
+                  name="client_id"
+                  required={!isEdit}
+                  value={selectedClientId}
+                  onChange={(e) => setSelectedClientId(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer ${
+                    state?.fieldErrors?.client_id ? "border-red-300" : "border-slate-200"
+                  }`}
+                >
+                  <option value="">Select a client...</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.company_name} ({c.client_code})
+                      {c.client_status === "Archived" ? " [Archived]" : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
 
-            {/* Display Selected Client quick info */}
-            {selectedClient && (
-              <div className="mt-1.5 p-2 bg-slate-50 border border-slate-200/80 rounded-lg flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
-                <span>Contact: <strong className="text-slate-800">{selectedClient.contact_person}</strong></span>
-                <span>Phone: <strong className="text-slate-800">{selectedClient.phone}</strong></span>
-                <span>Lead: <strong className="text-slate-800">{selectedClient.assigned_profile?.full_name || "Unassigned"}</strong></span>
-              </div>
-            )}
-          </div>
+              {/* Display Selected Client quick info */}
+              {selectedClient && (
+                <div className="mt-1.5 p-2 bg-slate-50 border border-slate-200/80 rounded-lg flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+                  <span>Contact: <strong className="text-slate-800">{selectedClient.contact_person}</strong></span>
+                  <span>Phone: <strong className="text-slate-800">{selectedClient.phone}</strong></span>
+                  <span>Lead: <strong className="text-slate-800">{selectedClient.assigned_profile?.full_name || "Unassigned"}</strong></span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Type & Priority */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -383,14 +428,21 @@ export function CreateFollowupModal({
 
           {/* Description & Internal Notes */}
           <div>
-            <label className="block text-slate-700 font-semibold mb-1">
-              Description & Internal Notes
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-slate-700 font-semibold">
+                Description & Internal Notes
+              </label>
+              {isJsonLead && (
+                <span className="text-[10px] text-slate-400">
+                  Registry and director details are preserved
+                </span>
+              )}
+            </div>
             <textarea
               name="notes"
               rows={3}
               defaultValue={resolvedNotes}
-              placeholder="Add key discussion topics, documents requested, or action items..."
+              placeholder="Add key discussion topics, call remarks, or action items..."
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0481A2]"
             />
           </div>

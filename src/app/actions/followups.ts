@@ -342,6 +342,18 @@ export async function updateFollowupAction(
     }
   }
 
+  let notesToSave = notes;
+  if (existing.notes && typeof existing.notes === "string" && existing.notes.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(existing.notes.trim());
+      parsed.userNotes = notes || "";
+      parsed.notes = notes || "";
+      notesToSave = JSON.stringify(parsed);
+    } catch {
+      notesToSave = notes;
+    }
+  }
+
   const updatePayload: Record<string, any> = {
     title,
     follow_up_type: followUpType,
@@ -349,7 +361,7 @@ export async function updateFollowupAction(
     due_time: dueTime,
     priority,
     status,
-    notes,
+    notes: notesToSave,
     assigned_to: assignedTo,
     contact_person: contactPerson,
     contact_method: contactMethod,
@@ -357,7 +369,7 @@ export async function updateFollowupAction(
     updated_at: new Date().toISOString(),
   };
 
-  if (clientId) {
+  if (clientId && clientId.trim() !== "") {
     updatePayload.client_id = clientId;
   }
 

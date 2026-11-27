@@ -495,6 +495,13 @@ export async function fetchUnconvertedLeadsAction() {
       parsedNotes = {};
     }
 
+    const hasActivityLogged =
+      (item.last_follow_up !== "Imported" &&
+        item.last_follow_up !== null &&
+        item.last_follow_up !== undefined &&
+        item.last_follow_up !== "New") ||
+      (Array.isArray(parsedNotes.history) && parsedNotes.history.length > 0);
+
     return {
       id: item.id,
       companyName: item.company_name,
@@ -524,6 +531,8 @@ export async function fetchUnconvertedLeadsAction() {
       nextFollowupDate: item.due_date,
       nextFollowupType: item.follow_up_type,
       nextFollowupStatus: item.status,
+      lastFollowUp: item.last_follow_up || "-",
+      hasActivityLogged,
       totalFollowups: 1,
       allFollowups: [
         {
@@ -635,21 +644,28 @@ export async function convertLeadToClientAction(leadFollowupId, completionData =
  * Update follow-up activity / call outcome
  */
 export async function updateLeadFollowupActivityAction(payload) {
-  const { leadId, outcome, notes, nextDate, nextType } = payload || {};
+  const { leadId } = payload || {};
   if (!leadId) {
     return { success: false, error: "Lead ID required." };
   }
+
+  const finalOutcome = payload.outcome || payload.callOutcome || "Contacted";
+  const finalNotes = payload.notes || "";
+  const finalNextDate = payload.nextDate || payload.nextDueDate;
+  const finalNextType = payload.nextType || payload.nextDueType;
+  const finalLeadStatus = payload.leadStatus || "In Progress";
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   try {
     const updateData = {
-      last_follow_up: outcome || "Contacted",
+      last_follow_up: finalOutcome,
+      status: finalLeadStatus,
       updated_at: new Date().toISOString(),
     };
-    if (nextDate) updateData.due_date = nextDate;
-    if (nextType) updateData.follow_up_type = nextType;
+    if (finalNextDate) updateData.due_date = finalNextDate;
+    if (finalNextType) updateData.follow_up_type = finalNextType;
 
     const { data: existing } = await supabase
       .from("follow_ups")
@@ -663,9 +679,9 @@ export async function updateLeadFollowupActivityAction(payload) {
         parsed.history = parsed.history || [];
         parsed.history.push({
           date: new Date().toISOString(),
-          outcome: outcome || "Contacted",
-          notes: notes || "",
-          nextDate: nextDate || null,
+          outcome: finalOutcome,
+          notes: finalNotes,
+          nextDate: finalNextDate || null,
           recordedBy: user ? user.email : "Agent",
         });
         updateData.notes = JSON.stringify(parsed);

@@ -153,23 +153,37 @@ export default function FollowupsPage() {
 
   // Dynamic calculations from database values
   const todayStr = new Date().toISOString().split("T")[0];
-  const totalCount = followups.length;
-  const myCount = followups.filter((f) => f.assignedToId === currentUserId).length;
-  const pendingCount = followups.filter((f) => f.status === "Pending" || f.status === "In Progress").length;
-  const todayCount = followups.filter(
+
+  // A lead is in "New Leads" if NO activity has been logged yet
+  // Once activity is logged (call outcome, notes, rescheduled), it moves to "My Follow-ups" / "All Follow-ups"!
+  const newLeads = useMemo(() => {
+    return unconvertedLeads.filter((l: any) => !l.hasActivityLogged);
+  }, [unconvertedLeads]);
+
+  // Active follow-ups in My Follow-ups / All Follow-ups:
+  // Includes all follow-ups with logged activity, or created for clients
+  const activeFollowups = useMemo(() => {
+    return followups.filter((f: any) => f.hasActivityLogged || f.clientId);
+  }, [followups]);
+
+  const totalCount = activeFollowups.length;
+  const myCount = activeFollowups.filter((f) => f.assignedToId === currentUserId).length;
+  const pendingCount = activeFollowups.filter((f) => f.status === "Pending" || f.status === "In Progress").length;
+  const todayCount = activeFollowups.filter(
     (f) => f.dueDate === todayStr && f.status !== "Completed" && f.status !== "Cancelled"
   ).length;
-  const upcomingCount = followups.filter(
+  const upcomingCount = activeFollowups.filter(
     (f) => f.dueDate > todayStr && f.status !== "Completed" && f.status !== "Cancelled"
   ).length;
-  const overdueCount = followups.filter(
+  const overdueCount = activeFollowups.filter(
     (f) => f.isOverdue
   ).length;
-  const completedCount = followups.filter((f) => f.status === "Completed").length;
+  const completedCount = activeFollowups.filter((f) => f.status === "Completed").length;
+  const newLeadsCount = newLeads.length;
 
   // Filter & Tab Logic
   const filteredFollowups = useMemo(() => {
-    return followups.filter((f) => {
+    return activeFollowups.filter((f) => {
       // Tab filter
       if (activeTab === "my" && f.assignedToId !== currentUserId) return false;
       if (activeTab === "today" && (f.dueDate !== todayStr || f.status === "Completed" || f.status === "Cancelled")) return false;
@@ -190,11 +204,11 @@ export default function FollowupsPage() {
         (f.notes && f.notes.toLowerCase().includes(q))
       );
     });
-  }, [followups, activeTab, currentUserId, todayStr, priorityFilter, typeFilter, searchQuery]);
+  }, [activeFollowups, activeTab, currentUserId, todayStr, priorityFilter, typeFilter, searchQuery]);
 
   // Filtered Leads
   const filteredLeads = useMemo(() => {
-    return unconvertedLeads.filter((l: any) => {
+    return newLeads.filter((l: any) => {
       if (!isAdmin && l.assignedSalespersonId && l.assignedSalespersonId !== currentUserId) {
         return false;
       }
@@ -212,7 +226,7 @@ export default function FollowupsPage() {
         (l.state && l.state.toLowerCase().includes(q))
       );
     });
-  }, [unconvertedLeads, isAdmin, currentUserId, leadStatusFilter, leadSalespersonFilter, searchQuery]);
+  }, [newLeads, isAdmin, currentUserId, leadStatusFilter, leadSalespersonFilter, searchQuery]);
 
   const uniqueLeadSalespeople = useMemo(() => {
     const set = new Set<string>();
@@ -349,7 +363,7 @@ export default function FollowupsPage() {
           }`}
         >
           <Building size={13} />
-          <span>Unconverted Leads ({unconvertedLeads.length})</span>
+          <span>New Leads ({newLeadsCount})</span>
         </button>
       </div>
 
@@ -466,7 +480,7 @@ export default function FollowupsPage() {
       {errorMessage ? (
         <ErrorRetryState message={errorMessage} onRetry={loadData} />
       ) : activeTab === "leads" ? (
-        /* Unconverted Leads Table */
+        /* New Leads Table */
         <div className="bg-white border border-[#E2E8F0] rounded-2xl shadow-2xs overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs sm:text-sm">
@@ -487,13 +501,13 @@ export default function FollowupsPage() {
                   <tr>
                     <td colSpan={8} className="py-12 text-center text-slate-400 text-xs">
                       <RefreshCw size={18} className="animate-spin text-[#0481A2] mx-auto mb-2" />
-                      Loading unconverted company leads...
+                      Loading new company leads...
                     </td>
                   </tr>
                 ) : filteredLeads.length === 0 ? (
                   <tr>
                     <td colSpan={8} className="py-12 text-center text-slate-400 text-xs">
-                      No unconverted company leads match the current filters.
+                      No new company leads match the current filters.
                     </td>
                   </tr>
                 ) : (
@@ -640,16 +654,22 @@ export default function FollowupsPage() {
                           )}
                         </td>
 
-                        {/* Client */}
+                        {/* Client / Company */}
                         <td className="py-3 px-3">
-                          <Link
-                            href={`/clients/${f.clientId}`}
-                            className="font-semibold text-slate-800 hover:text-[#0481A2] block truncate max-w-[150px]"
-                          >
-                            {f.companyName}
-                          </Link>
+                          {f.clientId ? (
+                            <Link
+                              href={`/clients/${f.clientId}`}
+                              className="font-semibold text-slate-800 hover:text-[#0481A2] block truncate max-w-[150px]"
+                            >
+                              {f.companyName}
+                            </Link>
+                          ) : (
+                            <span className="font-semibold text-slate-800 block truncate max-w-[150px]">
+                              {f.companyName}
+                            </span>
+                          )}
                           <span className="text-[10px] text-slate-400 font-mono block">
-                            {f.clientCode}
+                            {f.clientCode || (f.clientId ? "Client" : "Lead")}
                           </span>
                         </td>
 

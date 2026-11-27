@@ -81,7 +81,6 @@ export async function fetchFollowupsAction() {
     .from("follow_ups")
     .select(`
       *,
-      client:clients!client_id (id, company_name, client_code, contact_person, client_status),
       assigned_profile:profiles!assigned_to (id, full_name, email)
     `)
     .order("due_date", { ascending: true })
@@ -119,22 +118,38 @@ export async function fetchFollowupsAction() {
     const diffTime = Math.abs(new Date(todayStr).getTime() - new Date(f.due_date).getTime());
     const overdueDays = isOverdue ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
 
+    let parsedNotes: any = {};
+    try {
+      if (f.notes && typeof f.notes === "string" && f.notes.startsWith("{")) {
+        parsedNotes = JSON.parse(f.notes);
+      }
+    } catch {}
+
+    const hasActivityLogged =
+      (f.last_follow_up !== "Imported" &&
+        f.last_follow_up !== null &&
+        f.last_follow_up !== undefined &&
+        f.last_follow_up !== "New") ||
+      (Array.isArray(parsedNotes.history) && parsedNotes.history.length > 0);
+
     return {
       id: f.id,
-      clientId: f.client?.id || f.client_id,
-      companyName: f.client?.company_name || "Unknown Company",
-      clientCode: f.client?.client_code || "B360-1000",
-      clientStatus: f.client?.client_status || "Active",
-      contactPerson: f.contact_person || f.client?.contact_person || "-",
-      assignedToName: f.assigned_profile?.full_name || "Assigned Staff",
+      clientId: f.converted_client_id || f.client_id || null,
+      companyName: f.company_name || f.client?.company_name || "Unknown Company",
+      clientCode: f.converted_client_id ? "Client" : "Lead",
+      clientStatus: f.status === "Converted to Client" ? "Active" : "Lead",
+      contactPerson: f.contact_person || "-",
+      phone: f.phone || "-",
+      assignedToName: f.assigned_name || f.assigned_profile?.full_name || "Assigned Staff",
       assignedToId: f.assigned_to,
-      title: f.title,
+      title: f.title || `Follow-up: ${f.company_name}`,
       followUpType: f.follow_up_type || "General",
       type: f.follow_up_type || "General",
       dueDate: f.due_date,
       dueTime: f.due_time || null,
       priority: f.priority || "Medium",
       status: f.status || "Pending",
+      lastFollowUp: f.last_follow_up || "-",
       notes: f.notes,
       description: f.notes,
       completionNotes: f.completion_notes || null,
@@ -144,6 +159,8 @@ export async function fetchFollowupsAction() {
       contactMethod: f.contact_method || "Phone",
       isOverdue,
       overdueDays,
+      isLead: !f.converted_client_id,
+      hasActivityLogged,
     };
   });
 }
@@ -637,7 +654,8 @@ export async function fetchPendingFollowupsCountAction(): Promise<number> {
     const { count, error } = await supabase
       .from("follow_ups")
       .select("id", { count: "exact", head: true })
-      .eq("status", "Pending");
+      .eq("status", "Pending")
+      .neq("last_follow_up", "Imported");
 
     if (error) {
       console.error("Error fetching pending followups count:", error);

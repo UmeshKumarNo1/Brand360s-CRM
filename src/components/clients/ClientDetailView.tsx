@@ -93,7 +93,7 @@ export function ClientDetailView({
   client,
   isAdmin,
   canEdit,
-  initialTab = "overview",
+  initialTab = "services",
   initialAddService = false,
   initialServiceId = null,
 }: ClientDetailViewProps) {
@@ -101,7 +101,7 @@ export function ClientDetailView({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<"services" | "overview" | "payments" | "followups" | "activity">(
-    initialTab
+    initialTab === "services" || initialTab === "overview" ? "services" : initialTab
   );
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(initialServiceId);
   const [highlightedServiceId, setHighlightedServiceId] = useState<string | null>(initialServiceId);
@@ -160,39 +160,26 @@ export function ClientDetailView({
     loadDetailedServices();
   }, [loadDetailedServices]);
 
-  // Sync activeTab with URL ?tab= for browser back/forward navigation
-  useEffect(() => {
-    const urlTab = searchParams.get("tab");
-    if (
-      urlTab === "services" ||
-      urlTab === "overview" ||
-      urlTab === "payments" ||
-      urlTab === "followups" ||
-      urlTab === "activity"
-    ) {
-      setActiveTab(urlTab);
-    }
-  }, [searchParams]);
-
   // Sync initialServiceId or search params when prop changes
   useEffect(() => {
     if (initialServiceId) {
       setSelectedServiceId(initialServiceId);
       setHighlightedServiceId(initialServiceId);
-      hasScrolledToServiceRef.current = null;
     }
   }, [initialServiceId]);
 
   // Auto-scroll to selected service once services are loaded and rendered (only once per selectedServiceId)
   useEffect(() => {
     if (!selectedServiceId || isLoadingServices) return;
-    if (hasScrolledToServiceRef.current === selectedServiceId) return;
 
     // Check if target service exists in detailedServices
     const serviceExists = detailedServices.some((s) => s.id === selectedServiceId);
     if (!serviceExists) return;
 
-    hasScrolledToServiceRef.current = selectedServiceId;
+    // Ensure we are on the services tab
+    if (activeTab !== "services") {
+      setActiveTab("services");
+    }
 
     const timer = setTimeout(() => {
       const el = document.getElementById(`service-${selectedServiceId}`);
@@ -209,19 +196,23 @@ export function ClientDetailView({
       clearTimeout(timer);
       clearTimeout(highlightTimer);
     };
-  }, [selectedServiceId, isLoadingServices, detailedServices]);
+  }, [selectedServiceId, isLoadingServices, detailedServices, activeTab]);
 
-  const handleTabChange = (tab: "services" | "overview" | "payments" | "followups" | "activity") => {
-    setActiveTab(tab);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("tab", tab);
-    if (tab === "services" && selectedServiceId) {
-      params.set("serviceId", selectedServiceId);
-    } else {
-      params.delete("serviceId");
-    }
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-  };
+  const handleTabChange = useCallback(
+    (tab: "services" | "overview" | "payments" | "followups" | "activity") => {
+      setActiveTab(tab);
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", tab);
+        if (tab !== "services") {
+          url.searchParams.delete("serviceId");
+          setSelectedServiceId(null);
+        }
+        window.history.replaceState(null, "", url.toString());
+      }
+    },
+    []
+  );
 
   const isArchived = client.clientStatus === "Archived";
 
@@ -416,7 +407,7 @@ export function ClientDetailView({
           <button
             type="button"
             onClick={() => {
-              setActiveTab("services");
+              handleTabChange("services");
               setIsAddServiceModalOpen(true);
             }}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-xl shadow-sm transition-colors cursor-pointer"
@@ -543,11 +534,10 @@ export function ClientDetailView({
       <div className="bg-white border border-slate-200/80 rounded-2xl p-1.5 flex items-center gap-1 shadow-2xs overflow-x-auto">
         <button
           onClick={() => handleTabChange("services")}
-          className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "services"
+          className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${activeTab === "services"
               ? "bg-[#1B3260] text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-          }`}
+            }`}
         >
           <Layers size={15} />
           <span>Services ({detailedServices.length})</span>
@@ -555,11 +545,10 @@ export function ClientDetailView({
 
         <button
           onClick={() => handleTabChange("overview")}
-          className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "overview"
+          className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${activeTab === "overview"
               ? "bg-[#1B3260] text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-          }`}
+            }`}
         >
           <Home size={15} />
           <span>Overview</span>
@@ -567,11 +556,10 @@ export function ClientDetailView({
 
         <button
           onClick={() => handleTabChange("payments")}
-          className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "payments"
+          className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${activeTab === "payments"
               ? "bg-[#1B3260] text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-          }`}
+            }`}
         >
           <CreditCard size={15} />
           <span>Payments &amp; Invoices</span>
@@ -579,11 +567,10 @@ export function ClientDetailView({
 
         <button
           onClick={() => handleTabChange("followups")}
-          className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "followups"
+          className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${activeTab === "followups"
               ? "bg-[#1B3260] text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-          }`}
+            }`}
         >
           <Calendar size={15} />
           <span>Follow-ups</span>
@@ -591,11 +578,10 @@ export function ClientDetailView({
 
         <button
           onClick={() => handleTabChange("activity")}
-          className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
-            activeTab === "activity"
+          className={`px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${activeTab === "activity"
               ? "bg-[#1B3260] text-white shadow-xs"
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-          }`}
+            }`}
         >
           <Activity size={15} />
           <span>Activity &amp; Audit History</span>
@@ -1174,9 +1160,9 @@ export function ClientDetailView({
           consequences={
             depCheck && !depCheck.canDelete
               ? depCheck.reason ||
-                "This client has invoices or payments recorded. To preserve financial history, deletion is blocked. Please archive the client instead."
+              "This client has invoices or payments recorded. To preserve financial history, deletion is blocked. Please archive the client instead."
               : depCheck?.reason ||
-                "Permanently deleting this client will remove their record from the CRM. This action cannot be undone."
+              "Permanently deleting this client will remove their record from the CRM. This action cannot be undone."
           }
           isArchivingOnly={depCheck ? !depCheck.canDelete : false}
           archiveOption={{

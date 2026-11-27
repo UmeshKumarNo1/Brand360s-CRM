@@ -17,6 +17,8 @@ import {
 
 import { recordAuditLog } from "@/lib/audit/audit-logger";
 import { calculateClientFinancials, calculateServiceFinancials } from "@/lib/financial/financial-calculator";
+import { assignClientServiceAction } from "@/app/actions/services";
+import { createFollowupAction } from "@/app/actions/followups";
 import { fetchAuthorizedClientsFinancialRecords } from "@/lib/financial/financial-data-fetcher";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
@@ -378,6 +380,73 @@ export async function createClientAction(
         duplicate_override: allowDuplicateOverride,
       },
     });
+
+    // Feature: Process initial services if added in client registration wizard
+    const rawInitialServices = formData.get("initial_services") as string;
+    if (rawInitialServices) {
+      try {
+        const servicesList = JSON.parse(rawInitialServices);
+        if (Array.isArray(servicesList) && servicesList.length > 0) {
+          for (const svc of servicesList) {
+            if (!svc.service_name || !svc.service_name.trim()) continue;
+            const svcFormData = new FormData();
+            svcFormData.append("client_id", data.id);
+            svcFormData.append("service_name", svc.service_name.trim());
+            svcFormData.append("service_category", svc.service_category || "General");
+            svcFormData.append("service_fee", String(Number(svc.service_fee) || 0));
+            svcFormData.append("govt_fee", String(Number(svc.govt_fee) || 0));
+            svcFormData.append("tax_rate", String(Number(svc.tax_rate) || 18));
+            svcFormData.append("start_date", svc.start_date || new Date().toISOString().split("T")[0]);
+            if (svc.expected_completion_date) {
+              svcFormData.append("expected_completion_date", svc.expected_completion_date);
+            }
+            if (svc.assigned_employee_id) {
+              svcFormData.append("assigned_employee_id", svc.assigned_employee_id);
+            } else if (assigned_salesperson) {
+              svcFormData.append("assigned_employee_id", assigned_salesperson);
+            }
+            if (svc.notes) {
+              svcFormData.append("notes", svc.notes);
+            }
+            if (svc.is_renewable) {
+              svcFormData.append("is_renewable", "true");
+              svcFormData.append("renewal_frequency", svc.renewal_frequency || "Annually");
+              svcFormData.append("renewal_duration_months", String(svc.renewal_duration_months || 12));
+              svcFormData.append("renewal_amount", String(Number(svc.renewal_amount) || Number(svc.service_fee) || 0));
+            }
+
+            await assignClientServiceAction(null, svcFormData);
+          }
+        }
+      } catch (svcErr) {
+        console.error("Error creating initial client services:", svcErr);
+      }
+    }
+
+    // Feature: Process initial follow-up if scheduled in client registration wizard
+    const rawInitialFollowup = formData.get("initial_followup") as string;
+    if (rawInitialFollowup) {
+      try {
+        const fuData = JSON.parse(rawInitialFollowup);
+        if (fuData && fuData.title && fuData.due_date) {
+          const fuFormData = new FormData();
+          fuFormData.append("client_id", data.id);
+          fuFormData.append("title", fuData.title.trim());
+          fuFormData.append("follow_up_type", fuData.follow_up_type || "Call");
+          fuFormData.append("due_date", fuData.due_date);
+          if (fuData.due_time) fuFormData.append("due_time", fuData.due_time);
+          fuFormData.append("priority", fuData.priority || "Medium");
+          fuFormData.append("assigned_to", fuData.assigned_to || assigned_salesperson || user.id);
+          if (fuData.notes) fuFormData.append("notes", fuData.notes);
+          fuFormData.append("contact_person", contact_person || "");
+          fuFormData.append("contact_method", fuData.contact_method || "Phone");
+
+          await createFollowupAction(null, fuFormData);
+        }
+      } catch (fuErr) {
+        console.error("Error creating initial client follow-up:", fuErr);
+      }
+    }
   }
 
   const fromProspectId = (formData.get("from_prospect_id") as string)?.trim() || null;
@@ -494,14 +563,22 @@ export async function fetchClientsAction() {
         return [];
       }
 
-      return fallbackData || [];
+      const fallbackConverted = (fallbackData || []).filter(
+        (c: any) => !c.is_lead && c.client_status !== "Lead" && !(c.notes && c.notes.startsWith("[LEAD:"))
+      );
+      return fallbackConverted;
     }
 
+    // Filter out unconverted leads so only converted clients appear in the Clients portfolio
+    const convertedClientsOnly = (data || []).filter(
+      (c: any) => !c.is_lead && c.client_status !== "Lead" && !(c.notes && c.notes.startsWith("[LEAD:"))
+    );
+
     // Extract all client IDs and service IDs to fetch invoices, payments and allocations in batch
-    const allClientIds = (data || []).map((c: any) => c.id);
+    const allClientIds = convertedClientsOnly.map((c: any) => c.id);
     const allServiceIds: string[] = [];
 
-    (data || []).forEach((c: any) => {
+    convertedClientsOnly.forEach((c: any) => {
       (c.services || []).forEach((s: any) => {
         if (s.id) allServiceIds.push(s.id);
       });
@@ -573,7 +650,7 @@ export async function fetchClientsAction() {
     const allocations = allocsRes.data || [];
 
     // Enrich each client and their services with standardized financial calculations
-    return (data || []).map((client: any) => {
+    return convertedClientsOnly.map((client: any) => {
       const clientInvs = invoicesByClient[client.id] || [];
       const clientPmts = paymentsByClient[client.id] || [];
       const clientInvIds = new Set(clientInvs.map((i: any) => i.id));
@@ -713,8 +790,9 @@ export async function fetchClientsDropdownAction() {
 
   const { data, error } = await supabase
     .from("clients")
-    .select("id, company_name, client_code, contract_value, balance_receivable, client_status")
+    .select("id, company_name, client_code, contract_value, balance_receivable, client_status, is_lead")
     .neq("client_status", "Archived")
+    .neq("client_status", "Lead")
     .order("company_name", { ascending: true });
 
   if (error) {
@@ -722,7 +800,7 @@ export async function fetchClientsDropdownAction() {
     return [];
   }
 
-  return data || [];
+  return (data || []).filter((c: any) => !c.is_lead);
 }
 
 /**
@@ -844,7 +922,9 @@ export async function fetchClientsKpiSummaryAction() {
     }
   }
 
-  const clients = clientsRes.data || [];
+  const clients = (clientsRes.data || []).filter(
+    (c: any) => !c.is_lead && c.client_status !== "Lead" && !(c.notes && c.notes.startsWith("[LEAD:"))
+  );
   const services = servicesRes.data || [];
   const invoices = invoicesRes.data || [];
   const payments = paymentsRes.data || [];

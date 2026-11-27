@@ -1,78 +1,22 @@
 "use client";
 
 import { useActionState, useEffect, useState, useRef } from "react";
-import { CheckSquare, X, Loader2, Calendar, Clock, AlertTriangle, User, Phone, Bell, Building2, Briefcase } from "lucide-react";
+import { CheckSquare, X, Loader2, Calendar, Clock, AlertTriangle, User, Phone, Bell, Building2 } from "lucide-react";
 import { createFollowupAction, updateFollowupAction } from "@/app/actions/followups";
 import { fetchClientsAction, fetchSalespeopleAction } from "@/app/actions/clients";
 import { useToast } from "@/components/common/ToastProvider";
 
 const FOLLOWUP_TYPES = [
-  "Phone Call",
+  "Call",
   "Email",
   "Meeting",
-  "WhatsApp",
-  "Proposal Discussion",
   "Document Collection",
   "Payment Reminder",
   "General",
 ];
 
-const SERVICES_LIST = [
-  "Pvt. Ltd. Registration",
-  "GST Registration",
-  "Trademark Registration",
-  "LLP Registration",
-  "Compliance (ROC)",
-  "ISO Certification",
-  "Accounting & Bookkeeping",
-  "Import Export Code (IEC)",
-  "Tax Filing & Advisory",
-  "Other Service",
-];
-
 const PRIORITIES = ["Low", "Medium", "High"];
-const STATUSES = [
-  "Due Today",
-  "In Follow-up",
-  "Likely to Convert",
-  "Overdue",
-  "No Response",
-  "On Hold",
-  "Completed",
-  "Converted to Client",
-];
-
-const DEFAULT_STAFF_MEMBERS = [
-  { id: "00000000-0000-0000-0000-000000000001", full_name: "Admin User", role: "admin" },
-  { id: "00000000-0000-0000-0000-000000000002", full_name: "Employee1", role: "employee" },
-  { id: "00000000-0000-0000-0000-000000000003", full_name: "Employee2", role: "employee" },
-];
-
-function getInitials(name: string) {
-  if (!name) return "EM";
-  const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return name.slice(0, 2).toUpperCase();
-}
-
-function getAvatarColor(name: string) {
-  const colors = [
-    "bg-purple-100 text-purple-700",
-    "bg-pink-100 text-pink-700",
-    "bg-indigo-100 text-indigo-700",
-    "bg-blue-100 text-blue-700",
-    "bg-emerald-100 text-emerald-700",
-    "bg-amber-100 text-amber-700",
-  ];
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  return colors[Math.abs(hash) % colors.length];
-}
-
+const STATUSES = ["Pending", "In Progress", "Completed", "Cancelled"];
 const REMINDER_OPTIONS = [
   { value: "none", label: "No reminder" },
   { value: "on_due_date", label: "On due date (Morning 9:00 AM)" },
@@ -88,12 +32,7 @@ interface FollowupModalProps {
   initialData?: any | null;
   defaultClientId?: string;
   defaultClientName?: string;
-  defaultContactPerson?: string;
-  defaultPhone?: string;
-  defaultAssignedTo?: string | null;
   isAdmin?: boolean;
-  onAddProspectFollowup?: (data: any) => void;
-  employeesList?: any[];
 }
 
 export function CreateFollowupModal({
@@ -104,12 +43,7 @@ export function CreateFollowupModal({
   initialData,
   defaultClientId,
   defaultClientName,
-  defaultContactPerson,
-  defaultPhone,
-  defaultAssignedTo,
   isAdmin = false,
-  onAddProspectFollowup,
-  employeesList,
 }: FollowupModalProps) {
   const isEdit = mode === "edit" && !!initialData?.id;
   const actionToUse = isEdit ? updateFollowupAction : createFollowupAction;
@@ -117,23 +51,9 @@ export function CreateFollowupModal({
   const handledStateRef = useRef<any>(null);
 
   const [clients, setClients] = useState<any[]>([]);
-  const [employees, setEmployees] = useState<any[]>(employeesList || DEFAULT_STAFF_MEMBERS);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [selectedClientId, setSelectedClientId] = useState<string>("");
   const [selectedAssignedTo, setSelectedAssignedTo] = useState<string>("");
-
-  // Direct prospect inputs
-  const [companyName, setCompanyName] = useState("");
-  const [contactPerson, setContactPerson] = useState("");
-  const [phone, setPhone] = useState("");
-  const [serviceInterested, setServiceInterested] = useState("Pvt. Ltd. Registration");
-  const [title, setTitle] = useState("");
-  const [followUpType, setFollowUpType] = useState("Phone Call");
-  const [priority, setPriority] = useState("Medium");
-  const [status, setStatus] = useState("Due Today");
-  const [dueDate, setDueDate] = useState(new Date().toISOString().split("T")[0]);
-  const [dueTime, setDueTime] = useState("");
-  const [assignedStaff, setAssignedStaff] = useState("Admin User");
-  const [notes, setNotes] = useState("");
 
   const { success, error: toastError } = useToast();
 
@@ -141,21 +61,18 @@ export function CreateFollowupModal({
   useEffect(() => {
     if (isOpen) {
       fetchClientsAction().then((data) => {
+        // Exclude archived clients for new followups unless editing
         const available = isEdit ? data : (data || []).filter((c: any) => c.client_status !== "Archived");
         setClients(available || []);
       });
 
-      if (employeesList && employeesList.length > 0) {
-        setEmployees(employeesList);
-      } else {
+      if (isAdmin) {
         fetchSalespeopleAction().then((data) => {
-          if (data && data.length > 0) {
-            setEmployees(data);
-          }
+          setEmployees(data || []);
         });
       }
     }
-  }, [isOpen, isEdit, employeesList]);
+  }, [isOpen, isEdit, isAdmin]);
 
   // Sync initial selections
   useEffect(() => {
@@ -163,41 +80,12 @@ export function CreateFollowupModal({
       const cId = initialData?.clientId || initialData?.client_id || defaultClientId || "";
       setSelectedClientId(cId);
 
-      const aId = initialData?.assignedToId || initialData?.assigned_to || defaultAssignedTo || "";
+      const aId = initialData?.assignedToId || initialData?.assigned_to || "";
       setSelectedAssignedTo(aId);
-
-      if (initialData) {
-        setCompanyName(initialData.companyName || defaultClientName || "");
-        setContactPerson(initialData.contactPerson || defaultContactPerson || "");
-        setPhone(initialData.phone || defaultPhone || "");
-        setServiceInterested(initialData.serviceInterested || initialData.service || "Pvt. Ltd. Registration");
-        setTitle(initialData.title || "");
-        setFollowUpType(initialData.followUpType || initialData.type || "Phone Call");
-        setPriority(initialData.priority || "Medium");
-        setStatus(initialData.status || "Due Today");
-        setDueDate(initialData.dueDate || initialData.due_date || new Date().toISOString().split("T")[0]);
-        setDueTime(initialData.dueTime || initialData.due_time || "");
-        setAssignedStaff(initialData.assignedToName || initialData.assignedStaff || "Admin User");
-        setNotes(initialData.notes || initialData.description || "");
-      } else {
-        setCompanyName(defaultClientName || "");
-        setContactPerson(defaultContactPerson || "");
-        setPhone(defaultPhone || "");
-        setServiceInterested("Pvt. Ltd. Registration");
-        setTitle("");
-        setFollowUpType("Phone Call");
-        setPriority("Medium");
-        setStatus("Due Today");
-        setDueDate(new Date().toISOString().split("T")[0]);
-        setDueTime("");
-        const matchedEmp = employees.find((e) => e.id === defaultAssignedTo);
-        setAssignedStaff(matchedEmp?.full_name || employees[0]?.full_name || "Admin User");
-        setNotes("");
-      }
     }
-  }, [isOpen, initialData, defaultClientId, defaultClientName, defaultContactPerson, defaultPhone, defaultAssignedTo, employees]);
+  }, [isOpen, initialData, defaultClientId]);
 
-  // Handle successful server action submission if not in prospect callback mode
+  // Handle successful submission
   useEffect(() => {
     if (!state || handledStateRef.current === state) return;
 
@@ -224,48 +112,41 @@ export function CreateFollowupModal({
 
   if (!isOpen) return null;
 
-  // Custom submit handler for prospect mode
-  const handleCustomSubmit = (e: React.FormEvent) => {
-    if (onAddProspectFollowup) {
-      e.preventDefault();
+  const isLeadFollowup =
+    isEdit &&
+    (!initialData?.clientId ||
+      initialData?.isLead ||
+      (typeof initialData?.notes === "string" && initialData.notes.trim().startsWith("{")));
 
-      const finalCompanyName = companyName.trim() || (selectedClientId ? clients.find(c => c.id === selectedClientId)?.company_name : "") || "New Prospect";
-      const finalContactPerson = contactPerson.trim() || (selectedClientId ? clients.find(c => c.id === selectedClientId)?.contact_person : "") || "Contact Person";
-      const finalTitle = title.trim() || `${followUpType} with ${finalCompanyName}`;
-
-      const matchedEmp = employees.find(e => e.full_name === assignedStaff) || employees[0] || DEFAULT_STAFF_MEMBERS[0];
-      const initials = getInitials(matchedEmp.full_name);
-      const color = getAvatarColor(matchedEmp.full_name);
-
-      const newProspectItem = {
-        id: initialData?.id || `followup-${Date.now()}`,
-        companyName: finalCompanyName,
-        contactPerson: finalContactPerson,
-        phone: phone.trim() || "+91 98765 00000",
-        serviceInterested: serviceInterested,
-        service: serviceInterested,
-        title: finalTitle,
-        lastFollowup: initialData?.lastFollowup || "Today",
-        nextFollowup: dueDate,
-        dueDate: dueDate,
-        dueTime: dueTime || null,
-        status: status,
-        followUpType: followUpType,
-        priority: priority,
-        assignedToName: matchedEmp.full_name,
-        assignedStaffInitials: initials,
-        assignedColor: color,
-        notes: notes.trim(),
-        clientId: selectedClientId || "",
-        isOverdue: status.toLowerCase().includes("overdue"),
-      };
-
-      onAddProspectFollowup(newProspectItem);
-      success(isEdit ? "Follow-up Updated" : "Follow-up Added", `Follow-up for ${finalCompanyName} recorded.`);
-      onSuccess();
-      onClose();
+  const resolvedTitle = initialData?.title || "";
+  const resolvedType = initialData?.followUpType || initialData?.type || "Phone Call";
+  const resolvedDueDate = initialData?.dueDate || initialData?.due_date || new Date().toISOString().split("T")[0];
+  const resolvedDueTime = initialData?.dueTime || initialData?.due_time || "";
+  const resolvedPriority = initialData?.priority || "Medium";
+  const resolvedStatus = initialData?.status || "Pending";
+  
+  const rawNotes = initialData?.notes || initialData?.description || "";
+  let resolvedNotes = rawNotes;
+  let isJsonLead = false;
+  if (typeof rawNotes === "string" && rawNotes.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(rawNotes.trim());
+      resolvedNotes = parsed.userNotes || parsed.notes || "";
+      isJsonLead = true;
+    } catch {
+      resolvedNotes = rawNotes;
     }
-  };
+  }
+
+  const resolvedContactPerson = initialData?.contactPerson || initialData?.contact_person || "";
+  const resolvedContactMethod = initialData?.contactMethod || initialData?.contact_method || "Phone";
+  const resolvedReminder = initialData?.reminderSetting || initialData?.reminder_setting || "none";
+  const leadCompanyName =
+    initialData?.companyName ||
+    (resolvedTitle.startsWith("Lead Outreach - ") ? resolvedTitle.replace("Lead Outreach - ", "") : "") ||
+    "Lead Company";
+
+  const selectedClient = clients.find((c) => c.id === selectedClientId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
@@ -277,10 +158,10 @@ export function CreateFollowupModal({
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-base font-bold text-slate-900">
-              {isEdit ? "Edit Follow-up" : "Add New Follow-up"}
+              {isEdit ? "Edit Follow-up Task" : "Create Follow-up Reminder"}
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              {isEdit ? "Update communication schedules, status, or details" : "Schedule a follow-up with unconfirmed prospects and track conversion"}
+              {isEdit ? "Update communication schedules, status, or details" : "Schedule a reminder, client call, or compliance milestone"}
             </p>
           </div>
           <button
@@ -293,13 +174,8 @@ export function CreateFollowupModal({
         </div>
 
         {/* Form Body */}
-        <form
-          action={onAddProspectFollowup ? undefined : formAction}
-          onSubmit={onAddProspectFollowup ? handleCustomSubmit : undefined}
-          className="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs flex-1"
-        >
+        <form action={formAction} className="p-4 sm:p-5 overflow-y-auto space-y-4 text-xs flex-1">
           {isEdit && <input type="hidden" name="id" value={initialData.id} />}
-          {selectedClientId && <input type="hidden" name="client_id" value={selectedClientId} />}
 
           {state?.error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 flex items-center gap-2 font-medium">
@@ -308,102 +184,97 @@ export function CreateFollowupModal({
             </div>
           )}
 
-          {/* Prospect / Company Name & Contact Person */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-slate-700 font-semibold mb-1">
-                Prospect / Company Name <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  name="company_name"
-                  required
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  placeholder="e.g. BrightWay Logistics"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0481A2]"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-slate-700 font-semibold mb-1">
-                Contact Person <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="contact_person"
-                required
-                value={contactPerson}
-                onChange={(e) => setContactPerson(e.target.value)}
-                placeholder="e.g. Mr. Arjun Mehta"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0481A2]"
-              />
-            </div>
-          </div>
-
-          {/* Phone Number & Service Interested */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-slate-700 font-semibold mb-1">
-                Phone / Mobile Number
-              </label>
-              <input
-                type="text"
-                name="phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="e.g. +91 98765 43210"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0481A2]"
-              />
-            </div>
-
-            <div>
-              <label className="block text-slate-700 font-semibold mb-1">
-                Service Interested <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="service_interested"
-                value={serviceInterested}
-                onChange={(e) => setServiceInterested(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer"
-              >
-                {SERVICES_LIST.map((srv) => (
-                  <option key={srv} value={srv}>
-                    {srv}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Follow-up Title */}
+          {/* Title */}
           <div>
             <label className="block text-slate-700 font-semibold mb-1">
-              Follow-up Purpose / Title <span className="text-red-500">*</span>
+              Follow-up Title *
             </label>
             <input
               type="text"
               name="title"
               required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Share service proposal / Follow up for documents"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0481A2]"
+              defaultValue={resolvedTitle}
+              placeholder="e.g. Call regarding GST certificate & payment"
+              className={`w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:border-[#0481A2] ${
+                state?.fieldErrors?.title ? "border-red-300 bg-red-50/30" : "border-slate-200"
+              }`}
             />
+            {state?.fieldErrors?.title && (
+              <p className="text-[11px] text-red-600 mt-1">{state.fieldErrors.title}</p>
+            )}
           </div>
 
-          {/* Follow-up Type & Priority */}
+          {/* Client or Lead Selection */}
+          {isLeadFollowup ? (
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">
+                Associated Lead Company
+              </label>
+              <div className="p-3 bg-purple-50/60 border border-purple-200/80 rounded-xl flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 bg-purple-100 text-purple-700 rounded-lg">
+                    <Building2 size={16} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-900 text-xs">{leadCompanyName}</p>
+                    <span className="text-[10px] text-purple-700 font-medium">
+                      Unconverted Lead • Follow-up will not affect Clients page
+                    </span>
+                  </div>
+                </div>
+                <input type="hidden" name="client_id" value="" />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1">
+                Associated Client *
+              </label>
+              {defaultClientId && !isEdit ? (
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-semibold">
+                  {defaultClientName || "Selected Client"}
+                  <input type="hidden" name="client_id" value={defaultClientId} />
+                </div>
+              ) : (
+                <select
+                  name="client_id"
+                  required={!isEdit}
+                  value={selectedClientId}
+                  onChange={(e) => setSelectedClientId(e.target.value)}
+                  className={`w-full px-3 py-2 border rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer ${
+                    state?.fieldErrors?.client_id ? "border-red-300" : "border-slate-200"
+                  }`}
+                >
+                  <option value="">Select a client...</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.company_name} ({c.client_code})
+                      {c.client_status === "Archived" ? " [Archived]" : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* Display Selected Client quick info */}
+              {selectedClient && (
+                <div className="mt-1.5 p-2 bg-slate-50 border border-slate-200/80 rounded-lg flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-600">
+                  <span>Contact: <strong className="text-slate-800">{selectedClient.contact_person}</strong></span>
+                  <span>Phone: <strong className="text-slate-800">{selectedClient.phone}</strong></span>
+                  <span>Lead: <strong className="text-slate-800">{selectedClient.assigned_profile?.full_name || "Unassigned"}</strong></span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Type & Priority */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Follow-up Type <span className="text-red-500">*</span>
+                Follow-up Type *
               </label>
               <select
                 name="follow_up_type"
-                value={followUpType}
-                onChange={(e) => setFollowUpType(e.target.value)}
+                defaultValue={resolvedType}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer"
               >
                 {FOLLOWUP_TYPES.map((t) => (
@@ -416,12 +287,11 @@ export function CreateFollowupModal({
 
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Priority <span className="text-red-500">*</span>
+                Priority *
               </label>
               <select
                 name="priority"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value)}
+                defaultValue={resolvedPriority}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer"
               >
                 {PRIORITIES.map((p) => (
@@ -433,46 +303,72 @@ export function CreateFollowupModal({
             </div>
           </div>
 
-          {/* Next Follow-up Date & Time */}
+          {/* Due Date & Time */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Next Follow-up Date <span className="text-red-500">*</span>
+                Due Date *
               </label>
-              <input
-                type="date"
-                name="due_date"
-                required
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2]"
-              />
+              <div className="relative">
+                <input
+                  type="date"
+                  name="due_date"
+                  required
+                  defaultValue={resolvedDueDate}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2]"
+                />
+              </div>
             </div>
 
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Time (Optional)
+                Due Time (Optional)
               </label>
               <input
                 type="time"
                 name="due_time"
-                value={dueTime}
-                onChange={(e) => setDueTime(e.target.value)}
+                defaultValue={resolvedDueTime}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2]"
               />
             </div>
           </div>
 
-          {/* Status & Assigned To */}
+          {/* Assignment (Admin Reassignment) & Status */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
+              <label className="block text-slate-700 font-semibold mb-1 flex items-center justify-between">
+                <span>Assigned Employee</span>
+                {isAdmin && <span className="text-[10px] text-slate-400 font-normal">Admin Override</span>}
+              </label>
+              {isAdmin ? (
+                <select
+                  name="assigned_to"
+                  value={selectedAssignedTo}
+                  onChange={(e) => setSelectedAssignedTo(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer"
+                >
+                  <option value="">Auto-assign Current User</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.full_name} ({emp.role === "admin" ? "Admin" : "Sales"})
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-600 font-medium flex items-center gap-1.5">
+                  <User size={13} className="text-[#0481A2]" />
+                  <span>Assigned to You</span>
+                </div>
+              )}
+            </div>
+
+            <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Status <span className="text-red-500">*</span>
+                Status
               </label>
               <select
                 name="status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
+                defaultValue={resolvedStatus}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer"
               >
                 {STATUSES.map((s) => (
@@ -482,36 +378,71 @@ export function CreateFollowupModal({
                 ))}
               </select>
             </div>
+          </div>
 
+          {/* Contact Details & Reminder */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Assigned To
+                Contact Person & Method
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  name="contact_person"
+                  defaultValue={resolvedContactPerson}
+                  placeholder="e.g. Rahul (Director)"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0481A2]"
+                />
+                <select
+                  name="contact_method"
+                  defaultValue={resolvedContactMethod}
+                  className="px-2 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none"
+                >
+                  <option value="Phone">Phone</option>
+                  <option value="WhatsApp">WhatsApp</option>
+                  <option value="Email">Email</option>
+                  <option value="In-person">In-person</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-slate-700 font-semibold mb-1 flex items-center gap-1">
+                <Bell size={12} className="text-slate-400" />
+                <span>Reminder Setting</span>
               </label>
               <select
-                value={assignedStaff}
-                onChange={(e) => setAssignedStaff(e.target.value)}
+                name="reminder_setting"
+                defaultValue={resolvedReminder}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white focus:outline-none focus:border-[#0481A2] cursor-pointer"
               >
-                {employees.map((emp) => (
-                  <option key={emp.id} value={emp.full_name}>
-                    {emp.full_name} {emp.role ? `(${emp.role === "admin" ? "Admin" : "Employee"})` : ""}
+                {REMINDER_OPTIONS.map((r) => (
+                  <option key={r.value} value={r.value}>
+                    {r.label}
                   </option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* Discussion Notes */}
+          {/* Description & Internal Notes */}
           <div>
-            <label className="block text-slate-700 font-semibold mb-1">
-              Discussion Notes / Next Steps
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-slate-700 font-semibold">
+                Description & Internal Notes
+              </label>
+              {isJsonLead && (
+                <span className="text-[10px] text-slate-400">
+                  Registry and director details are preserved
+                </span>
+              )}
+            </div>
             <textarea
               name="notes"
               rows={3}
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Share service proposal and follow up for documentation..."
+              defaultValue={resolvedNotes}
+              placeholder="Add key discussion topics, call remarks, or action items..."
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-[#0481A2]"
             />
           </div>
@@ -529,7 +460,7 @@ export function CreateFollowupModal({
             <button
               type="submit"
               disabled={isPending}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#1A2B4C] hover:bg-[#15233e] text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors disabled:opacity-60 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors disabled:opacity-60 cursor-pointer"
             >
               {isPending ? (
                 <>
@@ -539,7 +470,7 @@ export function CreateFollowupModal({
               ) : (
                 <>
                   <CheckSquare size={14} />
-                  <span>{isEdit ? "Update Follow-up" : "Save Follow-up"}</span>
+                  <span>{isEdit ? "Update Follow-up" : "Create Follow-up"}</span>
                 </>
               )}
             </button>

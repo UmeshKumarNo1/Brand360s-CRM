@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { Download, Printer, Mail, X, CheckCircle2, Building, AlertCircle, FileText, Loader2 } from "lucide-react";
+import { Download, Printer, Mail, X, CheckCircle2, Building, AlertCircle, FileText, Loader2, MessageSquare, Send } from "lucide-react";
 import { formatINR } from "@/lib/utils";
 import { useToast } from "@/components/common/ToastProvider";
 import { sendInvoiceEmailAction, fetchInvoiceByIdAction } from "@/app/actions/invoices";
@@ -35,6 +35,8 @@ export function InvoicePreviewModal({
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [customEmail, setCustomEmail] = useState("");
   const [showEmailInput, setShowEmailInput] = useState(false);
+  const [customPhone, setCustomPhone] = useState("");
+  const [showWhatsAppInput, setShowWhatsAppInput] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const { success, error: toastError } = useToast();
 
@@ -289,6 +291,53 @@ export function InvoicePreviewModal({
     }
   };
 
+  const handleOpenMailApp = () => {
+    const invNum = invoice?.invoiceNumber || invoice?.invoice_number;
+    const recipient = customEmail.trim() || client?.email || "";
+    const subject = `Invoice ${invNum} | BRAND 360s`;
+    const body = `Dear ${client?.contactPerson || client?.companyName || "Valued Client"},\n\nPlease find your tax invoice ${invNum} for ${formatINR(totalAmount)}.\nDue Date: ${invoice?.dueDate || invoice?.due_date || "-"}\nBalance Due: ${formatINR(balanceDue)}\n\nThank you,\nBRAND 360s`;
+    window.open(`mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, "_blank");
+  };
+
+  const handleSendWhatsApp = () => {
+    const invNum = invoice?.invoiceNumber || invoice?.invoice_number;
+    const clientName = client?.companyName || client?.company_name || "Valued Client";
+    const contact = client?.contactPerson || client?.contact_person || clientName;
+    const phoneToUse = customPhone.trim() || client?.phone || client?.alternate_phone || "";
+
+    const msg = [
+      `*TAX INVOICE - BRAND 360s*`,
+      ``,
+      `Hello *${contact}*,`,
+      `Here are your tax invoice details for *${clientName}*:`,
+      ``,
+      `📄 *Invoice No:* ${invNum}`,
+      `💰 *Total Amount:* ${formatINR(totalAmount)}`,
+      amountPaid > 0 ? `✅ *Amount Paid:* ${formatINR(amountPaid)}` : null,
+      balanceDue > 0 ? `⚠️ *Balance Due:* ${formatINR(balanceDue)}` : `✅ *Status:* Paid in full`,
+      `📅 *Due Date:* ${invoice?.dueDate || invoice?.due_date || "-"}`,
+      ``,
+      `*Bank Account for Payment:*`,
+      `🏦 Bank: ${settingsData.bank_name || "HDFC Bank"}`,
+      `🔢 A/C: ${settingsData.account_number || "50200088991122"}`,
+      `🏷️ IFSC: ${settingsData.ifsc || "HDFC0001234"}`,
+      `⚡ UPI ID: ${settingsData.upi_id || "brand360s@hdfcbank"}`,
+      ``,
+      `Thank you for choosing BRAND 360s!`,
+    ]
+      .filter((line) => line !== null)
+      .join("\n");
+
+    let cleanPhone = phoneToUse.replace(/\D/g, "");
+    if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
+
+    const url = cleanPhone
+      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
   const isInterState = Boolean(client?.state && !client.state.toLowerCase().includes("tamil nadu"));
   const subtotal = Number(invoice?.subtotal) || 0;
   const discount = Number(invoice?.discountAmount || invoice?.discount_amount) || 0;
@@ -333,8 +382,25 @@ export function InvoicePreviewModal({
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowEmailInput(!showEmailInput)}
+              onClick={() => {
+                setShowWhatsAppInput(!showWhatsAppInput);
+                setShowEmailInput(false);
+                if (!customPhone && client?.phone) setCustomPhone(client.phone);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
+              title="Share invoice summary on WhatsApp"
+            >
+              <MessageSquare size={13} className="text-emerald-600" />
+              <span>WhatsApp</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setShowEmailInput(!showEmailInput);
+                setShowWhatsAppInput(false);
+              }}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-lg shadow-2xs transition-colors cursor-pointer"
+              title="Send invoice via email"
             >
               <Mail size={13} className="text-[#0481A2]" />
               <span>Email</span>
@@ -363,26 +429,59 @@ export function InvoicePreviewModal({
           </div>
         </div>
 
-        {/* Email Dispatch Sub-bar */}
-        {showEmailInput && (
-          <div className="px-6 py-2.5 bg-sky-50/70 border-b border-sky-100 flex items-center justify-between gap-3 text-xs print:hidden">
-            <div className="flex items-center gap-2 flex-1">
-              <span className="font-semibold text-slate-700">Recipient Email:</span>
+        {/* WhatsApp Dispatch Sub-bar */}
+        {showWhatsAppInput && (
+          <div className="px-6 py-2.5 bg-emerald-50/90 border-b border-emerald-100 flex flex-wrap items-center justify-between gap-3 text-xs print:hidden animate-in fade-in duration-150">
+            <div className="flex items-center gap-2 flex-1 min-w-[260px]">
+              <span className="font-semibold text-emerald-900">Client WhatsApp:</span>
               <input
-                type="email"
-                defaultValue={client.email || ""}
-                onChange={(e) => setCustomEmail(e.target.value)}
-                placeholder="client-billing@company.com"
-                className="flex-1 max-w-sm px-2.5 py-1 border border-slate-300 rounded bg-white text-xs focus:outline-none focus:border-[#0481A2]"
+                type="tel"
+                value={customPhone || client.phone || ""}
+                onChange={(e) => setCustomPhone(e.target.value)}
+                placeholder="+91 98765 43210"
+                className="flex-1 max-w-xs px-2.5 py-1 border border-emerald-300 rounded-lg bg-white text-xs font-number focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
               />
             </div>
             <button
-              onClick={handleSendEmail}
-              disabled={isSendingEmail}
-              className="px-3 py-1 bg-[#0481A2] text-white rounded text-xs font-semibold hover:bg-[#036c88] transition-colors cursor-pointer"
+              onClick={handleSendWhatsApp}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold transition-colors cursor-pointer shadow-2xs"
             >
-              {isSendingEmail ? "Dispatching..." : "Send Now"}
+              <MessageSquare size={13} />
+              <span>Open in WhatsApp</span>
             </button>
+          </div>
+        )}
+
+        {/* Email Dispatch Sub-bar */}
+        {showEmailInput && (
+          <div className="px-6 py-2.5 bg-sky-50/70 border-b border-sky-100 flex flex-wrap items-center justify-between gap-3 text-xs print:hidden animate-in fade-in duration-150">
+            <div className="flex items-center gap-2 flex-1 min-w-[260px]">
+              <span className="font-semibold text-slate-700">Recipient Email:</span>
+              <input
+                type="email"
+                defaultValue={customEmail || client.email || ""}
+                onChange={(e) => setCustomEmail(e.target.value)}
+                placeholder="client-billing@company.com"
+                className="flex-1 max-w-sm px-2.5 py-1 border border-slate-300 rounded-lg bg-white text-xs focus:outline-none focus:border-[#0481A2]"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleOpenMailApp}
+                className="px-2.5 py-1 bg-white border border-slate-300 text-slate-700 rounded-lg text-xs font-semibold hover:bg-slate-50 transition-colors cursor-pointer"
+                title="Open in your default email client (Gmail / Outlook)"
+              >
+                Open Mail App
+              </button>
+              <button
+                onClick={handleSendEmail}
+                disabled={isSendingEmail}
+                className="px-3 py-1 bg-[#0481A2] text-white rounded-lg text-xs font-semibold hover:bg-[#036c88] transition-colors cursor-pointer disabled:opacity-50"
+              >
+                {isSendingEmail ? "Dispatching..." : "Send via Server"}
+              </button>
+            </div>
           </div>
         )}
 

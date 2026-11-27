@@ -16,7 +16,7 @@ export default async function ClientDetailPage({
   const initialServiceId = resolvedSearchParams.serviceId || null;
   const initialTab =
     (resolvedSearchParams.tab as any) ||
-    (initialAddService || initialServiceId ? "services" : "overview");
+    "services";
 
   const supabase = await createClient();
   const profile = await getCurrentUserProfileAction();

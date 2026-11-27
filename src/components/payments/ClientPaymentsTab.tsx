@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { Plus, CreditCard, Calendar, CheckCircle2, Clock, AlertCircle, Edit2, Trash2, RefreshCw, FileText, Eye, Mail, Receipt, Ban, FileSignature } from "lucide-react";
+import { Plus, CreditCard, Calendar, CheckCircle2, Clock, AlertCircle, Edit2, Trash2, RefreshCw, FileText, Eye, Mail, Receipt, Ban, FileSignature, MessageSquare } from "lucide-react";
 import { fetchClientFinancialsAction, deleteInstallmentAction } from "@/app/actions/payments";
 import { fetchInvoicesAction, sendInvoiceEmailAction, cancelInvoiceAction, voidInvoiceAction } from "@/app/actions/invoices";
 import { fetchContractAmendmentsAction, ContractAmendmentRecord } from "@/app/actions/contract-amendments";
@@ -128,6 +128,35 @@ export function ClientPaymentsTab({
     } finally {
       setSendingInvoiceId(null);
     }
+  };
+
+  const handleOpenInvoiceWhatsApp = (inv: any) => {
+    const contact = inv.contactPerson && inv.contactPerson !== "-" ? inv.contactPerson : clientName;
+    const phoneToUse = (inv.phone && inv.phone !== "-") ? inv.phone : "";
+
+    const msg = [
+      `*INVOICE - BRAND 360s*`,
+      ``,
+      `Hello *${contact}*,`,
+      `Here is your invoice summary for ${clientName}.`,
+      ``,
+      `📄 *Invoice No:* ${inv.invoiceNumber}`,
+      `🏢 *Client:* ${clientName}`,
+      `💰 *Total Amount:* ${formatINR(inv.totalAmount || 0)}`,
+      `💵 *Amount Paid:* ${formatINR(inv.amountPaid || 0)}`,
+      `⏳ *Balance Due:* ${formatINR(inv.balanceDue ?? (inv.totalAmount - (inv.amountPaid || 0)))}`,
+      `📅 *Due Date:* ${inv.dueDate || "Due on Receipt"}`,
+      ``,
+      `Please let us know once the payment is scheduled.`,
+      `Thank you for partnering with BRAND 360s!`,
+    ].join("\n");
+
+    let cleanPhone = phoneToUse.replace(/\D/g, "");
+    if (cleanPhone.length === 10) cleanPhone = "91" + cleanPhone;
+    const url = cleanPhone
+      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const getStatusBadge = (status: string) => {
@@ -505,6 +534,13 @@ export function ClientPaymentsTab({
                                 title={inv.emailSentAt ? `Sent to ${inv.emailSentTo}` : "Email Invoice"}
                               >
                                 <Mail size={13} className={sendingInvoiceId === inv.id ? "animate-pulse text-[#0481A2]" : inv.emailSentAt ? "text-emerald-600" : ""} />
+                              </button>
+                              <button
+                                onClick={() => handleOpenInvoiceWhatsApp(inv)}
+                                className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-colors cursor-pointer"
+                                title="Share Invoice on WhatsApp"
+                              >
+                                <MessageSquare size={13} />
                               </button>
                               {inv.status !== "Cancelled" && inv.status !== "Void" && (
                                 <button

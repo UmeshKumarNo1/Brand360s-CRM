@@ -22,8 +22,15 @@ import {
   Info,
   AlertTriangle,
   ShieldAlert,
+  Layers,
+  Calendar,
+  Clock,
+  Sparkles,
 } from "lucide-react";
 import { createClientAction, fetchSalespeopleAction, CreateClientState } from "@/app/actions/clients";
+import { fetchServicesCatalogAction } from "@/app/actions/services";
+import { BRAND360_CATEGORIES } from "@/lib/services/service-catalogue-master";
+import { formatINR } from "@/lib/utils";
 import { fetchProspectFollowupByIdAction } from "@/app/actions/prospect-followups";
 import { useToast } from "@/components/common/ToastProvider";
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
@@ -41,6 +48,22 @@ interface AdditionalContact {
   designation: string;
   phone: string;
   email: string;
+}
+
+interface InitialServiceItem {
+  id: string;
+  service_name: string;
+  service_category: string;
+  service_fee: number;
+  govt_fee: number;
+  tax_rate: number;
+  assigned_employee_id: string;
+  expected_completion_date: string;
+  notes?: string;
+  is_renewable?: boolean;
+  renewal_frequency?: string;
+  renewal_duration_months?: number;
+  renewal_amount?: number;
 }
 
 const INDIAN_STATES = [
@@ -123,6 +146,91 @@ export default function NewClientPage() {
   // 7. Notes
   const [notes, setNotes] = useState("");
 
+  // 8. Services
+  const [initialServices, setInitialServices] = useState<InitialServiceItem[]>([]);
+  const [catalogList, setCatalogList] = useState<any[]>([]);
+
+  // 9. Follow-up
+  const [scheduleFollowup, setScheduleFollowup] = useState(false);
+  const [followupTitle, setFollowupTitle] = useState("");
+  const [followupType, setFollowupType] = useState("Call");
+  const [followupDueDate, setFollowupDueDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 2);
+    return d.toISOString().split("T")[0];
+  });
+  const [followupDueTime, setFollowupDueTime] = useState("10:00");
+  const [followupPriority, setFollowupPriority] = useState("Medium");
+  const [followupAssignedTo, setFollowupAssignedTo] = useState("");
+  const [followupContactMethod, setFollowupContactMethod] = useState("Phone");
+  const [followupNotes, setFollowupNotes] = useState("");
+
+  // Helper working date calculation
+  const getDefaultWorkingDate = () => {
+    const d = new Date();
+    let added = 0;
+    while (added < 10) {
+      d.setDate(d.getDate() + 1);
+      if (d.getDay() !== 0 && d.getDay() !== 6) {
+        added++;
+      }
+    }
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  const handleAddInitialService = (preset?: any) => {
+    const newService: InitialServiceItem = {
+      id: Math.random().toString(36).substring(2, 9),
+      service_name: preset?.name || "",
+      service_category: preset?.category || "Business Registration",
+      service_fee: Number(preset?.default_service_fee) || 0,
+      govt_fee: Number(preset?.default_govt_fee) || 0,
+      tax_rate: 18,
+      assigned_employee_id: assignedSalesperson || (salespeople[0]?.id ?? ""),
+      expected_completion_date: getDefaultWorkingDate(),
+      is_renewable: !!preset?.is_renewable,
+      renewal_frequency: preset?.renewal_frequency || "Annually",
+      renewal_duration_months: preset?.renewal_duration_months || 12,
+      renewal_amount: Number(preset?.default_renewal_amount) || Number(preset?.default_service_fee) || 0,
+    };
+    setInitialServices((prev) => [...prev, newService]);
+  };
+
+  const handleUpdateInitialService = (id: string, field: keyof InitialServiceItem, value: any) => {
+    setInitialServices((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, [field]: value } : s))
+    );
+  };
+
+  const handleRemoveInitialService = (id: string) => {
+    setInitialServices((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const handleSelectCatalogItem = (serviceId: string, catalogItemName: string) => {
+    const matched = catalogList.find((c) => c.name === catalogItemName);
+    if (!matched) return;
+    setInitialServices((prev) =>
+      prev.map((s) =>
+        s.id === serviceId
+          ? {
+              ...s,
+              service_name: matched.name,
+              service_category: matched.category || s.service_category,
+              service_fee: Number(matched.default_service_fee) || 0,
+              govt_fee: Number(matched.default_govt_fee) || 0,
+              is_renewable: !!matched.is_renewable,
+              renewal_frequency: matched.renewal_frequency || "Annually",
+              renewal_duration_months: matched.renewal_duration_months || 12,
+              renewal_amount: Number(matched.default_renewal_amount) || Number(matched.default_service_fee) || 0,
+            }
+          : s
+      )
+    );
+  };
+
   // Prefill from prospect when converting from /follow-ups
   useEffect(() => {
     if (!fromProspectId) return;
@@ -168,13 +276,17 @@ export default function NewClientPage() {
     }
   };
 
-  // Load Salespeople
+  // Load Salespeople and Services Catalog
   useEffect(() => {
     fetchSalespeopleAction().then((data) => {
       setSalespeople(data || []);
       if (data && data.length > 0 && !assignedSalesperson) {
         setAssignedSalesperson(data[0].id);
       }
+    });
+
+    fetchServicesCatalogAction().then((data) => {
+      setCatalogList(data || []);
     });
 
     getCurrentUserProfileAction().then((p) => {
@@ -251,6 +363,8 @@ export default function NewClientPage() {
     { id: 5, title: "Ownership", fullTitle: "5. Client Ownership", desc: "Ownership and association details", icon: UserCheck },
     { id: 6, title: "Status", fullTitle: "6. Client Status", desc: "Current status of the client", icon: ShieldCheck },
     { id: 7, title: "Introductory Notes", fullTitle: "7. Introductory Notes", desc: "Add any additional notes about the company", icon: FileText },
+    { id: 8, title: "Services", fullTitle: "8. Services", desc: "Assign initial services", icon: Layers },
+    { id: 9, title: "Follow-up", fullTitle: "9. Follow-up", desc: "Schedule an initial follow-up", icon: Calendar },
   ];
 
   // Validation before advancing
@@ -382,6 +496,33 @@ export default function NewClientPage() {
         return false;
       }
     }
+    if (step === 8) {
+      for (let i = 0; i < initialServices.length; i++) {
+        const s = initialServices[i];
+        if (!s.service_name.trim()) {
+          const errMsg = `Service #${i + 1}: Please enter a Service Name or remove this service.`;
+          setStepError(errMsg);
+          toastError(`Service #${i + 1} Name Required`, errMsg);
+          return false;
+        }
+      }
+    }
+    if (step === 9) {
+      if (scheduleFollowup) {
+        if (!followupTitle.trim()) {
+          const errMsg = "Please enter a follow-up title or uncheck the follow-up box.";
+          setStepError(errMsg);
+          toastError("Follow-up Title Required", errMsg);
+          return false;
+        }
+        if (!followupDueDate) {
+          const errMsg = "Please select a due date for the follow-up.";
+          setStepError(errMsg);
+          toastError("Due Date Required", errMsg);
+          return false;
+        }
+      }
+    }
     setStepError(null);
     return true;
   };
@@ -389,7 +530,7 @@ export default function NewClientPage() {
   const handleNextStep = () => {
     if (validateStep(currentStep)) {
       setStepError(null);
-      setCurrentStep((prev) => Math.min(prev + 1, 7));
+      setCurrentStep((prev) => Math.min(prev + 1, 9));
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
@@ -401,7 +542,7 @@ export default function NewClientPage() {
   };
 
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    for (let s = 1; s <= 7; s++) {
+    for (let s = 1; s <= 9; s++) {
       if (!validateStep(s)) {
         e.preventDefault();
         setCurrentStep(s);
@@ -411,8 +552,8 @@ export default function NewClientPage() {
     }
   };
 
-  // Progress Gauge calculations: Starts at 0% on Step 1, scales to 100% on Step 7
-  const progressPercentage = Math.round(((currentStep - 1) / 6) * 100);
+  // Progress Gauge calculations: Starts at 0% on Step 1, scales to 100% on Step 9
+  const progressPercentage = Math.round(((currentStep - 1) / 8) * 100);
   const radius = 42;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (circumference * progressPercentage) / 100;
@@ -482,7 +623,7 @@ export default function NewClientPage() {
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.target as HTMLElement).tagName !== "TEXTAREA") {
             e.preventDefault();
-            if (currentStep < 7) {
+            if (currentStep < 9) {
               handleNextStep();
             }
           }
@@ -509,6 +650,31 @@ export default function NewClientPage() {
         <input type="hidden" name="country" value={country} />
         <input type="hidden" name="state" value={stateName} />
         <input type="hidden" name="salesperson_id" value={assignedSalesperson} />
+        <input
+          type="hidden"
+          name="initial_services"
+          value={JSON.stringify(
+            initialServices.filter((s) => s.service_name.trim().length > 0)
+          )}
+        />
+        <input
+          type="hidden"
+          name="initial_followup"
+          value={
+            scheduleFollowup && followupTitle.trim()
+              ? JSON.stringify({
+                  title: followupTitle.trim(),
+                  follow_up_type: followupType,
+                  due_date: followupDueDate,
+                  due_time: followupDueTime || null,
+                  priority: followupPriority,
+                  assigned_to: followupAssignedTo || assignedSalesperson,
+                  notes: followupNotes.trim() || null,
+                  contact_method: followupContactMethod,
+                })
+              : ""
+          }
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* ========================================================================= */}
@@ -1150,6 +1316,502 @@ export default function NewClientPage() {
               </div>
 
               {/* ===================================================================== */}
+              {/* 8. Services Step                                                     */}
+              {/* ===================================================================== */}
+              <div className={currentStep === 8 ? "space-y-6" : "hidden"}>
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#0481A2]/10 text-[#0481A2] flex items-center justify-center shrink-0">
+                      <Layers size={18} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-serif font-heading font-bold text-base text-[#1B3260]">
+                          8. Services
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-500 font-sans">
+                        Assign initial services for this client
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleAddInitialService()}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0481A2]/10 text-[#0481A2] hover:bg-[#0481A2]/20 font-semibold text-xs rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    <span>Add Service</span>
+                  </button>
+                </div>
+
+                <div className="bg-[#EBF5F8] border border-[#CDE5EC] rounded-xl p-3.5 flex items-center gap-2.5 text-xs text-[#0481A2]">
+                  <Info size={16} className="shrink-0" />
+                  <span>You can add one or more services right now, or proceed and assign services later from the client&apos;s workspace.</span>
+                </div>
+
+                {initialServices.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-50/70 border border-dashed border-slate-200 rounded-xl text-slate-500 text-xs space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                      <Layers size={22} />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-semibold text-slate-700">No services added yet</p>
+                      <p className="text-[11px] text-slate-400 max-w-sm mx-auto">
+                        Click &ldquo;+ Add Service&rdquo; above to assign a service from the catalog, or click &ldquo;Next: Follow-up&rdquo; to skip.
+                      </p>
+                    </div>
+                    <div className="pt-1 flex flex-wrap items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleAddInitialService()}
+                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#0481A2] hover:bg-[#036c88] text-white font-semibold text-xs rounded-xl shadow-xs transition-colors cursor-pointer"
+                      >
+                        <Plus size={14} />
+                        <span>Add a Service</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {initialServices.map((service, index) => (
+                      <div
+                        key={service.id}
+                        className="p-5 bg-slate-50/70 border border-slate-200/90 rounded-2xl space-y-4 relative"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200/70">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-800 text-xs bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs">
+                              Service #{index + 1}
+                            </span>
+                            {service.service_name && (
+                              <span className="text-xs font-semibold text-[#0481A2] truncate max-w-[200px] sm:max-w-xs">
+                                {service.service_name}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {/* Catalog Quick Selector */}
+                            {catalogList.length > 0 && (
+                              <select
+                                onChange={(e) => {
+                                  if (e.target.value) {
+                                    handleSelectCatalogItem(service.id, e.target.value);
+                                  }
+                                }}
+                                className="px-2.5 py-1 text-[11px] font-semibold bg-white border border-slate-200 rounded-lg text-slate-700 focus:outline-none focus:border-[#0481A2]"
+                                defaultValue=""
+                              >
+                                <option value="" disabled>
+                                  ⚡ Auto-fill from Catalog...
+                                </option>
+                                {catalogList.map((catItem) => (
+                                  <option key={catItem.id} value={catItem.name}>
+                                    {catItem.name} {catItem.default_service_fee ? `(₹${catItem.default_service_fee.toLocaleString("en-IN")})` : ""}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveInitialService(service.id)}
+                              className="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+                              title="Remove service"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 text-xs text-slate-700">
+                          <div className="sm:col-span-2">
+                            <label className="block font-semibold text-slate-700 mb-1">
+                              Service Name <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={service.service_name}
+                              onChange={(e) =>
+                                handleUpdateInitialService(service.id, "service_name", e.target.value)
+                              }
+                              placeholder="e.g. Private Limited Company Registration"
+                              className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">
+                              Category
+                            </label>
+                            <select
+                              value={service.service_category}
+                              onChange={(e) =>
+                                handleUpdateInitialService(service.id, "service_category", e.target.value)
+                              }
+                              className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2]"
+                            >
+                              {BRAND360_CATEGORIES.map((cat) => (
+                                <option key={cat} value={cat}>
+                                  {cat}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">
+                              Professional Fee (₹)
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={service.service_fee || ""}
+                              onChange={(e) =>
+                                handleUpdateInitialService(service.id, "service_fee", parseFloat(e.target.value) || 0)
+                              }
+                              placeholder="0"
+                              className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white text-xs font-number focus:outline-none focus:border-[#0481A2]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">
+                              Government Fee (₹)
+                            </label>
+                            <input
+                              type="number"
+                              min={0}
+                              value={service.govt_fee || ""}
+                              onChange={(e) =>
+                                handleUpdateInitialService(service.id, "govt_fee", parseFloat(e.target.value) || 0)
+                              }
+                              placeholder="0"
+                              className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white text-xs font-number focus:outline-none focus:border-[#0481A2]"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">
+                              Total Service Value
+                            </label>
+                            <div className="px-3 py-2 border border-slate-200 rounded-xl bg-slate-100 text-xs font-bold text-slate-800 font-number">
+                              {formatINR((Number(service.service_fee) || 0) + (Number(service.govt_fee) || 0))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">
+                              Assign Employee
+                            </label>
+                            <select
+                              value={service.assigned_employee_id || assignedSalesperson}
+                              onChange={(e) =>
+                                handleUpdateInitialService(service.id, "assigned_employee_id", e.target.value)
+                              }
+                              className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2]"
+                            >
+                              {salespeople.map((sp) => (
+                                <option key={sp.id} value={sp.id}>
+                                  {sp.full_name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block font-semibold text-slate-700 mb-1">
+                              Target Completion Date
+                            </label>
+                            <input
+                              type="date"
+                              value={service.expected_completion_date}
+                              onChange={(e) =>
+                                handleUpdateInitialService(service.id, "expected_completion_date", e.target.value)
+                              }
+                              className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white text-xs font-number focus:outline-none focus:border-[#0481A2]"
+                            />
+                          </div>
+
+                          <div className="flex items-center pt-5">
+                            <label className="flex items-center gap-2 cursor-pointer text-xs font-medium text-slate-700">
+                              <input
+                                type="checkbox"
+                                checked={!!service.is_renewable}
+                                onChange={(e) =>
+                                  handleUpdateInitialService(service.id, "is_renewable", e.target.checked)
+                                }
+                                className="rounded text-[#0481A2] focus:ring-[#0481A2] w-4 h-4 cursor-pointer"
+                              />
+                              <span>Renewable Service</span>
+                            </label>
+                          </div>
+
+                          {service.is_renewable && (
+                            <div className="sm:col-span-2 md:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
+                              <div>
+                                <label className="block font-semibold text-slate-700 mb-1">
+                                  Renewal Frequency
+                                </label>
+                                <select
+                                  value={service.renewal_frequency || "Annually"}
+                                  onChange={(e) =>
+                                    handleUpdateInitialService(service.id, "renewal_frequency", e.target.value)
+                                  }
+                                  className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2]"
+                                >
+                                  <option value="Monthly">Monthly (1 Month)</option>
+                                  <option value="Quarterly">Quarterly (3 Months)</option>
+                                  <option value="Half-Yearly">Half-Yearly (6 Months)</option>
+                                  <option value="Annually">Annually (12 Months)</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block font-semibold text-slate-700 mb-1">
+                                  Renewal Cycle Fee (₹)
+                                </label>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  value={service.renewal_amount || ""}
+                                  onChange={(e) =>
+                                    handleUpdateInitialService(service.id, "renewal_amount", parseFloat(e.target.value) || 0)
+                                  }
+                                  placeholder="Same as fee"
+                                  className="w-full px-3 py-2 border border-slate-300 rounded-xl bg-white text-xs font-number focus:outline-none focus:border-[#0481A2]"
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    <button
+                      type="button"
+                      onClick={() => handleAddInitialService()}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-xl shadow-2xs transition-colors cursor-pointer"
+                    >
+                      <Plus size={14} />
+                      <span>Add Another Service</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* ===================================================================== */}
+              {/* 9. Follow-up Step                                                    */}
+              {/* ===================================================================== */}
+              <div className={currentStep === 9 ? "space-y-6" : "hidden"}>
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#0481A2]/10 text-[#0481A2] flex items-center justify-center shrink-0">
+                      <Calendar size={18} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-serif font-heading font-bold text-base text-[#1B3260]">
+                          9. Follow-up
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-500 font-sans">
+                        Schedule an initial follow-up task for this client
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-[#EBF5F8] border border-[#CDE5EC] rounded-xl p-3.5 flex items-center gap-2.5 text-xs text-[#0481A2]">
+                  <Info size={16} className="shrink-0" />
+                  <span>You can set a reminder for a welcome call, document collection, or proposal review now, or complete registration.</span>
+                </div>
+
+                <div className="p-5 bg-slate-50/70 border border-slate-200/80 rounded-2xl space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-200/60">
+                    <label className="flex items-center gap-2.5 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={scheduleFollowup}
+                        onChange={(e) => {
+                          setScheduleFollowup(e.target.checked);
+                          if (e.target.checked && !followupTitle) {
+                            setFollowupTitle("Introductory Call & Document Verification");
+                          }
+                        }}
+                        className="rounded text-[#0481A2] focus:ring-[#0481A2] w-4 h-4 cursor-pointer"
+                      />
+                      <span className="font-bold text-slate-800 text-xs">
+                        Schedule an initial follow-up for this client
+                      </span>
+                    </label>
+
+                    {scheduleFollowup && (
+                      <span className="text-[11px] font-semibold text-[#0481A2] bg-[#0481A2]/10 px-2.5 py-0.5 rounded-full">
+                        Active
+                      </span>
+                    )}
+                  </div>
+
+                  {scheduleFollowup ? (
+                    <div className="space-y-4 pt-1">
+                      {/* Quick Title Presets */}
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-600 mb-1.5">
+                          Quick Presets
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            "Introductory Call & Welcome",
+                            "Document Collection",
+                            "Proposal & Scope Review",
+                            "Payment Discussion",
+                            "Agreement Sign-off",
+                          ].map((preset) => (
+                            <button
+                              key={preset}
+                              type="button"
+                              onClick={() => setFollowupTitle(preset)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors cursor-pointer ${
+                                followupTitle === preset
+                                  ? "bg-[#0481A2] text-white border-[#0481A2]"
+                                  : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                              }`}
+                            >
+                              {preset}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-700">
+                        <div className="md:col-span-2">
+                          <label className="block font-semibold text-slate-700 mb-1.5">
+                            Follow-up Title <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={followupTitle}
+                            onChange={(e) => setFollowupTitle(e.target.value)}
+                            placeholder="e.g. Introductory Call & Document Verification"
+                            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] transition-colors"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1.5">
+                            Follow-up Type
+                          </label>
+                          <select
+                            value={followupType}
+                            onChange={(e) => setFollowupType(e.target.value)}
+                            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] transition-colors"
+                          >
+                            <option value="Call">Phone Call</option>
+                            <option value="Email">Email</option>
+                            <option value="Meeting">Meeting / Consultation</option>
+                            <option value="Document Collection">Document Collection</option>
+                            <option value="Payment Reminder">Payment Reminder</option>
+                            <option value="General">General Follow-up</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1.5">
+                            Priority
+                          </label>
+                          <select
+                            value={followupPriority}
+                            onChange={(e) => setFollowupPriority(e.target.value)}
+                            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] transition-colors"
+                          >
+                            <option value="Low">Low Priority</option>
+                            <option value="Medium">Medium Priority</option>
+                            <option value="High">High Priority</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1.5">
+                            Due Date <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="date"
+                            value={followupDueDate}
+                            onChange={(e) => setFollowupDueDate(e.target.value)}
+                            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] font-number transition-colors"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1.5">
+                            Due Time
+                          </label>
+                          <input
+                            type="time"
+                            value={followupDueTime}
+                            onChange={(e) => setFollowupDueTime(e.target.value)}
+                            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] font-number transition-colors"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1.5">
+                            Assign Follow-up To
+                          </label>
+                          <select
+                            value={followupAssignedTo || assignedSalesperson}
+                            onChange={(e) => setFollowupAssignedTo(e.target.value)}
+                            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] transition-colors"
+                          >
+                            {salespeople.map((sp) => (
+                              <option key={sp.id} value={sp.id}>
+                                {sp.full_name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block font-semibold text-slate-700 mb-1.5">
+                            Contact Method
+                          </label>
+                          <select
+                            value={followupContactMethod}
+                            onChange={(e) => setFollowupContactMethod(e.target.value)}
+                            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] transition-colors"
+                          >
+                            <option value="Phone">Phone Call</option>
+                            <option value="WhatsApp">WhatsApp</option>
+                            <option value="Email">Email</option>
+                            <option value="In-Person">In-Person Meeting</option>
+                          </select>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block font-semibold text-slate-700 mb-1.5">
+                            Follow-up Instructions / Notes
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={followupNotes}
+                            onChange={(e) => setFollowupNotes(e.target.value)}
+                            placeholder="Any specific talking points or required documents to discuss..."
+                            className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl bg-white text-xs focus:outline-none focus:border-[#0481A2] transition-colors"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-slate-400 text-xs">
+                      No follow-up will be scheduled. Check the box above if you want to set an initial follow-up.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* ===================================================================== */}
               {/* Action & Navigation Buttons at bottom of the Form Card                 */}
               {/* ===================================================================== */}
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-slate-100">
@@ -1173,32 +1835,15 @@ export default function NewClientPage() {
                 </div>
 
                 <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                  {currentStep === 7 && (
-                    <button
-                      type="submit"
-                      disabled={isPending || isSubmittingOverride}
-                      onClick={() => {
-                        submitIntentRef.current = "save";
-                        setSubmitIntent("save");
-                      }}
-                      className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-white border border-[#243E76] text-[#243E76] hover:bg-[#243E76]/10 font-semibold text-xs sm:text-sm rounded-xl shadow-2xs transition-colors cursor-pointer disabled:opacity-60"
-                    >
-                      {isPending && submitIntent === "save" ? (
-                        <Loader2 size={15} className="animate-spin" />
-                      ) : (
-                        <Save size={15} />
-                      )}
-                      <span>Save Client</span>
-                    </button>
-                  )}
-
-                  {currentStep < 7 ? (
+                  {currentStep < 9 ? (
                     <button
                       type="button"
                       onClick={handleNextStep}
                       className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#0481A2] hover:bg-[#036c88] text-white font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition-colors cursor-pointer"
                     >
-                      <span>Next: {stepsList[currentStep]?.title}</span>
+                      <span>
+                        Next: {stepsList[currentStep]?.title}
+                      </span>
                       <ArrowRight size={16} />
                     </button>
                   ) : (
@@ -1206,17 +1851,17 @@ export default function NewClientPage() {
                       type="submit"
                       disabled={isPending || isSubmittingOverride}
                       onClick={() => {
-                        submitIntentRef.current = "save_and_add_service";
-                        setSubmitIntent("save_and_add_service");
+                        submitIntentRef.current = "save";
+                        setSubmitIntent("save");
                       }}
                       className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#0481A2] hover:bg-[#036c88] text-white font-semibold text-xs sm:text-sm rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-60"
                     >
-                      {isPending && submitIntent === "save_and_add_service" ? (
+                      {isPending ? (
                         <Loader2 size={16} className="animate-spin" />
                       ) : (
                         <>
-                          <span>Save &amp; Add Service</span>
-                          <ArrowRight size={16} />
+                          <Check size={16} />
+                          <span>Complete &amp; Save Client</span>
                         </>
                       )}
                     </button>
@@ -1311,17 +1956,19 @@ export default function NewClientPage() {
                       >
                         {isCompleted ? <Check size={12} className="stroke-[3]" /> : step.id}
                       </div>
-                      <span
-                        className={`text-xs transition-colors ${
-                          isActive
-                            ? "font-bold text-[#0481A2]"
-                            : isCompleted
-                            ? "font-semibold text-slate-800"
-                            : "text-slate-500 group-hover:text-slate-800"
-                        }`}
-                      >
-                        {step.title}
-                      </span>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span
+                          className={`text-xs transition-colors truncate ${
+                            isActive
+                              ? "font-bold text-[#0481A2]"
+                              : isCompleted
+                              ? "font-semibold text-slate-800"
+                              : "text-slate-500 group-hover:text-slate-800"
+                          }`}
+                        >
+                          {step.title}
+                        </span>
+                      </div>
                     </button>
                   );
                 })}
@@ -1330,7 +1977,7 @@ export default function NewClientPage() {
               {/* Progress Bar & Status */}
               <div className="space-y-2 pt-3 border-t border-slate-100">
                 <div className="flex justify-between text-xs font-semibold text-slate-600">
-                  <span>Step {currentStep} of 7</span>
+                  <span>Step {currentStep} of 9</span>
                   <span className="text-[#0481A2] font-number">{progressPercentage}%</span>
                 </div>
                 <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -1344,7 +1991,13 @@ export default function NewClientPage() {
               {/* Helper Card */}
               <div className="bg-[#EBF5F8] border border-[#CDE5EC] rounded-xl p-3 text-center space-y-1">
                 <p className="text-xs font-semibold text-slate-700 leading-snug">
-                  Add all required details to register the client
+                  {currentStep <= 6
+                    ? "Add required details to register the client"
+                    : currentStep === 7
+                    ? "Add introductory notes"
+                    : currentStep === 8
+                    ? "Assign initial services if needed or continue"
+                    : "Schedule follow-up if needed or complete"}
                 </p>
               </div>
             </div>

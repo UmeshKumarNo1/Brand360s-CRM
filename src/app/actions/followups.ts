@@ -33,6 +33,8 @@ export interface FollowupItem {
   completedByName?: string | null;
   reminderSetting?: string | null;
   contactMethod?: string | null;
+  phone?: string | null;
+  hasActivityLogged?: boolean;
   isOverdue: boolean;
   overdueDays: number;
 }
@@ -81,7 +83,6 @@ export async function fetchFollowupsAction() {
     .from("client_follow_ups")
     .select(`
       *,
-      client:clients!client_id (id, company_name, client_code, contact_person, client_status),
       assigned_profile:profiles!assigned_to (id, full_name, email)
     `)
     .order("due_date", { ascending: true })
@@ -119,22 +120,38 @@ export async function fetchFollowupsAction() {
     const diffTime = Math.abs(new Date(todayStr).getTime() - new Date(f.due_date).getTime());
     const overdueDays = isOverdue ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) : 0;
 
+    let parsedNotes: any = {};
+    try {
+      if (f.notes && typeof f.notes === "string" && f.notes.startsWith("{")) {
+        parsedNotes = JSON.parse(f.notes);
+      }
+    } catch {}
+
+    const hasActivityLogged =
+      (f.last_follow_up !== "Imported" &&
+        f.last_follow_up !== null &&
+        f.last_follow_up !== undefined &&
+        f.last_follow_up !== "New") ||
+      (Array.isArray(parsedNotes.history) && parsedNotes.history.length > 0);
+
     return {
       id: f.id,
-      clientId: f.client?.id || f.client_id,
-      companyName: f.client?.company_name || "Unknown Company",
-      clientCode: f.client?.client_code || "B360-1000",
-      clientStatus: f.client?.client_status || "Active",
-      contactPerson: f.contact_person || f.client?.contact_person || "-",
-      assignedToName: f.assigned_profile?.full_name || "Assigned Staff",
+      clientId: f.converted_client_id || f.client_id || null,
+      companyName: f.company_name || f.client?.company_name || "Unknown Company",
+      clientCode: f.converted_client_id ? "Client" : "Lead",
+      clientStatus: f.status === "Converted to Client" ? "Active" : "Lead",
+      contactPerson: f.contact_person || "-",
+      phone: f.phone || "-",
+      assignedToName: f.assigned_name || f.assigned_profile?.full_name || "Assigned Staff",
       assignedToId: f.assigned_to,
-      title: f.title,
+      title: f.title || `Follow-up: ${f.company_name}`,
       followUpType: f.follow_up_type || "General",
       type: f.follow_up_type || "General",
       dueDate: f.due_date,
       dueTime: f.due_time || null,
       priority: f.priority || "Medium",
       status: f.status || "Pending",
+      lastFollowUp: f.last_follow_up || "-",
       notes: f.notes,
       description: f.notes,
       completionNotes: f.completion_notes || null,
@@ -144,6 +161,8 @@ export async function fetchFollowupsAction() {
       contactMethod: f.contact_method || "Phone",
       isOverdue,
       overdueDays,
+      isLead: !f.converted_client_id,
+      hasActivityLogged,
     };
   });
 }
@@ -225,7 +244,8 @@ export async function createFollowupAction(
   const { data: created, error } = await supabase
     .from("client_follow_ups")
     .insert({
-      client_id: clientId,
+      converted_client_id: clientId,
+      company_name: clientData?.company_name || null,
       assigned_to: assignedTo,
       title,
       follow_up_type: followUpType,
@@ -235,8 +255,7 @@ export async function createFollowupAction(
       status,
       notes,
       contact_person: contactPerson,
-      contact_method: contactMethod,
-      reminder_setting: reminderSetting,
+      last_follow_up: "Created",
       created_by: user.id,
     })
     .select("id")
@@ -310,8 +329,8 @@ export async function updateFollowupAction(
 
   // Fetch existing follow-up
   const { data: existing, error: fetchErr } = await supabase
-    .from("client_follow_ups")
-    .select("*, client:clients(company_name)")
+    .from("follow_ups")
+    .select("*")
     .eq("id", id)
     .single();
 
@@ -324,10 +343,33 @@ export async function updateFollowupAction(
 
   // Determine assigned_to: Admins can reassign; employees preserve existing assignment
   let assignedTo = existing.assigned_to;
+  let assignedName = existing.assigned_name;
   if (isAdmin) {
     const selectedAssigned = formData.get("assigned_to") as string;
     if (selectedAssigned && selectedAssigned.trim() !== "") {
       assignedTo = selectedAssigned;
+      const { data: assigneeProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", assignedTo)
+        .single();
+      if (assigneeProfile?.full_name) {
+        assignedName = assigneeProfile.full_name;
+      }
+    }
+  }
+
+  let notesToSave = notes;
+  if (existing.notes && typeof existing.notes === "string" && existing.notes.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(existing.notes.trim());
+      parsed.userNotes = notes || "";
+      parsed.notes = notes || "";
+      if (contactMethod) parsed.contactMethod = contactMethod;
+      if (reminderSetting) parsed.reminderSetting = reminderSetting;
+      notesToSave = JSON.stringify(parsed);
+    } catch {
+      notesToSave = notes;
     }
   }
 
@@ -338,26 +380,16 @@ export async function updateFollowupAction(
     due_time: dueTime,
     priority,
     status,
-    notes,
+    notes: notesToSave,
     assigned_to: assignedTo,
+    assigned_name: assignedName,
     contact_person: contactPerson,
-    contact_method: contactMethod,
-    reminder_setting: reminderSetting,
+    last_follow_up: "Updated",
     updated_at: new Date().toISOString(),
   };
 
-  if (clientId) {
-    updatePayload.client_id = clientId;
-  }
-
-  // If status is transitioning to Completed
-  if (status === "Completed" && existing.status !== "Completed") {
-    updatePayload.completed_at = new Date().toISOString();
-    updatePayload.completed_by = user.id;
-  } else if (status !== "Completed" && existing.status === "Completed") {
-    // Reopening
-    updatePayload.completed_at = null;
-    updatePayload.completed_by = null;
+  if (clientId && clientId.trim() !== "") {
+    updatePayload.converted_client_id = clientId;
   }
 
   const { error: updateErr } = await supabase
@@ -393,13 +425,29 @@ export async function updateFollowupAction(
   return { success: true };
 }
 
+export interface CompleteAndScheduleInput {
+  followupId: string;
+  outcome: string; // 'Interested' | 'Not Interested' | 'No Answer' | 'Call Back Requested' | 'Proposal Requested' | 'Meeting Scheduled' | 'Other'
+  discussionNotes?: string;
+  actualCompletedAt?: string;
+  scheduleNext: boolean;
+  nextTitle?: string;
+  nextFollowUpType?: string;
+  nextDueDate?: string;
+  nextDueTime?: string | null;
+  nextAssignedTo?: string;
+  nextPriority?: string;
+  nextReminderSetting?: string;
+  nextActionNotes?: string;
+}
+
 /**
- * Complete a follow-up with optional completion notes
+ * Atomic Server Action: Complete existing follow-up AND schedule next follow-up task
+ * Both activities are stored as separate database records.
  */
-export async function completeFollowupAction(
-  followupId: string,
-  completionNotes?: string
-): Promise<FollowupActionState> {
+export async function completeAndScheduleFollowupAction(
+  input: CompleteAndScheduleInput
+): Promise<FollowupActionState & { nextFollowupId?: string | null }> {
   const supabase = await createClient();
 
   const {
@@ -408,38 +456,226 @@ export async function completeFollowupAction(
 
   if (!user) return { error: "Authentication required." };
 
-  const { data: existing } = await supabase
-    .from("client_follow_ups")
-    .select("title, client_id, assigned_to")
-    .eq("id", followupId)
+  const { data: currentProfile } = await supabase
+    .from("profiles")
+    .select("id, full_name, role, email")
+    .eq("id", user.id)
     .single();
 
-  const { error } = await supabase
-    .from("client_follow_ups")
+  const isAdmin = currentProfile?.role === "admin";
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from("follow_ups")
+    .select("*")
+    .eq("id", input.followupId)
+    .single();
+
+  if (fetchErr || !existing) return { error: "Follow-up record not found." };
+
+  if (!isAdmin && existing.assigned_to !== user.id) {
+    return { error: "You are not authorized to complete this follow-up." };
+  }
+
+  const recordedDate = input.actualCompletedAt
+    ? new Date(input.actualCompletedAt).toISOString()
+    : new Date().toISOString();
+  const recorderName = currentProfile?.full_name || user.email || "Representative";
+
+  // Parse existing JSON metadata if present
+  let parsedMetadata: any = null;
+  if (existing.notes && typeof existing.notes === "string" && existing.notes.trim().startsWith("{")) {
+    try {
+      parsedMetadata = JSON.parse(existing.notes.trim());
+    } catch {
+      parsedMetadata = null;
+    }
+  }
+
+  const historyEntry = {
+    date: recordedDate,
+    outcome: input.outcome || "Completed",
+    notes: input.discussionNotes || "",
+    recordedBy: recorderName,
+    action: "Completed",
+    followupTitle: existing.title,
+    followupType: existing.follow_up_type,
+    scheduledNext: !!input.scheduleNext,
+  };
+
+  let completedNotesStr = existing.notes;
+  if (parsedMetadata) {
+    if (!Array.isArray(parsedMetadata.history)) {
+      parsedMetadata.history = [];
+    }
+    parsedMetadata.history.unshift(historyEntry);
+    parsedMetadata.userNotes = input.discussionNotes || "";
+    parsedMetadata.lastOutcome = input.outcome;
+    parsedMetadata.completedAt = recordedDate;
+    parsedMetadata.completedBy = user.id;
+    completedNotesStr = JSON.stringify(parsedMetadata);
+  } else {
+    const textEntry = `[${new Date(recordedDate).toLocaleDateString("en-IN")} - ${input.outcome}]: ${
+      input.discussionNotes || "No notes provided."
+    }`;
+    completedNotesStr = existing.notes ? `${existing.notes}\n\n${textEntry}` : textEntry;
+  }
+
+  // 1. Update existing follow-up (Record 1: Completed)
+  const { error: updateErr } = await supabase
+    .from("follow_ups")
     .update({
       status: "Completed",
-      completed_at: new Date().toISOString(),
-      completed_by: user.id,
-      completion_notes: completionNotes || null,
+      notes: completedNotesStr,
+      last_follow_up: input.outcome || "Completed",
       updated_at: new Date().toISOString(),
     })
-    .eq("id", followupId);
+    .eq("id", input.followupId);
 
-  if (error) return { error: error.message };
+  if (updateErr) {
+    return { error: `Failed to complete follow-up: ${updateErr.message}` };
+  }
 
+  let newFollowupId: string | null = null;
+
+  // 2. If next follow-up scheduling is enabled, create Record 2
+  if (input.scheduleNext) {
+    if (!input.nextDueDate) {
+      // Revert completion
+      await supabase
+        .from("follow_ups")
+        .update({
+          status: existing.status,
+          notes: existing.notes,
+          last_follow_up: existing.last_follow_up,
+          updated_at: existing.updated_at,
+        })
+        .eq("id", input.followupId);
+      return { error: "Please select a valid date for the next follow-up." };
+    }
+
+    let targetAssignedTo = existing.assigned_to;
+    let targetAssignedName = existing.assigned_name;
+    if (isAdmin && input.nextAssignedTo && input.nextAssignedTo !== existing.assigned_to) {
+      targetAssignedTo = input.nextAssignedTo;
+      const { data: assigneeProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", targetAssignedTo)
+        .single();
+      if (assigneeProfile?.full_name) {
+        targetAssignedName = assigneeProfile.full_name;
+      }
+    }
+
+    let nextNotesStr = input.nextActionNotes || "";
+    if (parsedMetadata) {
+      const nextMetadata = {
+        ...parsedMetadata,
+        userNotes: input.nextActionNotes || "",
+        previousFollowupId: existing.id,
+        reminderSetting: input.nextReminderSetting || "none",
+      };
+      nextNotesStr = JSON.stringify(nextMetadata);
+    } else {
+      nextNotesStr = input.nextActionNotes
+        ? `${input.nextActionNotes}\n\n[Previous task: ${existing.title}]`
+        : `[Previous task: ${existing.title}]`;
+    }
+
+    const { data: newFollowup, error: insertErr } = await supabase
+      .from("follow_ups")
+      .insert({
+        company_name: existing.company_name,
+        contact_person: existing.contact_person,
+        phone: existing.phone,
+        service_interested: existing.service_interested,
+        converted_client_id: existing.converted_client_id || null,
+        assigned_to: targetAssignedTo,
+        assigned_name: targetAssignedName,
+        title: input.nextTitle || `Follow-up - ${existing.company_name || existing.title}`,
+        follow_up_type: normalizeFollowupType(input.nextFollowUpType),
+        due_date: input.nextDueDate,
+        due_time: input.nextDueTime || null,
+        priority: normalizePriority(input.nextPriority),
+        status: "Pending",
+        notes: nextNotesStr,
+        last_follow_up: "Scheduled",
+        created_by: user.id,
+      })
+      .select("id")
+      .single();
+
+    if (insertErr) {
+      // Revert completion of Record 1 for transactional integrity
+      await supabase
+        .from("follow_ups")
+        .update({
+          status: existing.status,
+          notes: existing.notes,
+          last_follow_up: existing.last_follow_up,
+          updated_at: existing.updated_at,
+        })
+        .eq("id", input.followupId);
+
+      return { error: `Failed to schedule next follow-up: ${insertErr.message}` };
+    }
+
+    newFollowupId = newFollowup?.id || null;
+  }
+
+  // Audit Logs
   await recordAuditLog({
     actorId: user.id,
     action: "COMPLETED",
     entityType: "follow_up",
-    entityId: followupId,
-    entityName: existing?.title || "Follow-up",
-    details: { completion_notes: completionNotes },
+    entityId: input.followupId,
+    entityName: existing.title,
+    details: {
+      outcome: input.outcome,
+      discussionNotes: input.discussionNotes,
+      actualCompletedAt: recordedDate,
+      nextScheduled: input.scheduleNext,
+      nextFollowupId: newFollowupId,
+    },
   });
 
+  if (newFollowupId) {
+    await recordAuditLog({
+      actorId: user.id,
+      action: "CREATE",
+      entityType: "follow_up",
+      entityId: newFollowupId,
+      entityName: input.nextTitle || `Follow-up - ${existing.company_name}`,
+      details: {
+        previousFollowupId: existing.id,
+        dueDate: input.nextDueDate,
+        priority: input.nextPriority,
+      },
+    });
+  }
+
   revalidatePath("/follow-ups");
-  if (existing?.client_id) revalidatePath(`/clients/${existing.client_id}`);
+  if (existing.converted_client_id) {
+    revalidatePath(`/clients/${existing.converted_client_id}`);
+  }
   revalidatePath("/dashboard");
-  return { success: true };
+
+  return { success: true, nextFollowupId: newFollowupId };
+}
+
+/**
+ * Complete a follow-up with optional completion notes (legacy wrapper)
+ */
+export async function completeFollowupAction(
+  followupId: string,
+  completionNotes?: string
+): Promise<FollowupActionState> {
+  return completeAndScheduleFollowupAction({
+    followupId,
+    outcome: "Completed",
+    discussionNotes: completionNotes,
+    scheduleNext: false,
+  });
 }
 
 /**
@@ -565,7 +801,7 @@ export async function fetchClientFollowupsAction(clientId: string) {
       *,
       assigned_profile:profiles!assigned_to (id, full_name, email)
     `)
-    .eq("client_id", clientId)
+    .eq("converted_client_id", clientId)
     .order("due_date", { ascending: true });
 
   if (error) return [];
@@ -612,8 +848,8 @@ export async function fetchPendingClientFollowupsAction() {
   const supabase = await createClient();
 
   const { data, error } = await supabase
-    .from("client_follow_ups")
-    .select("client_id, title, follow_up_type, due_date")
+    .from("follow_ups")
+    .select("converted_client_id, title, follow_up_type, due_date")
     .eq("status", "Pending")
     .order("due_date", { ascending: true });
 
@@ -621,11 +857,11 @@ export async function fetchPendingClientFollowupsAction() {
     return {};
   }
 
-  // Map first upcoming followup by client_id
+  // Map first upcoming followup by converted_client_id
   const nextByClient: Record<string, { title: string; dueDate: string }> = {};
   for (const f of data) {
-    if (f.client_id && !nextByClient[f.client_id]) {
-      nextByClient[f.client_id] = {
+    if (f.converted_client_id && !nextByClient[f.converted_client_id]) {
+      nextByClient[f.converted_client_id] = {
         title: f.title || f.follow_up_type || "Follow-up required",
         dueDate: f.due_date,
       };
@@ -645,7 +881,8 @@ export async function fetchPendingFollowupsCountAction(): Promise<number> {
     const { count, error } = await supabase
       .from("client_follow_ups")
       .select("id", { count: "exact", head: true })
-      .eq("status", "Pending");
+      .eq("status", "Pending")
+      .neq("last_follow_up", "Imported");
 
     if (error) {
       console.error("Error fetching pending followups count:", error);

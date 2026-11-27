@@ -461,37 +461,96 @@ export function FollowupDetailModal({
           {/* Activity History Tab */}
           {leadData && activeTab === "history" && (
             <div className="space-y-3">
+              {/* Current follow-up task card */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 shadow-2xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-800 text-xs">
+                      {followup.dueDate} – {followup.followUpType || "Follow-up"}
+                    </span>
+                    <span
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                        followup.status === "Completed"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-amber-50 text-amber-700 border-amber-200"
+                      }`}
+                    >
+                      Status: {followup.status}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400">Current Task</span>
+                </div>
+                {userNotes && (
+                  <p className="text-slate-700 text-xs bg-white p-2 rounded-lg border border-slate-100">
+                    {userNotes}
+                  </p>
+                )}
+                <div className="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+                  <span>Assigned to: <strong>{followup.assignedToName}</strong></span>
+                  {followup.dueTime && <span>Time: {followup.dueTime}</span>}
+                </div>
+              </div>
+
               {history.length === 0 ? (
-                <div className="p-6 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                  <History size={24} className="mx-auto mb-1 text-slate-300" />
-                  <p>No past follow-up activity has been logged yet for this lead.</p>
+                <div className="p-6 text-center text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                  <History size={22} className="mx-auto mb-1 text-slate-300" />
+                  <p>No previous customer conversations logged yet.</p>
                 </div>
               ) : (
                 <div className="space-y-2.5">
-                  {history.map((h: any, idx: number) => (
-                    <div
-                      key={idx}
-                      className="p-3 bg-white border border-slate-200 rounded-xl space-y-1.5 shadow-2xs"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                          {h.outcome || "Follow-up Action"}
-                        </span>
-                        <span className="text-[10px] text-slate-400">
-                          {h.date ? new Date(h.date).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" }) : ""}
-                        </span>
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider px-1">
+                    Previous Activity Trail ({history.length})
+                  </div>
+                  {history.map((h: any, idx: number) => {
+                    const outcomeText = h.outcome || "Completed";
+                    let outcomeStyle = "bg-blue-50 text-blue-700 border-blue-200";
+                    if (outcomeText === "Interested") outcomeStyle = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                    else if (outcomeText === "Proposal Requested") outcomeStyle = "bg-blue-50 text-blue-700 border-blue-200";
+                    else if (outcomeText === "Meeting Scheduled") outcomeStyle = "bg-purple-50 text-purple-700 border-purple-200";
+                    else if (outcomeText === "Call Back Requested") outcomeStyle = "bg-amber-50 text-amber-700 border-amber-200";
+                    else if (outcomeText === "Not Interested") outcomeStyle = "bg-rose-50 text-rose-700 border-rose-200";
+                    else if (outcomeText === "No Answer") outcomeStyle = "bg-slate-100 text-slate-700 border-slate-200";
+
+                    const dateFormatted = h.date
+                      ? new Date(h.date).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })
+                      : "Past Date";
+
+                    return (
+                      <div
+                        key={idx}
+                        className="p-3 bg-white border border-slate-200 rounded-xl space-y-1.5 shadow-2xs hover:border-slate-300 transition-colors"
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-slate-900 text-xs">
+                              {dateFormatted} – {h.followupType || "Call"}
+                            </span>
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${outcomeStyle}`}
+                            >
+                              Outcome: {outcomeText}
+                            </span>
+                          </div>
+                          <span className="px-2 py-0.2 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+                            Status: Completed
+                          </span>
+                        </div>
+                        {h.notes && (
+                          <p className="text-slate-700 text-xs bg-slate-50 p-2 rounded-lg border border-slate-100 leading-relaxed">
+                            {h.notes}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between text-[10px] text-slate-400">
+                          {h.recordedBy && <span>Recorded by: {h.recordedBy}</span>}
+                          {h.nextDate && <span>Next scheduled: {h.nextDate}</span>}
+                        </div>
                       </div>
-                      {h.notes && (
-                        <p className="text-slate-700 text-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
-                          {h.notes}
-                        </p>
-                      )}
-                      <div className="flex items-center justify-between text-[10px] text-slate-400">
-                        {h.recordedBy && <span>Logged by: {h.recordedBy}</span>}
-                        {h.nextDate && <span>Next due: {h.nextDate}</span>}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

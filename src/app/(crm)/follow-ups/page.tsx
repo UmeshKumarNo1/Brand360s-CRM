@@ -839,6 +839,7 @@ export default function FollowupsPage() {
           onClose={() => setCompletingFollowup(null)}
           onSuccess={() => loadData()}
           followup={completingFollowup}
+          isAdmin={isAdmin}
         />
       )}
 

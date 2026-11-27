@@ -417,13 +417,29 @@ export async function updateFollowupAction(
   return { success: true };
 }
 
+export interface CompleteAndScheduleInput {
+  followupId: string;
+  outcome: string; // 'Interested' | 'Not Interested' | 'No Answer' | 'Call Back Requested' | 'Proposal Requested' | 'Meeting Scheduled' | 'Other'
+  discussionNotes?: string;
+  actualCompletedAt?: string;
+  scheduleNext: boolean;
+  nextTitle?: string;
+  nextFollowUpType?: string;
+  nextDueDate?: string;
+  nextDueTime?: string | null;
+  nextAssignedTo?: string;
+  nextPriority?: string;
+  nextReminderSetting?: string;
+  nextActionNotes?: string;
+}
+
 /**
- * Complete a follow-up with optional completion notes
+ * Atomic Server Action: Complete existing follow-up AND schedule next follow-up task
+ * Both activities are stored as separate database records.
  */
-export async function completeFollowupAction(
-  followupId: string,
-  completionNotes?: string
-): Promise<FollowupActionState> {
+export async function completeAndScheduleFollowupAction(
+  input: CompleteAndScheduleInput
+): Promise<FollowupActionState & { nextFollowupId?: string | null }> {
   const supabase = await createClient();
 
   const {
@@ -432,54 +448,226 @@ export async function completeFollowupAction(
 
   if (!user) return { error: "Authentication required." };
 
-  const { data: existing } = await supabase
-    .from("follow_ups")
-    .select("title, converted_client_id, assigned_to, notes")
-    .eq("id", followupId)
+  const { data: currentProfile } = await supabase
+    .from("profiles")
+    .select("id, full_name, role, email")
+    .eq("id", user.id)
     .single();
 
-  let finalNotes = existing?.notes;
-  if (completionNotes) {
-    if (finalNotes && typeof finalNotes === "string" && finalNotes.trim().startsWith("{")) {
-      try {
-        const parsed = JSON.parse(finalNotes.trim());
-        parsed.completionNotes = completionNotes;
-        parsed.completedAt = new Date().toISOString();
-        parsed.completedBy = user.id;
-        finalNotes = JSON.stringify(parsed);
-      } catch {
-        finalNotes = `${finalNotes}\n\n[Completion]: ${completionNotes}`;
-      }
-    } else {
-      finalNotes = finalNotes ? `${finalNotes}\n\n[Completion]: ${completionNotes}` : completionNotes;
+  const isAdmin = currentProfile?.role === "admin";
+
+  const { data: existing, error: fetchErr } = await supabase
+    .from("follow_ups")
+    .select("*")
+    .eq("id", input.followupId)
+    .single();
+
+  if (fetchErr || !existing) return { error: "Follow-up record not found." };
+
+  if (!isAdmin && existing.assigned_to !== user.id) {
+    return { error: "You are not authorized to complete this follow-up." };
+  }
+
+  const recordedDate = input.actualCompletedAt
+    ? new Date(input.actualCompletedAt).toISOString()
+    : new Date().toISOString();
+  const recorderName = currentProfile?.full_name || user.email || "Representative";
+
+  // Parse existing JSON metadata if present
+  let parsedMetadata: any = null;
+  if (existing.notes && typeof existing.notes === "string" && existing.notes.trim().startsWith("{")) {
+    try {
+      parsedMetadata = JSON.parse(existing.notes.trim());
+    } catch {
+      parsedMetadata = null;
     }
   }
 
-  const { error } = await supabase
+  const historyEntry = {
+    date: recordedDate,
+    outcome: input.outcome || "Completed",
+    notes: input.discussionNotes || "",
+    recordedBy: recorderName,
+    action: "Completed",
+    followupTitle: existing.title,
+    followupType: existing.follow_up_type,
+    scheduledNext: !!input.scheduleNext,
+  };
+
+  let completedNotesStr = existing.notes;
+  if (parsedMetadata) {
+    if (!Array.isArray(parsedMetadata.history)) {
+      parsedMetadata.history = [];
+    }
+    parsedMetadata.history.unshift(historyEntry);
+    parsedMetadata.userNotes = input.discussionNotes || "";
+    parsedMetadata.lastOutcome = input.outcome;
+    parsedMetadata.completedAt = recordedDate;
+    parsedMetadata.completedBy = user.id;
+    completedNotesStr = JSON.stringify(parsedMetadata);
+  } else {
+    const textEntry = `[${new Date(recordedDate).toLocaleDateString("en-IN")} - ${input.outcome}]: ${
+      input.discussionNotes || "No notes provided."
+    }`;
+    completedNotesStr = existing.notes ? `${existing.notes}\n\n${textEntry}` : textEntry;
+  }
+
+  // 1. Update existing follow-up (Record 1: Completed)
+  const { error: updateErr } = await supabase
     .from("follow_ups")
     .update({
       status: "Completed",
-      notes: finalNotes,
-      last_follow_up: "Completed",
+      notes: completedNotesStr,
+      last_follow_up: input.outcome || "Completed",
       updated_at: new Date().toISOString(),
     })
-    .eq("id", followupId);
+    .eq("id", input.followupId);
 
-  if (error) return { error: error.message };
+  if (updateErr) {
+    return { error: `Failed to complete follow-up: ${updateErr.message}` };
+  }
 
+  let newFollowupId: string | null = null;
+
+  // 2. If next follow-up scheduling is enabled, create Record 2
+  if (input.scheduleNext) {
+    if (!input.nextDueDate) {
+      // Revert completion
+      await supabase
+        .from("follow_ups")
+        .update({
+          status: existing.status,
+          notes: existing.notes,
+          last_follow_up: existing.last_follow_up,
+          updated_at: existing.updated_at,
+        })
+        .eq("id", input.followupId);
+      return { error: "Please select a valid date for the next follow-up." };
+    }
+
+    let targetAssignedTo = existing.assigned_to;
+    let targetAssignedName = existing.assigned_name;
+    if (isAdmin && input.nextAssignedTo && input.nextAssignedTo !== existing.assigned_to) {
+      targetAssignedTo = input.nextAssignedTo;
+      const { data: assigneeProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", targetAssignedTo)
+        .single();
+      if (assigneeProfile?.full_name) {
+        targetAssignedName = assigneeProfile.full_name;
+      }
+    }
+
+    let nextNotesStr = input.nextActionNotes || "";
+    if (parsedMetadata) {
+      const nextMetadata = {
+        ...parsedMetadata,
+        userNotes: input.nextActionNotes || "",
+        previousFollowupId: existing.id,
+        reminderSetting: input.nextReminderSetting || "none",
+      };
+      nextNotesStr = JSON.stringify(nextMetadata);
+    } else {
+      nextNotesStr = input.nextActionNotes
+        ? `${input.nextActionNotes}\n\n[Previous task: ${existing.title}]`
+        : `[Previous task: ${existing.title}]`;
+    }
+
+    const { data: newFollowup, error: insertErr } = await supabase
+      .from("follow_ups")
+      .insert({
+        company_name: existing.company_name,
+        contact_person: existing.contact_person,
+        phone: existing.phone,
+        service_interested: existing.service_interested,
+        converted_client_id: existing.converted_client_id || null,
+        assigned_to: targetAssignedTo,
+        assigned_name: targetAssignedName,
+        title: input.nextTitle || `Follow-up - ${existing.company_name || existing.title}`,
+        follow_up_type: normalizeFollowupType(input.nextFollowUpType),
+        due_date: input.nextDueDate,
+        due_time: input.nextDueTime || null,
+        priority: normalizePriority(input.nextPriority),
+        status: "Pending",
+        notes: nextNotesStr,
+        last_follow_up: "Scheduled",
+        created_by: user.id,
+      })
+      .select("id")
+      .single();
+
+    if (insertErr) {
+      // Revert completion of Record 1 for transactional integrity
+      await supabase
+        .from("follow_ups")
+        .update({
+          status: existing.status,
+          notes: existing.notes,
+          last_follow_up: existing.last_follow_up,
+          updated_at: existing.updated_at,
+        })
+        .eq("id", input.followupId);
+
+      return { error: `Failed to schedule next follow-up: ${insertErr.message}` };
+    }
+
+    newFollowupId = newFollowup?.id || null;
+  }
+
+  // Audit Logs
   await recordAuditLog({
     actorId: user.id,
     action: "COMPLETED",
     entityType: "follow_up",
-    entityId: followupId,
-    entityName: existing?.title || "Follow-up",
-    details: { completion_notes: completionNotes },
+    entityId: input.followupId,
+    entityName: existing.title,
+    details: {
+      outcome: input.outcome,
+      discussionNotes: input.discussionNotes,
+      actualCompletedAt: recordedDate,
+      nextScheduled: input.scheduleNext,
+      nextFollowupId: newFollowupId,
+    },
   });
 
+  if (newFollowupId) {
+    await recordAuditLog({
+      actorId: user.id,
+      action: "CREATE",
+      entityType: "follow_up",
+      entityId: newFollowupId,
+      entityName: input.nextTitle || `Follow-up - ${existing.company_name}`,
+      details: {
+        previousFollowupId: existing.id,
+        dueDate: input.nextDueDate,
+        priority: input.nextPriority,
+      },
+    });
+  }
+
   revalidatePath("/follow-ups");
-  if (existing?.converted_client_id) revalidatePath(`/clients/${existing.converted_client_id}`);
+  if (existing.converted_client_id) {
+    revalidatePath(`/clients/${existing.converted_client_id}`);
+  }
   revalidatePath("/dashboard");
-  return { success: true };
+
+  return { success: true, nextFollowupId: newFollowupId };
+}
+
+/**
+ * Complete a follow-up with optional completion notes (legacy wrapper)
+ */
+export async function completeFollowupAction(
+  followupId: string,
+  completionNotes?: string
+): Promise<FollowupActionState> {
+  return completeAndScheduleFollowupAction({
+    followupId,
+    outcome: "Completed",
+    discussionNotes: completionNotes,
+    scheduleNext: false,
+  });
 }
 
 /**

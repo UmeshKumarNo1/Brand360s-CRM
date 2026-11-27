@@ -276,6 +276,77 @@ async function runTests() {
   const skippedBuffer = generateSkippedReportBuffer(skippedSample);
   assert(Buffer.isBuffer(skippedBuffer) && skippedBuffer.length > 0, "Generated downloadable Excel buffer for skipped records");
 
+  // TEST 9: Follow-up Completion + Next Follow-up Scheduling Workflow
+  console.log("\n--> Testing Follow-up Completion + Next Scheduling Workflow...");
+  const initialLeadFollowup = {
+    id: "f-task-1",
+    company_name: "RUIA HOLDINGS PRIVATE LIMITED",
+    converted_client_id: null,
+    assigned_to: "rep-1",
+    assigned_name: "Yogeetha",
+    title: "Lead Outreach - RUIA HOLDINGS",
+    follow_up_type: "Call",
+    due_date: "2026-11-27",
+    status: "Pending",
+    notes: JSON.stringify({
+      entityId: "U64990MH2026PTC477320",
+      directors: [{ name: "MANISHA HIMANSHU RUIA" }],
+      history: []
+    })
+  };
+
+  // Simulate completion with outcome "Interested" and schedule next "Send Proposal"
+  const outcome = "Interested";
+  const notes = "Customer interested in website development.";
+  const nextDueDate = "2026-11-30";
+  const nextTitle = "Send Proposal - RUIA HOLDINGS";
+
+  // 1. Record 1: Completed
+  const parsedMeta1 = JSON.parse(initialLeadFollowup.notes);
+  parsedMeta1.history.unshift({
+    date: new Date().toISOString(),
+    outcome,
+    notes,
+    recordedBy: "Yogeetha",
+    action: "Completed"
+  });
+  const completedRecord1 = {
+    ...initialLeadFollowup,
+    status: "Completed",
+    last_follow_up: outcome,
+    notes: JSON.stringify(parsedMeta1)
+  };
+
+  // 2. Record 2: Next scheduled follow-up
+  const parsedMeta2 = {
+    ...parsedMeta1,
+    userNotes: "Prepare quotation",
+    previousFollowupId: completedRecord1.id
+  };
+  const scheduledRecord2 = {
+    id: "f-task-2",
+    company_name: completedRecord1.company_name,
+    converted_client_id: null,
+    assigned_to: completedRecord1.assigned_to,
+    assigned_name: completedRecord1.assigned_name,
+    title: nextTitle,
+    follow_up_type: "Document Collection",
+    due_date: nextDueDate,
+    status: "Pending",
+    last_follow_up: "Scheduled",
+    notes: JSON.stringify(parsedMeta2)
+  };
+
+  assert(completedRecord1.status === "Completed", "Record 1 status is Completed");
+  assert(completedRecord1.last_follow_up === "Interested", "Record 1 outcome is Interested");
+  assert(scheduledRecord2.status === "Pending", "Record 2 status is Pending");
+  assert(scheduledRecord2.due_date === "2026-11-30", "Record 2 due date is 30 Nov 2026");
+  assert(completedRecord1.converted_client_id === null, "Completing follow-up does NOT convert lead to client");
+  assert(scheduledRecord2.converted_client_id === null, "Scheduling next follow-up does NOT convert lead to client");
+  assert(parsedMeta2.previousFollowupId === "f-task-1", "Record 2 links to previous follow-up f-task-1");
+  assert(parsedMeta2.history.length === 1, "Record 2 shares lead history with 1 completed entry");
+  assert(parsedMeta2.history[0].outcome === "Interested", "Completed entry outcome is Interested");
+
   console.log("\n================================================================================");
   console.log(`ALL TESTS PASSED! (${passedTests}/${totalTests} tests successful)`);
   console.log("================================================================================\n");

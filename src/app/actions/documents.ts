@@ -80,10 +80,10 @@ export async function uploadClientServiceDocumentAction(
       return { error: "Please select a valid document or image file." };
     }
 
-    // Limit to 15MB
-    const MAX_SIZE = 15 * 1024 * 1024;
+    // Limit to 100MB for large documents & multi-page PDFs
+    const MAX_SIZE = 100 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
-      return { error: "File exceeds maximum size of 15MB." };
+      return { error: "File exceeds maximum size of 100MB." };
     }
 
     // Map UI doc type to database allowed CHECK constraint:

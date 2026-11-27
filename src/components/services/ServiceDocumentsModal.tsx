@@ -15,6 +15,7 @@ import {
   Sparkles,
   Layers,
   Image as ImageIcon,
+  Zap,
 } from "lucide-react";
 import {
   fetchServiceDocumentsAction,
@@ -23,6 +24,12 @@ import {
   ServiceDocument,
 } from "@/app/actions/documents";
 import { useToast } from "@/components/common/ToastProvider";
+import {
+  useDocumentCompression,
+  DOCUMENT_COMPRESSION_CONFIG,
+  formatBytes,
+} from "@/lib/document-compression";
+import { DocumentCompressionModal } from "@/components/common/DocumentCompressionModal";
 
 interface ServiceDocumentsModalProps {
   isOpen: boolean;
@@ -57,6 +64,7 @@ export function ServiceDocumentsModal({
   const [isUploading, setIsUploading] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const { requestCompression, compressionModalProps } = useDocumentCompression();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { success, error: toastError } = useToast();
@@ -102,13 +110,17 @@ export function ServiceDocumentsModal({
 
   if (!isOpen) return null;
 
-  const handleFileSelect = (file: File | null) => {
+  const handleFileSelect = async (file: File | null) => {
     if (!file) return;
-    if (file.size > 15 * 1024 * 1024) {
-      toastError("File too large", "Maximum file size is 15MB.");
+    const maxSizeBytes = DOCUMENT_COMPRESSION_CONFIG.uploadLimits.maxOriginalSizeBytes;
+    if (file.size > maxSizeBytes) {
+      toastError("File too large", `Maximum file size is ${formatBytes(maxSizeBytes)}.`);
       return;
     }
-    setSelectedFile(file);
+    const compressed = await requestCompression(file);
+    if (compressed && compressed.length > 0) {
+      setSelectedFile(compressed[0]);
+    }
   };
 
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
@@ -128,7 +140,8 @@ export function ServiceDocumentsModal({
     e.stopPropagation();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileSelect(e.dataTransfer.files[0]);
+      const file = e.dataTransfer.files[0];
+      handleFileSelect(file);
     }
   };
 
@@ -324,9 +337,15 @@ export function ServiceDocumentsModal({
 
                 {/* Dropzone */}
                 <div>
-                  <label className="block font-bold text-slate-800 mb-1">
-                    Select Document or Image *
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block font-bold text-slate-800">
+                      Select Document or Image *
+                    </label>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold text-[10px]">
+                      <Zap size={10} className="text-emerald-600 fill-emerald-600" />
+                      <span>Auto-Compression Active</span>
+                    </span>
+                  </div>
                   <div
                     onDragOver={handleDragOver}
                     onDragLeave={handleDragLeave}
@@ -342,7 +361,13 @@ export function ServiceDocumentsModal({
                       ref={fileInputRef}
                       type="file"
                       accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml,application/pdf"
-                      onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files.length > 0) {
+                          const file = e.target.files[0];
+                          e.target.value = "";
+                          handleFileSelect(file);
+                        }
+                      }}
                       className="hidden"
                     />
                     <div className="w-10 h-10 rounded-full bg-sky-100 text-[#0481A2] flex items-center justify-center">
@@ -354,7 +379,7 @@ export function ServiceDocumentsModal({
                         <span className="text-[#0481A2] underline font-bold">browse</span>
                       </p>
                       <p className="text-[10px] text-slate-400 mt-0.5">
-                        PNG, JPG, WEBP, SVG or PDF (up to 15MB)
+                        PNG, JPG, WEBP, or PDF • Automatic document compression active
                       </p>
                     </div>
                   </div>
@@ -386,13 +411,33 @@ export function ServiceDocumentsModal({
                         </p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedFile(null)}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = URL.createObjectURL(selectedFile);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = selectedFile.name;
+                          document.body.appendChild(a);
+                          a.click();
+                          document.body.removeChild(a);
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="p-1.5 text-slate-500 hover:text-[#0481A2] rounded-lg hover:bg-sky-50 cursor-pointer"
+                        title="Download file"
+                      >
+                        <Download size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedFile(null)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 cursor-pointer"
+                        title="Delete file"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -640,6 +685,9 @@ export function ServiceDocumentsModal({
           </div>
         </div>
       )}
+
+      {/* Global Document Compression Confirmation, Progress & Result Dialog */}
+      <DocumentCompressionModal {...compressionModalProps} />
     </>
   );
 }

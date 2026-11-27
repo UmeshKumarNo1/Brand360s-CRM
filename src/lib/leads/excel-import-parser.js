@@ -101,7 +101,8 @@ function formatExcelDate(rawDate) {
  * Parses buffer into raw worksheets and rows
  */
 function parseExcelWorkbook(buffer, selectedSheetName) {
-  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
+  const readType = typeof Buffer !== "undefined" && Buffer.isBuffer(buffer) ? "buffer" : "array";
+  const workbook = XLSX.read(buffer, { type: readType, cellDates: true });
   const sheetNames = workbook.SheetNames || [];
 
   if (sheetNames.length === 0) {
@@ -128,7 +129,20 @@ function parseExcelWorkbook(buffer, selectedSheetName) {
   }
 
   const headerRow = rawJson[0] || [];
-  const normalizedHeaders = headerRow.map((h) => normalizeHeader(String(h)));
+  // Find last non-empty header column to avoid iterating over thousands of blank columns
+  let maxCol = -1;
+  for (let i = headerRow.length - 1; i >= 0; i--) {
+    if (headerRow[i] !== undefined && String(headerRow[i]).trim() !== "") {
+      maxCol = i;
+      break;
+    }
+  }
+  const effectiveColCount = maxCol >= 0 ? maxCol + 1 : headerRow.length;
+
+  const normalizedHeaders = [];
+  for (let c = 0; c < effectiveColCount; c++) {
+    normalizedHeaders.push(normalizeHeader(String(headerRow[c] || "")));
+  }
 
   const rawRows = [];
   for (let r = 1; r < rawJson.length; r++) {
@@ -140,7 +154,7 @@ function parseExcelWorkbook(buffer, selectedSheetName) {
     if (!hasData) continue;
 
     const rowObj = {};
-    for (let c = 0; c < headerRow.length; c++) {
+    for (let c = 0; c < effectiveColCount; c++) {
       const standardKey = normalizedHeaders[c];
       if (standardKey) {
         rowObj[standardKey] = rowArray[c] !== undefined ? String(rowArray[c]).trim() : "";

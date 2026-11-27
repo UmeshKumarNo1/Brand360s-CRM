@@ -40,6 +40,25 @@ export async function fetchActiveSalespeopleAction() {
 }
 
 /**
+ * Fetch existing entity IDs from database for fast duplicate detection
+ */
+export async function fetchExistingEntityIdsAction() {
+  if (!isSupabaseConfigured()) return [];
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("clients")
+      .select("entity_id")
+      .not("entity_id", "is", null)
+      .limit(10000);
+    return (data || []).map((c) => c.entity_id).filter(Boolean);
+  } catch (err) {
+    console.error("Error fetching existing entity IDs:", err);
+    return [];
+  }
+}
+
+/**
  * Read current round-robin sequence pointer from Supabase
  */
 async function getRoundRobinPointer(supabase, activeSalespeople) {
@@ -97,20 +116,21 @@ export async function previewLeadsFileAction(formData) {
 
     // Check duplicate entity IDs against database
     const supabase = await createClient();
-    const entityIds = groupedLeads.map((l) => l.entityId).filter(Boolean);
-
     let existingEntityMap = new Set();
-    if (entityIds.length > 0) {
+    try {
       const { data: matchedClients } = await supabase
         .from("clients")
-        .select("entity_id, company_name")
-        .in("entity_id", entityIds);
+        .select("entity_id")
+        .not("entity_id", "is", null)
+        .limit(10000);
 
       if (matchedClients) {
         matchedClients.forEach((c) => {
-          if (c.entity_id) existingEntityMap.add(c.entity_id.toUpperCase());
+          if (c.entity_id) existingEntityMap.add(c.entity_id.trim().toUpperCase());
         });
       }
+    } catch (err) {
+      console.warn("Could not query existing clients for preview duplicate check:", err.message);
     }
 
     const previewList = groupedLeads.slice(0, 25).map((lead) => ({
@@ -188,15 +208,14 @@ export async function executeLeadsImportAction(formData) {
     }
 
     // 2. Fetch existing entity IDs & company names to detect duplicates
-    const allEntityIds = groupedLeads.map((l) => l.entityId).filter(Boolean);
     let existingEntitySet = new Set();
     let existingCompanySet = new Set();
 
-    if (allEntityIds.length > 0) {
+    try {
       const { data: existingLeads } = await supabase
         .from("clients")
         .select("entity_id, company_name")
-        .or(`entity_id.in.(${allEntityIds.map((id) => `"${id}"`).join(",")})`);
+        .limit(10000);
 
       if (existingLeads) {
         existingLeads.forEach((c) => {
@@ -204,6 +223,8 @@ export async function executeLeadsImportAction(formData) {
           if (c.company_name) existingCompanySet.add(c.company_name.trim().toLowerCase());
         });
       }
+    } catch (err) {
+      console.warn("Could not query existing leads for duplicate check:", err.message);
     }
 
     // 3. Continuous round robin pointer
@@ -264,60 +285,17 @@ export async function executeLeadsImportAction(formData) {
       };
     }
 
-    // 4. Insert leads into clients table
+    // 4. Batch insert leads into clients table in chunks of 50
     let leadsCreatedCount = 0;
     let followupsCreatedCount = 0;
     const batchId = crypto.randomUUID();
+    const BATCH_SIZE = 50;
 
-    for (const item of leadsToInsert) {
-      const lead = item.leadData;
-
-      // Build payload supporting both dedicated columns and JSONB fallback
-      const insertPayload = {
-        company_name: lead.name,
-        company_type: lead.entityType || "Private Limited (Pvt Ltd)",
-        contact_person: lead.contactPerson || lead.name,
-        email: lead.email || null,
-        phone: lead.phone || "+91 0000000000",
-        address: lead.registeredAddress || lead.city || "Not provided",
-        city: lead.city || "Not specified",
-        state: lead.state || "Tamil Nadu",
-        pincode: "600001",
-        country: "India",
-        assigned_salesperson: item.assignedSalespersonId,
-        client_status: "Lead",
-        is_lead: true,
-        lead_status: "New",
-        lead_source: "Excel Import",
-        entity_id: lead.entityId || null,
-        entity_type: lead.entityType || null,
-        district: lead.district || null,
-        roc: lead.roc || null,
-        nic_code: lead.nicCode || null,
-        nic_label: lead.nicLabel || null,
-        date_of_incorporation: lead.dateOfIncorporation || null,
-        paid_up_capital: lead.paidUpCapital || 0,
-        authorized_capital: lead.authorizedCapital || 0,
-        class_of_company: lead.classOfCompany || null,
-        falcon_status: lead.falcon_status || null,
-        directors: lead.directors || [],
-        additional_contacts: lead.directors || [],
-        import_batch_id: batchId,
-        created_by: currentUserId,
-        notes: `Imported from ${file.name}. ROC: ${lead.roc || "-"}, NIC: ${lead.nicLabel || "-"}.`,
-      };
-
-      let insertedId = null;
-      const { data: insertedClient, error: insertErr } = await supabase
-        .from("clients")
-        .insert(insertPayload)
-        .select("id")
-        .single();
-
-      if (insertErr) {
-        // Fallback without new columns if migration hasn't been executed
-        console.warn("Insert with new columns failed, falling back to basic columns:", insertErr.message);
-        const fallbackPayload = {
+    for (let i = 0; i < leadsToInsert.length; i += BATCH_SIZE) {
+      const chunk = leadsToInsert.slice(i, i + BATCH_SIZE);
+      const payloads = chunk.map((item) => {
+        const lead = item.leadData;
+        return {
           company_name: lead.name,
           company_type: lead.entityType || "Private Limited (Pvt Ltd)",
           contact_person: lead.contactPerson || lead.name,
@@ -329,53 +307,109 @@ export async function executeLeadsImportAction(formData) {
           pincode: "600001",
           country: "India",
           assigned_salesperson: item.assignedSalespersonId,
-          client_status: "Pending Onboarding",
+          client_status: "Lead",
+          is_lead: true,
+          lead_status: "New",
+          lead_source: "Excel Import",
+          entity_id: lead.entityId || null,
+          entity_type: lead.entityType || null,
+          district: lead.district || null,
+          roc: lead.roc || null,
+          nic_code: lead.nicCode || null,
+          nic_label: lead.nicLabel || null,
+          date_of_incorporation: lead.dateOfIncorporation || null,
+          paid_up_capital: lead.paidUpCapital || 0,
+          authorized_capital: lead.authorizedCapital || 0,
+          class_of_company: lead.classOfCompany || null,
+          falcon_status: lead.falcon_status || null,
+          directors: lead.directors || [],
           additional_contacts: lead.directors || [],
+          import_batch_id: batchId,
           created_by: currentUserId,
-          notes: `[LEAD: ${lead.entityId || "NoID"}] Imported from ${file.name}. Directors: ${lead.directors.length}`,
+          notes: `Imported from ${file.name}. ROC: ${lead.roc || "-"}, NIC: ${lead.nicLabel || "-"}.`,
         };
+      });
 
-        const { data: fallbackClient, error: fbErr } = await supabase
-          .from("clients")
-          .insert(fallbackPayload)
-          .select("id")
-          .single();
+      const { data: insertedClients, error: insertErr } = await supabase
+        .from("clients")
+        .insert(payloads)
+        .select("id, assigned_salesperson, company_name, contact_person, entity_id");
 
-        if (fbErr || !fallbackClient) {
-          skippedRecords.push({
-            companyName: lead.name,
-            entityId: lead.entityId,
-            reason: `Database insert failed: ${fbErr?.message || insertErr.message}`,
+      if (insertErr || !insertedClients) {
+        // Fallback row-by-row with basic columns if table doesn't have new columns
+        for (const item of chunk) {
+          const lead = item.leadData;
+          const fallbackPayload = {
+            company_name: lead.name,
+            company_type: lead.entityType || "Private Limited (Pvt Ltd)",
+            contact_person: lead.contactPerson || lead.name,
+            email: lead.email || null,
+            phone: lead.phone || "+91 0000000000",
+            address: lead.registeredAddress || lead.city || "Not provided",
+            city: lead.city || "Not specified",
+            state: lead.state || "Tamil Nadu",
+            pincode: "600001",
+            country: "India",
+            assigned_salesperson: item.assignedSalespersonId,
+            client_status: "Pending Onboarding",
+            additional_contacts: lead.directors || [],
+            created_by: currentUserId,
+            notes: `[LEAD: ${lead.entityId || "NoID"}] Imported from ${file.name}. Directors: ${lead.directors.length}`,
+          };
+          const { data: fbClient, error: fbErr } = await supabase
+            .from("clients")
+            .insert(fallbackPayload)
+            .select("id")
+            .single();
+
+          if (fbErr || !fbClient) {
+            skippedRecords.push({
+              companyName: lead.name,
+              entityId: lead.entityId,
+              reason: `Insert error: ${fbErr?.message || insertErr.message}`,
+            });
+            continue;
+          }
+
+          leadsCreatedCount++;
+          await supabase.from("follow_ups").insert({
+            client_id: fbClient.id,
+            assigned_to: item.assignedSalespersonId,
+            title: `Initial Contact - ${lead.name}`,
+            follow_up_type: initialFollowupType || "Call",
+            due_date: initialFollowupDate,
+            priority: "Medium",
+            status: "Pending",
+            contact_person: lead.contactPerson || lead.name,
+            contact_method: "Phone",
+            created_by: currentUserId,
+            notes: `Lead imported from ${file.name}. Initial outreach assigned via Round-Robin.`,
           });
-          continue;
+          followupsCreatedCount++;
         }
-        insertedId = fallbackClient.id;
       } else {
-        insertedId = insertedClient.id;
-      }
+        leadsCreatedCount += insertedClients.length;
 
-      leadsCreatedCount++;
-
-      // 5. Automatically create Initial Follow-up for the assigned salesperson
-      if (insertedId) {
-        const { error: fErr } = await supabase.from("follow_ups").insert({
-          client_id: insertedId,
-          assigned_to: item.assignedSalespersonId,
-          title: `Initial Contact - ${lead.name}`,
+        // Bulk insert follow-ups for this chunk
+        const followUpPayloads = insertedClients.map((client) => ({
+          client_id: client.id,
+          assigned_to: client.assigned_salesperson,
+          title: `Initial Contact - ${client.company_name}`,
           follow_up_type: initialFollowupType || "Call",
           due_date: initialFollowupDate,
           priority: "Medium",
           status: "Pending",
-          contact_person: lead.contactPerson || lead.name,
+          contact_person: client.contact_person || client.company_name,
           contact_method: "Phone",
           created_by: currentUserId,
-          notes: `Lead imported from ${file.name} (Entity ID: ${lead.entityId || "-"}). Initial outreach assigned via Round-Robin.`,
-        });
+          notes: `Lead imported from ${file.name} (Entity ID: ${client.entity_id || "-"}). Initial outreach assigned via Round-Robin.`,
+        }));
 
+        const { error: fErr } = await supabase.from("follow_ups").insert(followUpPayloads);
         if (!fErr) {
-          followupsCreatedCount++;
+          followupsCreatedCount += followUpPayloads.length;
         } else {
-          console.error("Failed to create initial follow-up:", fErr.message);
+          console.error("Failed to bulk create follow-ups:", fErr.message);
         }
       }
     }

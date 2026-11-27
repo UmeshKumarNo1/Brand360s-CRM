@@ -18,9 +18,14 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import {
+  parseExcelWorkbook,
+  groupAndValidateLeads,
+} from "@/lib/leads/excel-import-parser";
+import {
   previewLeadsFileAction,
   executeLeadsImportAction,
   fetchActiveSalespeopleAction,
+  fetchExistingEntityIdsAction,
   downloadSkippedRecordsBufferAction,
 } from "@/app/actions/leads";
 import { useToast } from "@/components/common/ToastProvider";
@@ -43,14 +48,18 @@ export function LeadImportModal({ isOpen, onClose, onSuccess }) {
   });
   const [initialFollowupType, setInitialFollowupType] = useState("Call");
 
-  // Roster
+  // Roster & Existing Entity IDs for Instant Duplicate Check
   const [salespeople, setSalespeople] = useState([]);
+  const [existingEntityIds, setExistingEntityIds] = useState(new Set());
   const [isExecuting, setIsExecuting] = useState(false);
   const [importReport, setImportReport] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
       fetchActiveSalespeopleAction().then((sp) => setSalespeople(sp || []));
+      fetchExistingEntityIdsAction().then((ids) => {
+        setExistingEntityIds(new Set((ids || []).map((id) => String(id).trim().toUpperCase())));
+      });
     } else {
       setFile(null);
       setPreviewData(null);
@@ -61,6 +70,58 @@ export function LeadImportModal({ isOpen, onClose, onSuccess }) {
 
   if (!isOpen) return null;
 
+  const processFilePreview = async (selectedFile, sheetToUse) => {
+    try {
+      setIsLoadingPreview(true);
+      const arrayBuffer = await selectedFile.arrayBuffer();
+      const { sheetNames, activeSheetName, headers, rawRows } = parseExcelWorkbook(arrayBuffer, sheetToUse);
+      const { totalRawRows, uniqueCompanies, groupedLeads, invalidRows } = groupAndValidateLeads(rawRows);
+
+      const duplicatesCount = groupedLeads.filter(
+        (l) => l.entityId && existingEntityIds.has(l.entityId.trim().toUpperCase())
+      ).length;
+
+      const previewList = groupedLeads.slice(0, 25).map((lead) => ({
+        ...lead,
+        isDuplicate: lead.entityId ? existingEntityIds.has(lead.entityId.trim().toUpperCase()) : false,
+      }));
+
+      setPreviewData({
+        success: true,
+        fileName: selectedFile.name,
+        sheetNames,
+        activeSheetName,
+        headers,
+        totalRawRows,
+        uniqueCompanies,
+        duplicatesCount,
+        invalidCount: invalidRows.length,
+        previewLeads: previewList,
+      });
+      setSelectedSheet(activeSheetName || (sheetNames && sheetNames[0]) || "");
+    } catch (err) {
+      console.warn("Client preview error, falling back to server preview:", err);
+      try {
+        const formData = new FormData();
+        formData.append("file", selectedFile);
+        if (sheetToUse) formData.append("sheetName", sheetToUse);
+        const res = await previewLeadsFileAction(formData);
+        if (res.success) {
+          setPreviewData(res);
+          setSelectedSheet(res.activeSheetName || (res.sheetNames && res.sheetNames[0]) || "");
+        } else {
+          toastError("Preview Failed", res.error || "Could not read spreadsheet.");
+          setFile(null);
+        }
+      } catch (srvErr) {
+        toastError("Preview Failed", srvErr.message || "Could not read spreadsheet.");
+        setFile(null);
+      }
+    } finally {
+      setIsLoadingPreview(false);
+    }
+  };
+
   const handleFileSelected = async (selectedFile) => {
     if (!selectedFile) return;
     const name = selectedFile.name.toLowerCase();
@@ -70,42 +131,15 @@ export function LeadImportModal({ isOpen, onClose, onSuccess }) {
     }
 
     setFile(selectedFile);
-    setIsLoadingPreview(true);
     setPreviewData(null);
     setImportReport(null);
-
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-
-    const res = await previewLeadsFileAction(formData);
-    setIsLoadingPreview(false);
-
-    if (res.success) {
-      setPreviewData(res);
-      setSelectedSheet(res.activeSheetName || (res.sheetNames && res.sheetNames[0]) || "");
-    } else {
-      toastError("Preview Failed", res.error || "Could not read spreadsheet.");
-      setFile(null);
-    }
+    await processFilePreview(selectedFile, undefined);
   };
 
   const handleSheetChange = async (sheet) => {
     if (!file || sheet === selectedSheet) return;
     setSelectedSheet(sheet);
-    setIsLoadingPreview(true);
-
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("sheetName", sheet);
-
-    const res = await previewLeadsFileAction(formData);
-    setIsLoadingPreview(false);
-
-    if (res.success) {
-      setPreviewData(res);
-    } else {
-      toastError("Preview Failed", res.error);
-    }
+    await processFilePreview(file, sheet);
   };
 
   const handleExecuteImport = async () => {

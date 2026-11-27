@@ -236,7 +236,8 @@ export async function createFollowupAction(
   const { data: created, error } = await supabase
     .from("follow_ups")
     .insert({
-      client_id: clientId,
+      converted_client_id: clientId,
+      company_name: clientData?.company_name || null,
       assigned_to: assignedTo,
       title,
       follow_up_type: followUpType,
@@ -246,8 +247,7 @@ export async function createFollowupAction(
       status,
       notes,
       contact_person: contactPerson,
-      contact_method: contactMethod,
-      reminder_setting: reminderSetting,
+      last_follow_up: "Created",
       created_by: user.id,
     })
     .select("id")
@@ -322,7 +322,7 @@ export async function updateFollowupAction(
   // Fetch existing follow-up
   const { data: existing, error: fetchErr } = await supabase
     .from("follow_ups")
-    .select("*, client:clients(company_name)")
+    .select("*")
     .eq("id", id)
     .single();
 
@@ -335,10 +335,19 @@ export async function updateFollowupAction(
 
   // Determine assigned_to: Admins can reassign; employees preserve existing assignment
   let assignedTo = existing.assigned_to;
+  let assignedName = existing.assigned_name;
   if (isAdmin) {
     const selectedAssigned = formData.get("assigned_to") as string;
     if (selectedAssigned && selectedAssigned.trim() !== "") {
       assignedTo = selectedAssigned;
+      const { data: assigneeProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", assignedTo)
+        .single();
+      if (assigneeProfile?.full_name) {
+        assignedName = assigneeProfile.full_name;
+      }
     }
   }
 
@@ -348,6 +357,8 @@ export async function updateFollowupAction(
       const parsed = JSON.parse(existing.notes.trim());
       parsed.userNotes = notes || "";
       parsed.notes = notes || "";
+      if (contactMethod) parsed.contactMethod = contactMethod;
+      if (reminderSetting) parsed.reminderSetting = reminderSetting;
       notesToSave = JSON.stringify(parsed);
     } catch {
       notesToSave = notes;
@@ -363,24 +374,14 @@ export async function updateFollowupAction(
     status,
     notes: notesToSave,
     assigned_to: assignedTo,
+    assigned_name: assignedName,
     contact_person: contactPerson,
-    contact_method: contactMethod,
-    reminder_setting: reminderSetting,
+    last_follow_up: "Updated",
     updated_at: new Date().toISOString(),
   };
 
   if (clientId && clientId.trim() !== "") {
-    updatePayload.client_id = clientId;
-  }
-
-  // If status is transitioning to Completed
-  if (status === "Completed" && existing.status !== "Completed") {
-    updatePayload.completed_at = new Date().toISOString();
-    updatePayload.completed_by = user.id;
-  } else if (status !== "Completed" && existing.status === "Completed") {
-    // Reopening
-    updatePayload.completed_at = null;
-    updatePayload.completed_by = null;
+    updatePayload.converted_client_id = clientId;
   }
 
   const { error: updateErr } = await supabase
@@ -433,17 +434,33 @@ export async function completeFollowupAction(
 
   const { data: existing } = await supabase
     .from("follow_ups")
-    .select("title, client_id, assigned_to")
+    .select("title, converted_client_id, assigned_to, notes")
     .eq("id", followupId)
     .single();
+
+  let finalNotes = existing?.notes;
+  if (completionNotes) {
+    if (finalNotes && typeof finalNotes === "string" && finalNotes.trim().startsWith("{")) {
+      try {
+        const parsed = JSON.parse(finalNotes.trim());
+        parsed.completionNotes = completionNotes;
+        parsed.completedAt = new Date().toISOString();
+        parsed.completedBy = user.id;
+        finalNotes = JSON.stringify(parsed);
+      } catch {
+        finalNotes = `${finalNotes}\n\n[Completion]: ${completionNotes}`;
+      }
+    } else {
+      finalNotes = finalNotes ? `${finalNotes}\n\n[Completion]: ${completionNotes}` : completionNotes;
+    }
+  }
 
   const { error } = await supabase
     .from("follow_ups")
     .update({
       status: "Completed",
-      completed_at: new Date().toISOString(),
-      completed_by: user.id,
-      completion_notes: completionNotes || null,
+      notes: finalNotes,
+      last_follow_up: "Completed",
       updated_at: new Date().toISOString(),
     })
     .eq("id", followupId);
@@ -460,7 +477,7 @@ export async function completeFollowupAction(
   });
 
   revalidatePath("/follow-ups");
-  if (existing?.client_id) revalidatePath(`/clients/${existing.client_id}`);
+  if (existing?.converted_client_id) revalidatePath(`/clients/${existing.converted_client_id}`);
   revalidatePath("/dashboard");
   return { success: true };
 }
@@ -588,7 +605,7 @@ export async function fetchClientFollowupsAction(clientId: string) {
       *,
       assigned_profile:profiles!assigned_to (id, full_name, email)
     `)
-    .eq("client_id", clientId)
+    .eq("converted_client_id", clientId)
     .order("due_date", { ascending: true });
 
   if (error) return [];
@@ -636,7 +653,7 @@ export async function fetchPendingClientFollowupsAction() {
 
   const { data, error } = await supabase
     .from("follow_ups")
-    .select("client_id, title, follow_up_type, due_date")
+    .select("converted_client_id, title, follow_up_type, due_date")
     .eq("status", "Pending")
     .order("due_date", { ascending: true });
 
@@ -644,11 +661,11 @@ export async function fetchPendingClientFollowupsAction() {
     return {};
   }
 
-  // Map first upcoming followup by client_id
+  // Map first upcoming followup by converted_client_id
   const nextByClient: Record<string, { title: string; dueDate: string }> = {};
   for (const f of data) {
-    if (f.client_id && !nextByClient[f.client_id]) {
-      nextByClient[f.client_id] = {
+    if (f.converted_client_id && !nextByClient[f.converted_client_id]) {
+      nextByClient[f.converted_client_id] = {
         title: f.title || f.follow_up_type || "Follow-up required",
         dueDate: f.due_date,
       };

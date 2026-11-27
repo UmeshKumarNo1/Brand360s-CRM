@@ -6,11 +6,19 @@ import {
   UploadCloud,
   FileText,
   Trash2,
+  Download,
   Loader2,
   FileUp,
+  Zap,
 } from "lucide-react";
 import { uploadClientServiceDocumentAction } from "@/app/actions/documents";
 import { useToast } from "@/components/common/ToastProvider";
+import {
+  useDocumentCompression,
+  DOCUMENT_COMPRESSION_CONFIG,
+  formatBytes,
+} from "@/lib/document-compression";
+import { DocumentCompressionModal } from "@/components/common/DocumentCompressionModal";
 
 interface UploadServiceDeliverableModalProps {
   isOpen: boolean;
@@ -39,6 +47,7 @@ export function UploadServiceDeliverableModal({
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { success, error: toastError, info } = useToast();
+  const { requestCompression, compressionModalProps } = useDocumentCompression();
 
   // Smartly suggest default deliverable type based on service name
   useEffect(() => {
@@ -74,16 +83,30 @@ export function UploadServiceDeliverableModal({
 
   if (!isOpen) return null;
 
-  const handleFilesAdded = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+  const handleFilesAdded = async (files: File[] | FileList | null) => {
+    if (!files) return;
+    const fileList = Array.from(files);
+    if (fileList.length === 0) return;
 
-    const newItems: { file: File; previewUrl?: string; id: string }[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (file.size > 15 * 1024 * 1024) {
-        toastError("File too large", `${file.name} exceeds 15MB limit.`);
+    // Validate against maximum upload limit (100 MB)
+    const maxSizeBytes = DOCUMENT_COMPRESSION_CONFIG.uploadLimits.maxOriginalSizeBytes;
+    const validFiles: File[] = [];
+    for (const file of fileList) {
+      if (file.size > maxSizeBytes) {
+        toastError("File too large", `${file.name} exceeds maximum limit of ${formatBytes(maxSizeBytes)}.`);
         continue;
       }
+      validFiles.push(file);
+    }
+
+    if (validFiles.length === 0) return;
+
+    // Request compression confirmation and processing
+    const compressed = await requestCompression(validFiles);
+    if (!compressed || compressed.length === 0) return;
+
+    const newItems: { file: File; previewUrl?: string; id: string }[] = [];
+    for (const file of compressed) {
       const isImg = file.type.startsWith("image/");
       const previewUrl = isImg ? URL.createObjectURL(file) : undefined;
       newItems.push({
@@ -104,6 +127,17 @@ export function UploadServiceDeliverableModal({
     });
   };
 
+  const handleDownloadFile = (file: File) => {
+    const url = URL.createObjectURL(file);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = file.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const handleDragOver = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.stopPropagation();
@@ -120,12 +154,17 @@ export function UploadServiceDeliverableModal({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    handleFilesAdded(e.dataTransfer.files);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const files = Array.from(e.dataTransfer.files);
+      handleFilesAdded(files);
+    }
   };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    handleFilesAdded(e.target.files);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (!e.target.files || e.target.files.length === 0) return;
+    const files = Array.from(e.target.files);
+    e.target.value = "";
+    handleFilesAdded(files);
   };
 
   const handleUploadSubmit = async () => {
@@ -136,6 +175,7 @@ export function UploadServiceDeliverableModal({
 
     setIsUploading(true);
     let successCount = 0;
+    let lastError = "";
 
     for (const item of selectedFiles) {
       try {
@@ -148,8 +188,12 @@ export function UploadServiceDeliverableModal({
         const res = await uploadClientServiceDocumentAction(formData);
         if (res.success) {
           successCount++;
+        } else if (res.error) {
+          lastError = res.error;
+          console.error("Upload action error:", res.error);
         }
-      } catch (err) {
+      } catch (err: any) {
+        lastError = err?.message || "Upload network failure";
         console.error("Upload error for file:", item.file.name, err);
       }
     }
@@ -164,7 +208,7 @@ export function UploadServiceDeliverableModal({
       if (onSuccess) onSuccess();
       onClose();
     } else {
-      toastError("Upload Failed", "Could not upload deliverable documents. Please try again.");
+      toastError("Upload Failed", lastError || "Could not upload deliverable documents. Please try again.");
     }
   };
 
@@ -237,9 +281,15 @@ export function UploadServiceDeliverableModal({
 
           {/* Simple Dropzone */}
           <div>
-            <label className="block font-semibold text-slate-700 mb-1">
-              Select Certificate Image or PDF *
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block font-semibold text-slate-700">
+                Select Certificate Image or PDF *
+              </label>
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold text-[10px]">
+                <Zap size={10} className="text-emerald-600 fill-emerald-600" />
+                <span>Auto-Compression Active</span>
+              </span>
+            </div>
             <div
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -268,7 +318,7 @@ export function UploadServiceDeliverableModal({
                   <span className="text-[#0481A2] underline font-bold">browse</span>
                 </p>
                 <p className="text-[10px] text-slate-400 mt-0.5">
-                  Supports PNG, JPG, WEBP, SVG or PDF (up to 15MB each)
+                  PNG, JPG, WEBP, or PDF • Automatic document compression active
                 </p>
               </div>
             </div>
@@ -309,14 +359,24 @@ export function UploadServiceDeliverableModal({
                         </p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile(item.id)}
-                      className="p-1 text-slate-400 hover:text-rose-600 rounded transition-colors cursor-pointer"
-                      title="Remove file"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadFile(item.file)}
+                        className="p-1.5 text-slate-500 hover:text-[#0481A2] hover:bg-sky-50 rounded-lg transition-colors cursor-pointer"
+                        title="Download document"
+                      >
+                        <Download size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(item.id)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="Delete document"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -362,6 +422,9 @@ export function UploadServiceDeliverableModal({
           </div>
         </div>
       </div>
+
+      {/* Global Document Compression Confirmation, Progress & Result Dialog */}
+      <DocumentCompressionModal {...compressionModalProps} />
     </div>
   );
 }

@@ -29,6 +29,7 @@ import {
   FolderOpen,
   Award,
   Edit,
+  Loader2,
 } from "lucide-react";
 import { formatINR, cn } from "@/lib/utils";
 import { DetailedServiceData } from "@/app/actions/client-detailed-services";
@@ -39,6 +40,8 @@ import { TargetDateCell } from "@/components/services/TargetDateCell";
 import { PortalDropdown } from "@/components/common/PortalDropdown";
 import { ServiceFinancialHistoryModal } from "@/components/services/ServiceFinancialHistoryModal";
 import { ServiceActivityHistoryModal } from "@/components/services/ServiceActivityHistoryModal";
+import { deleteClientDocumentAction } from "@/app/actions/documents";
+import { useToast } from "@/components/common/ToastProvider";
 
 interface ClientDetailedServiceCardProps {
   service: DetailedServiceData;
@@ -86,6 +89,43 @@ export function ClientDetailedServiceCard({
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [deletingDocId, setDeletingDocId] = useState<string | null>(null);
+  const { success, error: toastError } = useToast();
+
+  const handleDownloadDocument = async (url: string, fileName: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(url, "_blank");
+    }
+  };
+
+  const handleDeleteDocument = async (docId: string, docName: string) => {
+    if (!confirm(`Are you sure you want to delete "${docName}"?`)) return;
+    setDeletingDocId(docId);
+    try {
+      const res = await deleteClientDocumentAction(docId, service.clientId);
+      if (res.success) {
+        success("Document Deleted", `${docName} has been deleted.`);
+        if (onRefresh) onRefresh();
+      } else {
+        toastError("Delete Failed", res.error || "Could not delete document.");
+      }
+    } catch {
+      toastError("Delete Failed", "An unexpected error occurred.");
+    } finally {
+      setDeletingDocId(null);
+    }
+  };
 
   // Compute fulfillment milestone stages from actual persisted service stages and progress
   const fulfillment = computeServiceFulfillment({
@@ -666,16 +706,28 @@ export function ClientDetailedServiceCard({
                             Received
                           </span>
                           {doc.fileUrl && (
-                            <a
-                              href={doc.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-1 text-slate-400 hover:text-slate-700"
-                              title="Download"
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadDocument(doc.fileUrl, doc.fileName)}
+                              className="p-1 text-slate-500 hover:text-[#0481A2] hover:bg-sky-50 rounded transition-colors cursor-pointer"
+                              title="Download document"
                             >
                               <Download size={13} />
-                            </a>
+                            </button>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteDocument(doc.id, doc.fileName)}
+                            disabled={deletingDocId === doc.id}
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer disabled:opacity-50"
+                            title="Delete document"
+                          >
+                            {deletingDocId === doc.id ? (
+                              <Loader2 size={13} className="animate-spin text-rose-500" />
+                            ) : (
+                              <Trash2 size={13} />
+                            )}
+                          </button>
                         </div>
                       </div>
                     ))

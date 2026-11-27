@@ -387,9 +387,6 @@ export async function assignClientServiceAction(
       ? Math.max(0, Math.round((enteredPackageAmount - govtFee) * 100) / 100)
       : enteredPackageAmount;
   const netProfessionalFee = serviceFee;
-  const discountPct = Math.max(0, Math.min(100, parseFloat(formData.get("discount_percentage") as string) || 0));
-  const discountAmount = Math.round(serviceFee * (discountPct / 100) * 100) / 100;
-  const discountedServiceFee = Math.max(0, Math.round((serviceFee - discountAmount) * 100) / 100);
   const startDate = (formData.get("start_date") as string) || null;
   const rawExpectedCompletion = (formData.get("expected_completion_date") as string) || null;
   // Enforce working day only for target delivery date
@@ -412,8 +409,8 @@ export async function assignClientServiceAction(
     return { error: "Client and service name are required." };
   }
 
-  const taxableBase = Math.round((discountedServiceFee + govtFee) * 100) / 100;
-  const taxAmount = Math.round(((taxableBase * taxRate) / 100) * 100) / 100;
+  const totalAmount = serviceFee + govtFee;
+  const taxAmount = Math.round(((serviceFee * taxRate) / 100) * 100) / 100;
 
   // Determine initial workflow stages
   const stageNames = getServiceFulfillmentPreset(serviceName, serviceCategory, workflowPreset);
@@ -445,12 +442,8 @@ export async function assignClientServiceAction(
       govt_fee: govtFee,
       pricing_mode: pricingMode,
       net_professional_fee: netProfessionalFee,
-      discount: discountAmount,
-      discount_approved_pct: discountPct,
-      discount_requested_pct: discountPct,
-      discount_status: discountPct > 0 ? "Approved" : "Not Requested",
       tax_amount: taxAmount,
-      total_amount: Math.round((discountedServiceFee + govtFee) * 100) / 100,
+      total_amount: totalAmount,
       tax_rate: taxRate,
       workflow_preset: resolvedWorkflowPreset,
       fulfillment_stages: initialStages,
@@ -493,14 +486,13 @@ export async function assignClientServiceAction(
 
   // Feature: Auto-generate invoice for this service deliverable with correct GST-exclusive billing
   let generatedInvoiceId: string | null = null;
-  if (taxableBase > 0 && newClientService?.id) {
+  if (totalAmount > 0 && newClientService?.id) {
     try {
       const invRes = await autoGenerateInvoiceForClientAction(clientId, {
         serviceName,
         clientServiceId: newClientService.id,
-        serviceFee: discountedServiceFee,
+        serviceFee,
         govtFee,
-        discountAmount,
         taxRate,
         isEligiblePureAgent: true,
         description: `${serviceName} - Professional Deliverable`,

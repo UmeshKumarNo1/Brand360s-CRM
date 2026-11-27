@@ -46,12 +46,21 @@ export async function fetchExistingEntityIdsAction() {
   if (!isSupabaseConfigured()) return [];
   try {
     const supabase = await createClient();
-    const { data } = await supabase
-      .from("clients")
-      .select("entity_id")
-      .not("entity_id", "is", null)
+    const { data: followups } = await supabase
+      .from("follow_ups")
+      .select("notes, company_name")
       .limit(10000);
-    return (data || []).map((c) => c.entity_id).filter(Boolean);
+
+    const ids = [];
+    (followups || []).forEach((f) => {
+      try {
+        if (f.notes && f.notes.startsWith("{")) {
+          const parsed = JSON.parse(f.notes);
+          if (parsed.entityId) ids.push(parsed.entityId);
+        }
+      } catch {}
+    });
+    return ids;
   } catch (err) {
     console.error("Error fetching existing entity IDs:", err);
     return [];
@@ -114,32 +123,50 @@ export async function previewLeadsFileAction(formData) {
     const { sheetNames, activeSheetName, headers, rawRows } = parseExcelWorkbook(buffer, sheetName);
     const { totalRawRows, uniqueCompanies, groupedLeads, invalidRows } = groupAndValidateLeads(rawRows);
 
-    // Check duplicate entity IDs against database
+    // Check duplicate entity IDs and company names against follow_ups and clients
     const supabase = await createClient();
     let existingEntityMap = new Set();
+    let existingCompanyMap = new Set();
+
     try {
-      const { data: matchedClients } = await supabase
-        .from("clients")
-        .select("entity_id")
-        .not("entity_id", "is", null)
+      const { data: followups } = await supabase
+        .from("follow_ups")
+        .select("company_name, notes")
         .limit(10000);
 
-      if (matchedClients) {
-        matchedClients.forEach((c) => {
-          if (c.entity_id) existingEntityMap.add(c.entity_id.trim().toUpperCase());
-        });
-      }
+      (followups || []).forEach((f) => {
+        if (f.company_name) existingCompanyMap.add(f.company_name.trim().toLowerCase());
+        try {
+          if (f.notes && f.notes.startsWith("{")) {
+            const p = JSON.parse(f.notes);
+            if (p.entityId) existingEntityMap.add(p.entityId.trim().toUpperCase());
+          }
+        } catch {}
+      });
+
+      const { data: clients } = await supabase
+        .from("clients")
+        .select("company_name")
+        .limit(10000);
+
+      (clients || []).forEach((c) => {
+        if (c.company_name) existingCompanyMap.add(c.company_name.trim().toLowerCase());
+      });
     } catch (err) {
-      console.warn("Could not query existing clients for preview duplicate check:", err.message);
+      console.warn("Could not query existing records for preview duplicate check:", err.message);
     }
 
     const previewList = groupedLeads.slice(0, 25).map((lead) => ({
       ...lead,
-      isDuplicate: lead.entityId ? existingEntityMap.has(lead.entityId.toUpperCase()) : false,
+      isDuplicate:
+        (lead.entityId && existingEntityMap.has(lead.entityId.toUpperCase())) ||
+        (lead.name && existingCompanyMap.has(lead.name.toLowerCase())),
     }));
 
-    const duplicatesCount = groupedLeads.filter((l) =>
-      l.entityId ? existingEntityMap.has(l.entityId.toUpperCase()) : false
+    const duplicatesCount = groupedLeads.filter(
+      (l) =>
+        (l.entityId && existingEntityMap.has(l.entityId.toUpperCase())) ||
+        (l.name && existingCompanyMap.has(l.name.toLowerCase()))
     ).length;
 
     return {
@@ -162,6 +189,8 @@ export async function previewLeadsFileAction(formData) {
 
 /**
  * Execute Excel/CSV bulk import
+ * CRITICAL WORKFLOW: Saves records directly to `follow_ups` table.
+ * NEVER writes to `clients` table, keeping Clients and Leads 100% separate.
  */
 export async function executeLeadsImportAction(formData) {
   const file = formData.get("file");
@@ -175,7 +204,7 @@ export async function executeLeadsImportAction(formData) {
       })();
   const initialFollowupType = formData.get("initialFollowupType")
     ? String(formData.get("initialFollowupType"))
-    : "Call";
+    : "Phone Call";
 
   if (!file) {
     return { success: false, error: "Please select an Excel or CSV file to import." };
@@ -198,7 +227,7 @@ export async function executeLeadsImportAction(formData) {
       return { success: false, error: "No valid company leads found in the uploaded file." };
     }
 
-    // 1. Fetch active salespersons for round robin
+    // 1. Fetch active salespersons for continuous round robin
     const salespeople = await fetchActiveSalespeopleAction();
     if (salespeople.length === 0) {
       return {
@@ -212,19 +241,31 @@ export async function executeLeadsImportAction(formData) {
     let existingCompanySet = new Set();
 
     try {
-      const { data: existingLeads } = await supabase
-        .from("clients")
-        .select("entity_id, company_name")
+      const { data: followups } = await supabase
+        .from("follow_ups")
+        .select("company_name, notes")
         .limit(10000);
 
-      if (existingLeads) {
-        existingLeads.forEach((c) => {
-          if (c.entity_id) existingEntitySet.add(c.entity_id.trim().toUpperCase());
-          if (c.company_name) existingCompanySet.add(c.company_name.trim().toLowerCase());
-        });
-      }
+      (followups || []).forEach((f) => {
+        if (f.company_name) existingCompanySet.add(f.company_name.trim().toLowerCase());
+        try {
+          if (f.notes && f.notes.startsWith("{")) {
+            const p = JSON.parse(f.notes);
+            if (p.entityId) existingEntitySet.add(p.entityId.trim().toUpperCase());
+          }
+        } catch {}
+      });
+
+      const { data: existingClients } = await supabase
+        .from("clients")
+        .select("company_name")
+        .limit(10000);
+
+      (existingClients || []).forEach((c) => {
+        if (c.company_name) existingCompanySet.add(c.company_name.trim().toLowerCase());
+      });
     } catch (err) {
-      console.warn("Could not query existing leads for duplicate check:", err.message);
+      console.warn("Could not query existing records for duplicate check:", err.message);
     }
 
     // 3. Continuous round robin pointer
@@ -285,9 +326,8 @@ export async function executeLeadsImportAction(formData) {
       };
     }
 
-    // 4. Batch insert leads into clients table in chunks of 50
+    // 4. Batch insert leads directly into follow_ups table (NEVER clients table)
     let leadsCreatedCount = 0;
-    let followupsCreatedCount = 0;
     const batchId = crypto.randomUUID();
     const BATCH_SIZE = 50;
 
@@ -295,130 +335,74 @@ export async function executeLeadsImportAction(formData) {
       const chunk = leadsToInsert.slice(i, i + BATCH_SIZE);
       const payloads = chunk.map((item) => {
         const lead = item.leadData;
-        return {
-          company_name: lead.name,
-          company_type: lead.entityType || "Private Limited (Pvt Ltd)",
-          contact_person: lead.contactPerson || lead.name,
-          email: lead.email || null,
-          phone: lead.phone || "+91 0000000000",
-          address: lead.registeredAddress || lead.city || "Not provided",
-          city: lead.city || "Not specified",
-          state: lead.state || "Tamil Nadu",
-          pincode: "600001",
-          country: "India",
-          assigned_salesperson: item.assignedSalespersonId,
-          client_status: "Lead",
-          is_lead: true,
-          lead_status: "New",
-          lead_source: "Excel Import",
-          entity_id: lead.entityId || null,
-          entity_type: lead.entityType || null,
+        const notesObj = {
+          entityId: lead.entityId || null,
+          entityType: lead.entityType || null,
           district: lead.district || null,
           roc: lead.roc || null,
-          nic_code: lead.nicCode || null,
-          nic_label: lead.nicLabel || null,
-          date_of_incorporation: lead.dateOfIncorporation || null,
-          paid_up_capital: lead.paidUpCapital || 0,
-          authorized_capital: lead.authorizedCapital || 0,
-          class_of_company: lead.classOfCompany || null,
-          falcon_status: lead.falcon_status || null,
+          nicCode: lead.nicCode || null,
+          nicLabel: lead.nicLabel || null,
+          dateOfIncorporation: lead.dateOfIncorporation || null,
+          paidUpCapital: lead.paidUpCapital || 0,
+          authorizedCapital: lead.authorizedCapital || 0,
+          classOfCompany: lead.classOfCompany || null,
+          falconStatus: lead.falcon_status || null,
+          city: lead.city || null,
+          state: lead.state || null,
+          address: lead.registeredAddress || null,
+          email: lead.email || null,
           directors: lead.directors || [],
-          additional_contacts: lead.directors || [],
-          import_batch_id: batchId,
+          importSource: file.name,
+          batchId: batchId,
+        };
+
+        return {
+          company_name: lead.name,
+          contact_person: lead.contactPerson || lead.name,
+          phone: lead.phone || "",
+          service_interested: lead.nicLabel || lead.entityType || "Company Lead",
+          title: `Lead Outreach - ${lead.name}`,
+          follow_up_type: initialFollowupType || "Phone Call",
+          priority: "Medium",
+          status: "Pending",
+          due_date: initialFollowupDate,
+          last_follow_up: "Imported",
+          assigned_to: item.assignedSalespersonId,
+          assigned_name: item.assignedSalespersonName,
+          notes: JSON.stringify(notesObj),
           created_by: currentUserId,
-          notes: `Imported from ${file.name}. ROC: ${lead.roc || "-"}, NIC: ${lead.nicLabel || "-"}.`,
+          converted_client_id: null,
         };
       });
 
-      const { data: insertedClients, error: insertErr } = await supabase
-        .from("clients")
+      const { data: insertedFollowups, error: insertErr } = await supabase
+        .from("follow_ups")
         .insert(payloads)
-        .select("id, assigned_salesperson, company_name, contact_person, entity_id");
+        .select("id");
 
-      if (insertErr || !insertedClients) {
-        // Fallback row-by-row with basic columns if table doesn't have new columns
-        for (const item of chunk) {
-          const lead = item.leadData;
-          const fallbackPayload = {
-            company_name: lead.name,
-            company_type: lead.entityType || "Private Limited (Pvt Ltd)",
-            contact_person: lead.contactPerson || lead.name,
-            email: lead.email || null,
-            phone: lead.phone || "+91 0000000000",
-            address: lead.registeredAddress || lead.city || "Not provided",
-            city: lead.city || "Not specified",
-            state: lead.state || "Tamil Nadu",
-            pincode: "600001",
-            country: "India",
-            assigned_salesperson: item.assignedSalespersonId,
-            client_status: "Pending Onboarding",
-            additional_contacts: lead.directors || [],
-            created_by: currentUserId,
-            notes: `[LEAD: ${lead.entityId || "NoID"}] Imported from ${file.name}. Directors: ${lead.directors.length}`,
-          };
-          const { data: fbClient, error: fbErr } = await supabase
-            .from("clients")
-            .insert(fallbackPayload)
-            .select("id")
-            .single();
-
-          if (fbErr || !fbClient) {
+      if (insertErr) {
+        console.error("Batch insert into follow_ups failed, falling back row-by-row:", insertErr.message);
+        for (const p of payloads) {
+          const { error: singleErr } = await supabase.from("follow_ups").insert(p);
+          if (!singleErr) {
+            leadsCreatedCount++;
+          } else {
             skippedRecords.push({
-              companyName: lead.name,
-              entityId: lead.entityId,
-              reason: `Insert error: ${fbErr?.message || insertErr.message}`,
+              companyName: p.company_name,
+              reason: singleErr.message,
             });
-            continue;
           }
-
-          leadsCreatedCount++;
-          await supabase.from("follow_ups").insert({
-            client_id: fbClient.id,
-            assigned_to: item.assignedSalespersonId,
-            title: `Initial Contact - ${lead.name}`,
-            follow_up_type: initialFollowupType || "Call",
-            due_date: initialFollowupDate,
-            priority: "Medium",
-            status: "Pending",
-            contact_person: lead.contactPerson || lead.name,
-            contact_method: "Phone",
-            created_by: currentUserId,
-            notes: `Lead imported from ${file.name}. Initial outreach assigned via Round-Robin.`,
-          });
-          followupsCreatedCount++;
         }
       } else {
-        leadsCreatedCount += insertedClients.length;
-
-        // Bulk insert follow-ups for this chunk
-        const followUpPayloads = insertedClients.map((client) => ({
-          client_id: client.id,
-          assigned_to: client.assigned_salesperson,
-          title: `Initial Contact - ${client.company_name}`,
-          follow_up_type: initialFollowupType || "Call",
-          due_date: initialFollowupDate,
-          priority: "Medium",
-          status: "Pending",
-          contact_person: client.contact_person || client.company_name,
-          contact_method: "Phone",
-          created_by: currentUserId,
-          notes: `Lead imported from ${file.name} (Entity ID: ${client.entity_id || "-"}). Initial outreach assigned via Round-Robin.`,
-        }));
-
-        const { error: fErr } = await supabase.from("follow_ups").insert(followUpPayloads);
-        if (!fErr) {
-          followupsCreatedCount += followUpPayloads.length;
-        } else {
-          console.error("Failed to bulk create follow-ups:", fErr.message);
-        }
+        leadsCreatedCount += (insertedFollowups || []).length;
       }
     }
 
-    // 6. Persist continuous round-robin pointer
+    // 5. Persist continuous round-robin pointer
     const lastAssignedSalespersonId = salespeople[pointer]?.id || null;
     await updateRoundRobinPointer(supabase, pointer, lastAssignedSalespersonId);
 
-    // 7. Store import batch record
+    // 6. Store import batch record
     try {
       await supabase.from("lead_import_batches").insert({
         id: batchId,
@@ -428,7 +412,7 @@ export async function executeLeadsImportAction(formData) {
         leads_created: leadsCreatedCount,
         duplicates_skipped: skippedRecords.length - invalidRows.length,
         invalid_rows: invalidRows.length,
-        followups_created: followupsCreatedCount,
+        followups_created: leadsCreatedCount,
         salesperson_distribution: distributionMap,
         failed_records: skippedRecords,
         imported_by: currentUserId,
@@ -449,19 +433,20 @@ export async function executeLeadsImportAction(formData) {
         leadsCreated: leadsCreatedCount,
         duplicatesSkipped: skippedRecords.length - invalidRows.length,
         invalidRows: invalidRows.length,
-        followupsCreated: followupsCreatedCount,
+        followupsCreated: leadsCreatedCount,
         salespersonDistribution: distributionMap,
         skippedRecords,
       },
     };
   } catch (err) {
-    console.error("Critical error executing lead import:", err);
-    return { success: false, error: err.message || "Failed to process lead import." };
+    console.error("Error executing leads import:", err);
+    return { success: false, error: err.message || "Failed to process bulk import." };
   }
 }
 
 /**
- * Fetch unconverted leads for Follow-ups page
+ * Fetch all unconverted leads for Follow-ups page
+ * Queries `follow_ups` table directly where converted_client_id IS NULL
  */
 export async function fetchUnconvertedLeadsAction() {
   if (!isSupabaseConfigured()) {
@@ -469,109 +454,97 @@ export async function fetchUnconvertedLeadsAction() {
   }
 
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
 
-  let query = supabase
-    .from("clients")
+  const { data, error } = await supabase
+    .from("follow_ups")
     .select(`
       id,
-      client_code,
       company_name,
       contact_person,
-      email,
       phone,
-      city,
-      state,
-      address,
-      assigned_salesperson,
-      client_status,
-      is_lead,
-      lead_status,
-      lead_source,
-      entity_id,
-      entity_type,
-      district,
-      roc,
-      nic_code,
-      nic_label,
-      date_of_incorporation,
-      paid_up_capital,
-      authorized_capital,
-      class_of_company,
-      falcon_status,
-      directors,
+      service_interested,
+      title,
+      follow_up_type,
+      priority,
+      status,
+      due_date,
+      due_time,
+      last_follow_up,
+      assigned_to,
+      assigned_name,
+      notes,
       created_at,
-      assigned_profile:profiles!assigned_salesperson (id, full_name, email),
-      follow_ups (
-        id,
-        title,
-        follow_up_type,
-        due_date,
-        due_time,
-        priority,
-        status,
-        notes,
-        created_at
-      )
+      converted_client_id
     `)
-    .or("is_lead.eq.true,client_status.eq.Lead,notes.ilike.%[LEAD:%")
+    .is("converted_client_id", null)
+    .neq("status", "Converted to Client")
     .order("created_at", { ascending: false });
 
-  const { data, error } = await query;
   if (error || !data) {
     console.error("Error fetching unconverted leads:", error);
     return [];
   }
 
-  return data.map((lead) => {
-    const followups = lead.follow_ups || [];
-    const pendingFollowups = followups
-      .filter((f) => f.status === "Pending" || f.status === "In Progress")
-      .sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
-
-    const nextFollowup = pendingFollowups[0] || null;
+  return data.map((item) => {
+    let parsedNotes = {};
+    try {
+      if (item.notes && item.notes.startsWith("{")) {
+        parsedNotes = JSON.parse(item.notes);
+      }
+    } catch {
+      parsedNotes = {};
+    }
 
     return {
-      id: lead.id,
-      clientCode: lead.client_code,
-      companyName: lead.company_name,
-      contactPerson: lead.contact_person,
-      email: lead.email || "-",
-      phone: lead.phone || "-",
-      city: lead.city || "-",
-      state: lead.state || "-",
-      address: lead.address || "-",
-      entityId: lead.entity_id || null,
-      entityType: lead.entity_type || "-",
-      district: lead.district || "-",
-      roc: lead.roc || "-",
-      nicCode: lead.nic_code || "-",
-      nicLabel: lead.nic_label || "-",
-      dateOfIncorporation: lead.date_of_incorporation || null,
-      paidUpCapital: lead.paid_up_capital || 0,
-      authorizedCapital: lead.authorized_capital || 0,
-      classOfCompany: lead.class_of_company || "-",
-      falconStatus: lead.falcon_status || "-",
-      directors: Array.isArray(lead.directors) ? lead.directors : [],
-      leadStatus: lead.lead_status || "New",
-      leadSource: lead.lead_source || "Excel Import",
-      assignedSalespersonId: lead.assigned_salesperson,
-      assignedSalespersonName: lead.assigned_profile?.full_name || "Unassigned",
-      createdAt: lead.created_at,
-      nextFollowupDate: nextFollowup ? nextFollowup.due_date : null,
-      nextFollowupType: nextFollowup ? nextFollowup.follow_up_type : null,
-      nextFollowupStatus: nextFollowup ? nextFollowup.status : null,
-      totalFollowups: followups.length,
-      allFollowups: followups,
+      id: item.id,
+      companyName: item.company_name,
+      contactPerson: item.contact_person,
+      email: parsedNotes.email || "-",
+      phone: item.phone || "-",
+      city: parsedNotes.city || "-",
+      state: parsedNotes.state || "-",
+      address: parsedNotes.address || "-",
+      entityId: parsedNotes.entityId || null,
+      entityType: parsedNotes.entityType || "-",
+      district: parsedNotes.district || "-",
+      roc: parsedNotes.roc || "-",
+      nicCode: parsedNotes.nicCode || "-",
+      nicLabel: parsedNotes.nicLabel || item.service_interested || "-",
+      dateOfIncorporation: parsedNotes.dateOfIncorporation || null,
+      paidUpCapital: parsedNotes.paidUpCapital || 0,
+      authorizedCapital: parsedNotes.authorizedCapital || 0,
+      classOfCompany: parsedNotes.classOfCompany || "-",
+      falconStatus: parsedNotes.falconStatus || "-",
+      directors: Array.isArray(parsedNotes.directors) ? parsedNotes.directors : [],
+      leadStatus: item.status || "New",
+      leadSource: parsedNotes.importSource || "Excel Import",
+      assignedSalespersonId: item.assigned_to,
+      assignedSalespersonName: item.assigned_name || "Unassigned",
+      createdAt: item.created_at,
+      nextFollowupDate: item.due_date,
+      nextFollowupType: item.follow_up_type,
+      nextFollowupStatus: item.status,
+      totalFollowups: 1,
+      allFollowups: [
+        {
+          id: item.id,
+          title: item.title,
+          follow_up_type: item.follow_up_type,
+          due_date: item.due_date,
+          status: item.status,
+          created_at: item.created_at,
+        },
+      ],
     };
   });
 }
 
 /**
  * Manual Lead-to-Client Conversion
+ * Converts a lead record from `follow_ups` table into an Active client in `clients` table.
  */
-export async function convertLeadToClientAction(leadId, completionData) {
-  if (!leadId) {
+export async function convertLeadToClientAction(leadFollowupId, completionData = {}) {
+  if (!leadFollowupId) {
     return { success: false, error: "Lead ID is required for conversion." };
   }
 
@@ -580,83 +553,89 @@ export async function convertLeadToClientAction(leadId, completionData) {
   const currentUserId = user ? user.id : null;
 
   try {
-    const updatePayload = {
-      is_lead: false,
-      lead_status: "Converted",
+    // 1. Fetch the lead from follow_ups
+    const { data: leadRecord, error: fetchErr } = await supabase
+      .from("follow_ups")
+      .select("*")
+      .eq("id", leadFollowupId)
+      .single();
+
+    if (fetchErr || !leadRecord) {
+      return { success: false, error: "Lead record not found in follow-ups." };
+    }
+
+    let parsedNotes = {};
+    try {
+      if (leadRecord.notes && leadRecord.notes.startsWith("{")) {
+        parsedNotes = JSON.parse(leadRecord.notes);
+      }
+    } catch {}
+
+    // 2. Insert into clients table as an Active client
+    const clientPayload = {
+      company_name: completionData.companyName || leadRecord.company_name,
+      company_type: completionData.companyType || parsedNotes.entityType || "Private Limited (Pvt Ltd)",
+      contact_person: completionData.contactPerson || leadRecord.contact_person,
+      email: completionData.email || parsedNotes.email || null,
+      phone: completionData.phone || leadRecord.phone || "+91 0000000000",
+      address: completionData.address || parsedNotes.address || parsedNotes.city || "Not provided",
+      city: completionData.city || parsedNotes.city || "Not specified",
+      state: completionData.state || parsedNotes.state || "Tamil Nadu",
+      pincode: completionData.pincode || "600001",
+      country: "India",
       client_status: "Active",
-      converted_at: new Date().toISOString(),
-      converted_by: currentUserId,
-      updated_at: new Date().toISOString(),
+      assigned_salesperson: completionData.assignedSalespersonId || leadRecord.assigned_to,
+      additional_contacts: parsedNotes.directors || [],
+      created_by: currentUserId,
+      notes: `Converted from lead. Entity ID: ${parsedNotes.entityId || "-"}. ROC: ${parsedNotes.roc || "-"}.`,
     };
 
-    if (completionData) {
-      if (completionData.companyName) updatePayload.company_name = completionData.companyName.trim();
-      if (completionData.contactPerson) updatePayload.contact_person = completionData.contactPerson.trim();
-      if (completionData.phone) updatePayload.phone = completionData.phone.trim();
-      if (completionData.email) updatePayload.email = completionData.email.trim();
-      if (completionData.address) updatePayload.address = completionData.address.trim();
-      if (completionData.city) updatePayload.city = completionData.city.trim();
-      if (completionData.state) updatePayload.state = completionData.state.trim();
-      if (completionData.pincode) updatePayload.pincode = completionData.pincode.trim();
-      if (completionData.gstNumber) updatePayload.gst_number = completionData.gstNumber.trim();
-      if (completionData.panNumber) updatePayload.pan_number = completionData.panNumber.trim();
-    }
+    if (completionData.gstNumber) clientPayload.gst_number = completionData.gstNumber;
+    if (completionData.panNumber) clientPayload.pan_number = completionData.panNumber;
 
-    const { error: updErr } = await supabase
+    const { data: newClient, error: clientInsertErr } = await supabase
       .from("clients")
-      .update(updatePayload)
-      .eq("id", leadId);
+      .insert(clientPayload)
+      .select("id")
+      .single();
 
-    if (updErr) {
-      // Fallback update without new columns
-      console.warn("Update with new columns failed, attempting fallback:", updErr.message);
-      const fallbackPayload = {
-        client_status: "Active",
-        updated_at: new Date().toISOString(),
-      };
-      if (completionData?.address) fallbackPayload.address = completionData.address;
-      if (completionData?.pincode) fallbackPayload.pincode = completionData.pincode;
-
-      const { error: fbErr } = await supabase
-        .from("clients")
-        .update(fallbackPayload)
-        .eq("id", leadId);
-
-      if (fbErr) {
-        return { success: false, error: fbErr.message };
-      }
+    if (clientInsertErr || !newClient) {
+      return { success: false, error: `Failed to create client record: ${clientInsertErr?.message}` };
     }
 
-    // Add conversion record to follow-up history
-    await supabase.from("follow_ups").insert({
-      client_id: leadId,
-      assigned_to: currentUserId || "00000000-0000-0000-0000-000000000001",
-      title: "Lead Converted to Client",
-      follow_up_type: "General",
-      due_date: new Date().toISOString().split("T")[0],
-      priority: "High",
-      status: "Completed",
-      completed_at: new Date().toISOString(),
-      completed_by: currentUserId,
-      completion_notes: "Successfully converted from Lead to full Active Client.",
-      notes: "Lead conversion finalized. Now accessible from the Clients portfolio.",
-    });
+    // 3. Mark the follow-up record as converted with reference to the new client
+    const { error: updateErr } = await supabase
+      .from("follow_ups")
+      .update({
+        status: "Converted to Client",
+        converted_client_id: newClient.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", leadFollowupId);
+
+    if (updateErr) {
+      console.warn("Could not update follow-up conversion status:", updateErr.message);
+    }
 
     revalidatePath("/clients");
     revalidatePath("/follow-ups");
 
-    return { success: true };
+    return {
+      success: true,
+      clientId: newClient.id,
+      companyName: clientPayload.company_name,
+    };
   } catch (err) {
     console.error("Error converting lead to client:", err);
-    return { success: false, error: err.message || "Failed to convert lead." };
+    return { success: false, error: err.message || "Failed to convert lead to client." };
   }
 }
 
 /**
- * Log call outcome, update lead status, or schedule next follow-up
+ * Update follow-up activity / call outcome
  */
 export async function updateLeadFollowupActivityAction(payload) {
-  const { leadId, leadStatus, callOutcome, notes, nextDueDate, nextDueType } = payload;
+  const { leadId, outcome, notes, nextDate, nextType } = payload || {};
   if (!leadId) {
     return { success: false, error: "Lead ID required." };
   }
@@ -665,43 +644,35 @@ export async function updateLeadFollowupActivityAction(payload) {
   const { data: { user } } = await supabase.auth.getUser();
 
   try {
-    // 1. Update lead status if changed
-    if (leadStatus) {
-      await supabase
-        .from("clients")
-        .update({ lead_status: leadStatus, updated_at: new Date().toISOString() })
-        .eq("id", leadId);
+    const updateData = {
+      last_follow_up: outcome || "Contacted",
+      updated_at: new Date().toISOString(),
+    };
+    if (nextDate) updateData.due_date = nextDate;
+    if (nextType) updateData.follow_up_type = nextType;
+
+    const { data: existing } = await supabase
+      .from("follow_ups")
+      .select("notes, status")
+      .eq("id", leadId)
+      .single();
+
+    if (existing) {
+      try {
+        let parsed = existing.notes && existing.notes.startsWith("{") ? JSON.parse(existing.notes) : {};
+        parsed.history = parsed.history || [];
+        parsed.history.push({
+          date: new Date().toISOString(),
+          outcome: outcome || "Contacted",
+          notes: notes || "",
+          nextDate: nextDate || null,
+          recordedBy: user ? user.email : "Agent",
+        });
+        updateData.notes = JSON.stringify(parsed);
+      } catch {}
     }
 
-    // 2. Complete previous open follow-up or add activity record
-    const today = new Date().toISOString().split("T")[0];
-    await supabase.from("follow_ups").insert({
-      client_id: leadId,
-      assigned_to: user ? user.id : "00000000-0000-0000-0000-000000000001",
-      title: callOutcome ? `Call Outcome: ${callOutcome}` : "Follow-up Log",
-      follow_up_type: "Call",
-      due_date: today,
-      priority: "Medium",
-      status: "Completed",
-      completed_at: new Date().toISOString(),
-      completed_by: user ? user.id : null,
-      completion_notes: notes || "Call completed with lead.",
-      notes: notes,
-    });
-
-    // 3. Schedule next follow-up if requested
-    if (nextDueDate) {
-      await supabase.from("follow_ups").insert({
-        client_id: leadId,
-        assigned_to: user ? user.id : "00000000-0000-0000-0000-000000000001",
-        title: `Next Follow-up - ${nextDueType || "Call"}`,
-        follow_up_type: nextDueType || "Call",
-        due_date: nextDueDate,
-        priority: "Medium",
-        status: "Pending",
-        notes: `Scheduled next contact. Outcome of prior call: ${callOutcome || "-"}`,
-      });
-    }
+    await supabase.from("follow_ups").update(updateData).eq("id", leadId);
 
     revalidatePath("/follow-ups");
     return { success: true };
@@ -724,5 +695,3 @@ export async function downloadSkippedRecordsBufferAction(skippedRecords) {
     return { success: false, error: err.message };
   }
 }
-
-

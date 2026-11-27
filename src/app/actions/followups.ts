@@ -33,6 +33,8 @@ export interface FollowupItem {
   completedByName?: string | null;
   reminderSetting?: string | null;
   contactMethod?: string | null;
+  phone?: string | null;
+  hasActivityLogged?: boolean;
   isOverdue: boolean;
   overdueDays: number;
 }

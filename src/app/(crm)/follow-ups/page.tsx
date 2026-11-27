@@ -855,6 +855,10 @@ export default function FollowupsPage() {
           onComplete={(f) => {
             setCompletingFollowup(f);
           }}
+          onConvert={(leadToConvert) => {
+            setViewingFollowup(null);
+            setSelectedLeadForConvert(leadToConvert);
+          }}
         />
       )}
 

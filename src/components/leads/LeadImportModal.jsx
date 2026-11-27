@@ -153,13 +153,25 @@ export function LeadImportModal({ isOpen, onClose, onSuccess }) {
     formData.append("initialFollowupType", initialFollowupType);
 
     try {
-      const res = await executeLeadsImportAction(formData);
-      if (res.success) {
+      // Use Route Handler to support large spreadsheets without Next.js Server Action 1MB limit
+      let res;
+      try {
+        const response = await fetch("/api/leads/import", {
+          method: "POST",
+          body: formData,
+        });
+        res = await response.json();
+      } catch (fetchErr) {
+        console.warn("API route import failed, falling back to Server Action:", fetchErr);
+        res = await executeLeadsImportAction(formData);
+      }
+
+      if (res && res.success) {
         setImportReport(res.report);
         success("Import Complete", `Successfully created ${res.report.leadsCreated} new leads and follow-ups.`);
         if (onSuccess) onSuccess();
       } else {
-        toastError("Import Failed", res.error || "Error importing leads.");
+        toastError("Import Failed", res?.error || "Error importing leads.");
       }
     } catch (err) {
       toastError("Import Error", err.message || "Failed to execute import.");
@@ -307,11 +319,10 @@ export function LeadImportModal({ isOpen, onClose, onSuccess }) {
                     if (e.dataTransfer.files?.[0]) handleFileSelected(e.dataTransfer.files[0]);
                   }}
                   onClick={() => fileInputRef.current?.click()}
-                  className={`p-10 border-2 border-dashed rounded-2xl text-center cursor-pointer transition-all ${
-                    isDragging
+                  className={`p-10 border-2 border-dashed rounded-2xl text-center cursor-pointer transition-all ${isDragging
                       ? "border-[#0481A2] bg-[#0481A2]/5"
                       : "border-slate-300 hover:border-[#0481A2] hover:bg-slate-50/60"
-                  }`}
+                    }`}
                 >
                   <input
                     ref={fileInputRef}

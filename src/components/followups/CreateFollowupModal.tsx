@@ -32,6 +32,9 @@ interface FollowupModalProps {
   initialData?: any | null;
   defaultClientId?: string;
   defaultClientName?: string;
+  defaultContactPerson?: string;
+  defaultPhone?: string;
+  defaultAssignedTo?: string;
   isAdmin?: boolean;
 }
 
@@ -43,6 +46,9 @@ export function CreateFollowupModal({
   initialData,
   defaultClientId,
   defaultClientName,
+  defaultContactPerson,
+  defaultPhone,
+  defaultAssignedTo,
   isAdmin = false,
 }: FollowupModalProps) {
   const isEdit = mode === "edit" && !!initialData?.id;
@@ -80,10 +86,10 @@ export function CreateFollowupModal({
       const cId = initialData?.clientId || initialData?.client_id || defaultClientId || "";
       setSelectedClientId(cId);
 
-      const aId = initialData?.assignedToId || initialData?.assigned_to || "";
+      const aId = initialData?.assignedToId || initialData?.assigned_to || defaultAssignedTo || "";
       setSelectedAssignedTo(aId);
     }
-  }, [isOpen, initialData, defaultClientId]);
+  }, [isOpen, initialData, defaultClientId, defaultAssignedTo]);
 
   // Handle successful submission
   useEffect(() => {
@@ -138,7 +144,7 @@ export function CreateFollowupModal({
     }
   }
 
-  const resolvedContactPerson = initialData?.contactPerson || initialData?.contact_person || "";
+  const resolvedContactPerson = initialData?.contactPerson || initialData?.contact_person || defaultContactPerson || "";
   const resolvedContactMethod = initialData?.contactMethod || initialData?.contact_method || "Phone";
   const resolvedReminder = initialData?.reminderSetting || initialData?.reminder_setting || "none";
   const leadCompanyName =

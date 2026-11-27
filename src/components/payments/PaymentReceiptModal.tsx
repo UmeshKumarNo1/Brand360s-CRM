@@ -295,221 +295,258 @@ export function PaymentReceiptModal({
             /* Printable A4 Container */
             <div
               ref={printRef}
-              className="bg-white rounded-2xl shadow-sm border border-slate-200/90 p-6 sm:p-8 w-full max-w-2xl text-slate-800 font-sans relative"
-              style={{ minHeight: "680px" }}
+              className="bg-white rounded-2xl shadow-sm border border-slate-200/90 w-full max-w-2xl text-slate-800 font-sans relative flex flex-col justify-between h-auto self-start"
             >
-              {/* Header: Company & Receipt Title */}
-              <div className="flex justify-between items-start border-b border-slate-100 pb-5">
-                <div>
-                  <div className="mb-2">
-                    <img
-                      src={BRAND_LOGO_BASE64 || "/logo.webp"}
-                      alt="BRAND 360s"
-                      className="h-11 sm:h-12 w-auto object-contain"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = "/logo.webp";
-                      }}
-                    />
-                  </div>
-                  <p className="text-[11px] font-semibold text-slate-700 mt-1 max-w-xs leading-snug">
-                    {company.name}
-                  </p>
-                  <p className="text-[10px] text-slate-500 max-w-xs mt-0.5 leading-tight">
-                    {company.address}
-                  </p>
-                  {company.gstin && (
-                    <p className="text-[10px] font-mono text-slate-500 mt-1">
-                      <strong>GSTIN:</strong> {company.gstin}
-                    </p>
-                  )}
-                </div>
-
-                <div className="text-right">
-                  <div className="inline-block px-3 py-1 rounded-lg bg-sky-50 text-[#243E76] font-extrabold text-xs uppercase tracking-wider border border-[#077EA1]/20">
-                    Payment Receipt
-                  </div>
-                  <div className="text-lg font-extrabold text-slate-900 font-mono mt-2">
-                    {receipt.receiptNumber}
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    <strong>Issue Date:</strong> {receipt.paymentDate}
-                  </p>
-                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                    Ref: {receipt.transactionRef || "N/A"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Client & Payment Info Grid */}
-              <div className="grid grid-cols-2 gap-4 py-4 border-b border-slate-100 text-xs">
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-1">
-                    Received From:
-                  </span>
-                  <p className="font-extrabold text-slate-900 text-sm leading-snug">
-                    {receipt.client?.companyName}
-                  </p>
-                  <p className="text-[11px] text-slate-600 mt-0.5">
-                    Code: <strong className="font-mono text-slate-800">{receipt.client?.clientCode}</strong>
-                  </p>
-                  {receipt.client?.contactPerson && (
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Attn: {receipt.client.contactPerson}
-                    </p>
-                  )}
-                  {receipt.client?.email && (
-                    <p className="text-[11px] text-slate-500">{receipt.client.email}</p>
-                  )}
-                  {receipt.client?.gstin && (
-                    <p className="text-[10px] font-mono text-slate-500 mt-0.5">
-                      GSTIN: {receipt.client.gstin}
-                    </p>
-                  )}
-                </div>
-
-                <div className="text-right">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block mb-1">
-                    Payment Particulars:
-                  </span>
-                  <div className="space-y-0.5 text-slate-600">
-                    <p>
-                      Method: <strong className="text-slate-800 font-semibold">{receipt.paymentMethod}</strong>
-                    </p>
-                    <p>
-                      Payment Date: <strong className="text-slate-800 font-semibold">{receipt.paymentDate}</strong>
-                    </p>
-                    {receipt.installment && (
-                      <p>
-                        Milestone: <strong className="text-[#077EA1] font-semibold">{receipt.installment.title}</strong>
+              <div>
+                {/* 1. Curved #243E76 Brand Header */}
+                <div className="relative bg-[#243E76] text-white px-7 pt-6 pb-10 rounded-t-2xl overflow-hidden">
+                  <div className="flex justify-between items-start relative z-10">
+                    <div>
+                      <img
+                        src="/brand360s-darkmodelogo.svg"
+                        alt="BRAND 360s"
+                        className="h-10 sm:h-11 w-auto object-contain"
+                      />
+                    </div>
+                    <div className="text-right">
+                      <h2 className="text-2xl sm:text-3xl font-black tracking-wide uppercase">
+                        RECEIPT
+                      </h2>
+                      <p className="text-xs text-sky-100 font-mono mt-1">
+                        Receipt No: <strong className="text-white">{receipt.receiptNumber}</strong>
                       </p>
-                    )}
-                    {receipt.invoice && (
-                      <p>
-                        Invoice: <strong className="text-[#243E76] font-mono">{receipt.invoice.invoiceNumber}</strong>
+                    </div>
+                  </div>
+                  <svg
+                    viewBox="0 0 1440 90"
+                    className="absolute bottom-0 left-0 w-full h-7 text-white fill-current pointer-events-none"
+                    preserveAspectRatio="none"
+                  >
+                    <path d="M0,32 C360,95 1080,-10 1440,48 L1440,90 L0,90 Z" />
+                  </svg>
+                </div>
+
+                <div className="px-7 pb-6 pt-3">
+                  {/* 2. Receipt To / From */}
+                  <div className="grid grid-cols-2 gap-6 pb-4 border-b border-slate-100 text-xs">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-900 block mb-1">
+                        Receipt To:
+                      </span>
+                      <p className="font-bold text-slate-900 text-sm leading-snug">
+                        {receipt.client?.companyName}
                       </p>
-                    )}
-                    <p>
-                      Recorded By: <span className="text-slate-700">{receipt.payment.recordedBy}</span>
-                    </p>
-                  </div>
-                </div>
-              </div>
+                      <p className="text-[11px] text-slate-600 mt-0.5 font-mono">
+                        {receipt.client?.clientCode}
+                      </p>
+                      {receipt.client?.phone && (
+                        <p className="text-[11px] text-slate-600 mt-0.5">{receipt.client.phone}</p>
+                      )}
+                      {receipt.client?.address && (
+                        <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                          {receipt.client.address}
+                        </p>
+                      )}
+                      {receipt.client?.email && (
+                        <p className="text-[11px] text-slate-500 mt-0.5">{receipt.client.email}</p>
+                      )}
+                    </div>
 
-              {/* Financial Highlight Box */}
-              <div className="my-5 p-4 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                    Total Amount Received
-                  </span>
-                  <div className="text-2xl font-black text-[#243E76] tracking-tight font-mono mt-0.5">
-                    {formatINR(receipt.amountReceived)}
+                    <div className="text-right">
+                      <span className="text-[11px] font-bold text-slate-900 block mb-1">
+                        From:
+                      </span>
+                      <p className="font-bold text-slate-900 text-sm leading-snug">
+                        {company.name}
+                      </p>
+                      {settings?.phone && (
+                        <p className="text-[11px] text-slate-600 mt-0.5">{settings.phone}</p>
+                      )}
+                      <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                        {company.address}
+                      </p>
+                      {settings?.email && (
+                        <p className="text-[11px] text-slate-500 mt-0.5">{settings.email}</p>
+                      )}
+                      {company.gstin && (
+                        <p className="text-[10px] font-mono text-slate-500 mt-0.5">
+                          GSTIN: {company.gstin}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-[11px] font-medium text-slate-600 mt-1 italic">
-                    {amountInWords}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-200">
-                  <CheckCircle2 size={24} />
-                </div>
-              </div>
 
-              {/* Linked Accounts & Balances Reconciliation */}
-              {(receipt.invoice || receipt.installment) && (
-                <div className="mb-5 overflow-hidden rounded-xl border border-slate-200 text-xs">
-                  <div className="bg-slate-50 px-3.5 py-2 font-bold text-slate-700 border-b border-slate-200 text-[11px] uppercase tracking-wide">
-                    Account Reconciliation & Balances
+                  {/* Date & Payment Method Bar */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 py-3 text-xs text-slate-700">
+                    <div>
+                      <span className="font-bold text-slate-900">Receipt Date:</span>{" "}
+                      <span>{receipt.paymentDate}</span>
+                    </div>
+                    <div>
+                      <span className="font-bold text-slate-900">Payment Method:</span>{" "}
+                      <span>{receipt.paymentMethod}</span>
+                    </div>
                   </div>
-                  <table className="w-full text-left border-collapse">
-                    <tbody className="divide-y divide-slate-100 text-slate-700">
+
+                  {/* 3. Payment Description Table */}
+                  <div className="mt-1 mb-5 overflow-hidden rounded-lg border border-slate-200">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="bg-[#243E76] text-white text-[11px] font-semibold">
+                          <th className="py-2.5 px-3.5">Description</th>
+                          <th className="py-2.5 px-3 text-center w-16">Qty</th>
+                          <th className="py-2.5 px-3 text-right w-28">Unit Price (₹)</th>
+                          <th className="py-2.5 px-3.5 text-right w-28">Amount (₹)</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 text-slate-700">
+                        <tr className="bg-white">
+                          <td className="py-3 px-3.5 font-medium text-slate-900">
+                            {receipt.installment
+                              ? receipt.installment.title
+                              : receipt.invoice
+                                ? `Payment towards Invoice ${receipt.invoice.invoiceNumber}`
+                                : `Payment Receipt (${receipt.paymentMethod})`}
+                          </td>
+                          <td className="py-3 px-3 text-center font-mono">1</td>
+                          <td className="py-3 px-3 text-right font-mono">
+                            {receipt.amountReceived.toLocaleString("en-IN")}
+                          </td>
+                          <td className="py-3 px-3.5 text-right font-mono font-semibold text-slate-900">
+                            {receipt.amountReceived.toLocaleString("en-IN")}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* 4. Full-Width Payment Summary & Account Balance */}
+                  <div className="mb-4 w-full rounded-lg border border-slate-200 overflow-hidden text-xs">
+                    <div className="bg-slate-50 px-3.5 py-2 font-bold text-[#243E76] border-b border-slate-200 text-[11px] uppercase tracking-wide">
+                      Payment Summary &amp; Account Balance
+                    </div>
+                    <div className="divide-y divide-slate-100">
                       {receipt.invoice && (
                         <>
-                          <tr className="hover:bg-slate-50/50">
-                            <td className="py-2 px-3 text-slate-600">Tax Invoice Number</td>
-                            <td className="py-2 px-3 text-right font-mono font-bold text-[#243E76]">
-                              {receipt.invoice.invoiceNumber}
-                            </td>
-                          </tr>
-                          <tr className="hover:bg-slate-50/50">
-                            <td className="py-2 px-3 text-slate-600">Total Invoice Amount</td>
-                            <td className="py-2 px-3 text-right font-mono font-semibold">
+                          <div className="flex justify-between items-center px-3.5 py-2">
+                            <span className="text-slate-600 w-3/4">Total Invoice Amount ({receipt.invoice.invoiceNumber})</span>
+                            <span className="font-mono font-semibold text-slate-900 w-1/4 text-right">
                               {formatINR(receipt.invoice.totalAmount)}
-                            </td>
-                          </tr>
-                          <tr className="hover:bg-slate-50/50">
-                            <td className="py-2 px-3 text-slate-600">Total Paid on Invoice</td>
-                            <td className="py-2 px-3 text-right font-mono font-bold text-emerald-700">
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center px-3.5 py-2">
+                            <span className="text-slate-600 w-3/4">Previously Paid</span>
+                            <span className="font-mono text-slate-700 w-1/4 text-right">
+                              {formatINR(Math.max(0, receipt.invoice.amountPaid - receipt.amountReceived))}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center px-3.5 py-2">
+                            <span className="text-slate-600 w-3/4">Current Payment Received</span>
+                            <span className="font-mono font-semibold text-emerald-700 w-1/4 text-right">
+                              {formatINR(receipt.amountReceived)}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center px-3.5 py-2">
+                            <span className="font-semibold text-slate-800 w-3/4">Total Paid on Invoice</span>
+                            <span className="font-mono font-bold text-emerald-700 w-1/4 text-right">
                               {formatINR(receipt.invoice.amountPaid)}
-                            </td>
-                          </tr>
-                          <tr className="hover:bg-slate-50/50">
-                            <td className="py-2 px-3 text-slate-600">Remaining Balance Due</td>
-                            <td className="py-2 px-3 text-right font-mono font-bold text-rose-600">
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center px-3.5 py-2 bg-rose-50/40">
+                            <span className="font-bold text-slate-800 w-3/4">Remaining Balance Due</span>
+                            <span className={`font-mono font-bold w-1/4 text-right ${receipt.invoice.balanceDue > 0 ? "text-rose-600" : "text-emerald-700"}`}>
                               {formatINR(receipt.invoice.balanceDue)}
-                            </td>
-                          </tr>
+                            </span>
+                          </div>
                         </>
                       )}
+                      <div className="flex justify-between items-center px-3.5 py-2 bg-slate-50/70">
+                        <span className="text-slate-600 w-3/4">Subtotal</span>
+                        <span className="font-mono font-semibold text-slate-800 w-1/4 text-right">
+                          {formatINR(receipt.amountReceived)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center px-3.5 py-2.5 bg-[#243E76] text-white font-bold">
+                        <span className="w-3/4">TOTAL RECEIVED</span>
+                        <span className="font-mono w-1/4 text-right">{formatINR(receipt.amountReceived)}</span>
+                      </div>
+                    </div>
+                  </div>
 
-                      {receipt.installment && !receipt.invoice && (
-                        <>
-                          <tr className="hover:bg-slate-50/50">
-                            <td className="py-2 px-3 text-slate-600">Scheduled Milestone</td>
-                            <td className="py-2 px-3 text-right font-semibold text-slate-900">
-                              {receipt.installment.title} (#{receipt.installment.installmentNumber})
-                            </td>
-                          </tr>
-                          <tr className="hover:bg-slate-50/50">
-                            <td className="py-2 px-3 text-slate-600">Milestone Due Date</td>
-                            <td className="py-2 px-3 text-right font-mono">
-                              {receipt.installment.dueDate}
-                            </td>
-                          </tr>
-                          <tr className="hover:bg-slate-50/50">
-                            <td className="py-2 px-3 text-slate-600">Milestone Amount Expected</td>
-                            <td className="py-2 px-3 text-right font-mono font-semibold">
-                              {formatINR(receipt.installment.amount)}
-                            </td>
-                          </tr>
-                          <tr className="hover:bg-slate-50/50">
-                            <td className="py-2 px-3 text-slate-600">Total Credited on Milestone</td>
-                            <td className="py-2 px-3 text-right font-mono font-bold text-emerald-700">
-                              {formatINR(receipt.installment.amountPaid)}
-                            </td>
-                          </tr>
-                        </>
-                      )}
-                    </tbody>
-                  </table>
+                  {/* 4b. Amount in Words */}
+                  <div className="mb-5 text-xs">
+                    <span className="font-bold text-slate-900 block mb-0.5">Amount in Words:</span>
+                    <p className="text-slate-600 italic leading-relaxed">{amountInWords}</p>
+                  </div>
+
+                  {/* 5. Payment Information & Official Stamp Image */}
+                  {(() => {
+                    const invBalance = receipt.invoice ? Number(receipt.invoice.balanceDue) : null;
+                    const invPaid = receipt.invoice ? Number(receipt.invoice.amountPaid) : 0;
+                    const isPartiallyPaid = invBalance !== null && invBalance > 0.009 && invPaid > 0;
+                    const stampSrc = isPartiallyPaid ? "/Partially Paid Stamp.png" : "/PAID Stamp.png";
+                    const stampAlt = isPartiallyPaid ? "Partially Paid" : "Paid in Full";
+
+                    return (
+                      <div className="flex items-center justify-between gap-4 pt-2 pb-2">
+                        <div className="text-xs space-y-1.5">
+                          <h4 className="font-bold text-slate-900 text-xs mb-2">
+                            Payment Information:
+                          </h4>
+                          {settings?.bank_name && (
+                            <p className="text-slate-600">
+                              <span className="inline-block w-28 font-semibold text-slate-800">Bank:</span>
+                              {settings.bank_name}
+                            </p>
+                          )}
+                          <p className="text-slate-600">
+                            <span className="inline-block w-28 font-semibold text-slate-800">Transaction ID:</span>
+                            <span className="font-mono">{receipt.transactionRef || "N/A"}</span>
+                          </p>
+                          {receipt.invoice && (
+                            <p className="text-slate-600">
+                              <span className="inline-block w-28 font-semibold text-slate-800">Paid For:</span>
+                              Invoice: <span className="font-mono text-[#243E76] font-semibold">{receipt.invoice.invoiceNumber}</span>
+                            </p>
+                          )}
+                          {receipt.installment && (
+                            <p className="text-slate-600">
+                              <span className="inline-block w-28 font-semibold text-slate-800">Payment Towards:</span>
+                              {receipt.installment.title}
+                            </p>
+                          )}
+                          <p className="text-slate-600">
+                            <span className="inline-block w-28 font-semibold text-slate-800">Recorded By:</span>
+                            {receipt.payment.recordedBy || "Staff"}
+                          </p>
+                        </div>
+
+                        {/* Official Transparent Stamp Asset */}
+                        <div className="shrink-0 pr-1">
+                          <img
+                            src={stampSrc}
+                            alt={stampAlt}
+                            className="h-24 w-24 sm:h-28 sm:w-28 object-contain select-none"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
-              )}
+              </div>
 
-              {/* Notes if applicable */}
-              {receipt.notes && (
-                <div className="mb-5 p-3 rounded-xl bg-slate-50/80 border border-slate-100 text-xs text-slate-600">
-                  <span className="font-semibold text-slate-700 block mb-0.5">Notes:</span>
-                  <p>{receipt.notes}</p>
-                </div>
-              )}
-
-              {/* Footer Terms & Signatory */}
-              <div className="mt-8 pt-4 border-t border-slate-100 flex justify-between items-end text-xs">
-                <div className="max-w-xs text-slate-400 text-[10px] space-y-0.5">
-                  <p className="font-semibold text-slate-500">Terms & Conditions:</p>
-                  <p>1. This receipt is an official acknowledgment of payment received.</p>
-                  <p>2. Subject to realization in case of Cheque/Online transfers.</p>
-                  <p>3. This is a computer generated receipt; no physical signature required.</p>
+              {/* 7. Footer */}
+              <div className="px-7 pb-6 pt-4 border-t border-slate-200 flex justify-between items-end text-xs">
+                <div className="max-w-xs text-slate-500 text-[10px] space-y-0.5">
+                  <p className="font-bold text-slate-700">Note:</p>
+                  <p>This is a computer-generated receipt and is valid without signature.</p>
                 </div>
 
                 <div className="text-right">
-                  <div className="h-10 flex items-end justify-end mb-1">
-                    <span className="text-[11px] font-mono font-bold text-[#243E76] tracking-wider uppercase">
-                      BRAND 360S PVT LTD
-                    </span>
-                  </div>
-                  <div className="w-40 border-t border-slate-300 ml-auto pt-1">
-                    <p className="font-bold text-slate-800 text-xs">{company.authorizedSignatory}</p>
-                    <p className="text-[10px] text-slate-400">Authorized Signatory</p>
-                  </div>
+                  <p className="text-lg font-extrabold italic text-[#243E76] tracking-tight">
+                    Thank You!
+                  </p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">BRAND 360s</p>
                 </div>
               </div>
             </div>

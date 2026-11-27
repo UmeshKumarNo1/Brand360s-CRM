@@ -9,12 +9,10 @@ import {
   UploadCloud,
   FileText,
   Trash2,
-  Download,
   Image as ImageIcon,
   CheckCircle2,
   RefreshCw,
   CalendarDays,
-  Zap,
 } from "lucide-react";
 import { assignClientServiceAction, fetchServicesCatalogAction } from "@/app/actions/services";
 import { fetchSalespeopleAction } from "@/app/actions/clients";
@@ -32,12 +30,6 @@ import {
   getMonthsForFrequency,
   RenewalFrequency,
 } from "@/lib/renewals/renewal-dates";
-import {
-  useDocumentCompression,
-  formatBytes,
-  DOCUMENT_COMPRESSION_CONFIG,
-} from "@/lib/document-compression";
-import { DocumentCompressionModal } from "@/components/common/DocumentCompressionModal";
 
 interface AssignServiceModalProps {
   isOpen: boolean;
@@ -80,7 +72,6 @@ export function AssignServiceModal({
   const [attachedFiles, setAttachedFiles] = useState<SelectedDocFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { requestCompression, compressionModalProps } = useDocumentCompression();
 
   const { success, error: toastError } = useToast();
   const handledStateRef = useRef<any>(null);
@@ -237,28 +228,16 @@ export function AssignServiceModal({
     setIsCategoryManuallyEdited(true);
   };
 
-  const handleFilesAdded = async (files: File[] | FileList | null) => {
-    if (!files) return;
-    const fileList = Array.from(files);
-    if (fileList.length === 0) return;
-
-    const maxSizeBytes = DOCUMENT_COMPRESSION_CONFIG.uploadLimits.maxOriginalSizeBytes;
-    const validFiles: File[] = [];
-    for (const file of fileList) {
-      if (file.size > maxSizeBytes) {
-        toastError("File too large", `${file.name} exceeds maximum limit of ${formatBytes(maxSizeBytes)}.`);
-        continue;
-      }
-      validFiles.push(file);
-    }
-
-    if (validFiles.length === 0) return;
-
-    const compressed = await requestCompression(validFiles);
-    if (!compressed || compressed.length === 0) return;
+  const handleFilesAdded = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
 
     const newItems: SelectedDocFile[] = [];
-    for (const file of compressed) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.size > 15 * 1024 * 1024) {
+        toastError("File too large", `${file.name} exceeds 15MB limit.`);
+        continue;
+      }
       const isImg = file.type.startsWith("image/");
       const previewUrl = isImg ? URL.createObjectURL(file) : undefined;
 
@@ -290,17 +269,6 @@ export function AssignServiceModal({
     });
   };
 
-  const handleDownloadFile = (file: File) => {
-    const url = URL.createObjectURL(file);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = file.name;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
   const handleDocTypeChange = (id: string, newType: string) => {
     setAttachedFiles((prev) =>
       prev.map((item) => (item.id === id ? { ...item, docType: newType } : item))
@@ -323,17 +291,12 @@ export function AssignServiceModal({
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      const files = Array.from(e.dataTransfer.files);
-      handleFilesAdded(files);
-    }
+    handleFilesAdded(e.dataTransfer.files);
   };
 
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const files = Array.from(e.target.files);
-    e.target.value = "";
-    handleFilesAdded(files);
+    handleFilesAdded(e.target.files);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -390,6 +353,7 @@ export function AssignServiceModal({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs overflow-y-auto flex-1">
           <input type="hidden" name="client_id" value={clientId} />
+          <input type="hidden" name="pricing_mode" value="govt_fee_included" />
 
           {state?.error && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 font-semibold">
@@ -691,15 +655,9 @@ export function AssignServiceModal({
           <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5">
             <div className="flex items-center justify-between">
               <div>
-                <div className="flex items-center gap-2">
-                  <label className="block font-bold text-slate-900 text-xs">
-                    Required Documents / Verification Images
-                  </label>
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold text-[10px]">
-                    <Zap size={10} className="text-emerald-600 fill-emerald-600" />
-                    <span>Auto-Compression Active</span>
-                  </span>
-                </div>
+                <label className="block font-bold text-slate-900 text-xs">
+                  Required Documents / Verification Images
+                </label>
                 <p className="text-[11px] text-slate-500">
                   Attach PAN Card, Aadhaar, Company Proof, or onboarding documents (Images / PDF)
                 </p>
@@ -738,7 +696,7 @@ export function AssignServiceModal({
                 Click to attach PAN or required documents, or drag & drop
               </p>
               <p className="text-[10px] text-slate-400">
-                PNG, JPG, WEBP, or PDF • Automatic document compression active
+                PNG, JPG, WEBP, or PDF up to 15MB each
               </p>
             </div>
 
@@ -768,14 +726,9 @@ export function AssignServiceModal({
                         <p className="font-semibold text-slate-900 truncate max-w-[170px] text-[11px]">
                           {item.file.name}
                         </p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[10px] text-slate-500 font-medium">
-                            {formatFileSize(item.file.size)}
-                          </span>
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[9px]">
-                            <Zap size={9} /> Compressed
-                          </span>
-                        </div>
+                        <p className="text-[10px] text-slate-400">
+                          {formatFileSize(item.file.size)}
+                        </p>
                       </div>
                     </div>
 
@@ -794,17 +747,9 @@ export function AssignServiceModal({
 
                       <button
                         type="button"
-                        onClick={() => handleDownloadFile(item.file)}
-                        className="p-1 text-slate-500 hover:text-[#0481A2] hover:bg-sky-50 rounded transition-colors cursor-pointer"
-                        title="Download file"
-                      >
-                        <Download size={13} />
-                      </button>
-                      <button
-                        type="button"
                         onClick={() => handleRemoveFile(item.id)}
                         className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors cursor-pointer"
-                        title="Delete file"
+                        title="Remove file"
                       >
                         <Trash2 size={13} />
                       </button>
@@ -850,9 +795,6 @@ export function AssignServiceModal({
           </div>
         </form>
       </div>
-
-      {/* Global Document Compression Confirmation, Progress & Result Dialog */}
-      <DocumentCompressionModal {...compressionModalProps} />
     </div>
   );
 }

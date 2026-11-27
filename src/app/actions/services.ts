@@ -371,8 +371,22 @@ export async function assignClientServiceAction(
   const clientId = formData.get("client_id") as string;
   const serviceName = formData.get("service_name") as string;
   const serviceCategory = (formData.get("service_category") as string) || "General";
-  const serviceFee = parseFloat(formData.get("service_fee") as string) || 0;
+  const enteredPackageAmount = parseFloat(formData.get("service_fee") as string) || 0;
   const govtFee = parseFloat(formData.get("govt_fee") as string) || 0;
+  const pricingMode =
+    (formData.get("pricing_mode") as string) === "govt_fee_added"
+      ? "govt_fee_added"
+      : "govt_fee_included";
+
+  if (pricingMode === "govt_fee_included" && govtFee > enteredPackageAmount) {
+    return { error: "Government Fee cannot exceed the entered Service Fee." };
+  }
+
+  const serviceFee =
+    pricingMode === "govt_fee_included"
+      ? Math.max(0, Math.round((enteredPackageAmount - govtFee) * 100) / 100)
+      : enteredPackageAmount;
+  const netProfessionalFee = serviceFee;
   const startDate = (formData.get("start_date") as string) || null;
   const rawExpectedCompletion = (formData.get("expected_completion_date") as string) || null;
   // Enforce working day only for target delivery date
@@ -426,6 +440,8 @@ export async function assignClientServiceAction(
       service_category: serviceCategory,
       service_fee: serviceFee,
       govt_fee: govtFee,
+      pricing_mode: pricingMode,
+      net_professional_fee: netProfessionalFee,
       tax_amount: taxAmount,
       total_amount: totalAmount,
       tax_rate: taxRate,

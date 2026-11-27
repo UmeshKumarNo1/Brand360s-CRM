@@ -6,9 +6,6 @@ const nextConfig = {
       bodySizeLimit: "100mb",
     },
   },
-  serverActions: {
-    bodySizeLimit: "100mb",
-  },
   async headers() {
     return [
       {

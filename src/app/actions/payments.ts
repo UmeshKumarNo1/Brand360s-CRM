@@ -502,38 +502,67 @@ export async function recordPaymentAction(
     }
   }
 
-  // 2. If an installment milestone was explicitly selected and the payment is verified, update the installment
-  if (installmentId && status === "Verified") {
+  // 2. If an installment milestone was explicitly selected and the payment is verified, ensure an allocation exists and update the installment
+  if (installmentId && status === "Verified" && newPaymentId) {
+    const { data: existingInstAlloc } = await supabase
+      .from("installment_payment_allocations")
+      .select("id")
+      .eq("installment_id", installmentId)
+      .eq("payment_id", newPaymentId)
+      .maybeSingle();
+
     const { data: schedule, error: schedFetchError } = await supabase
       .from("payment_schedules")
       .select("id, amount, amount_paid, due_date")
       .eq("id", installmentId)
       .single();
 
-    if (!schedFetchError && schedule) {
-      const currentPaid = Number(schedule.amount_paid) || 0;
-      const targetAmount = Number(schedule.amount) || 0;
-      const newPaid = currentPaid + amount;
-      const today = new Date().toISOString().split("T")[0];
+    if (schedFetchError || !schedule) {
+      return { error: schedFetchError?.message || "Selected installment schedule not found." };
+    }
 
-      let newStatus = "Pending";
-      if (newPaid >= targetAmount) {
-        newStatus = "Paid in full";
-      } else if (newPaid > 0) {
-        newStatus = schedule.due_date < today ? "Overdue" : "Partially Paid";
-      } else if (schedule.due_date < today) {
-        newStatus = "Overdue";
+    const currentPaid = Number(schedule.amount_paid) || 0;
+    const targetAmount = Number(schedule.amount) || 0;
+    const allocAmount = Math.min(amount, Math.max(0, targetAmount - currentPaid)) || amount;
+
+    if (!existingInstAlloc) {
+      const { error: instAllocError } = await supabase
+        .from("installment_payment_allocations")
+        .insert({
+          installment_id: installmentId,
+          payment_id: newPaymentId,
+          allocated_amount: allocAmount,
+        });
+
+      if (instAllocError) {
+        return { error: `Failed to record installment allocation: ${instAllocError.message}` };
       }
+    }
 
-      await supabase
-        .from("payment_schedules")
-        .update({
-          amount_paid: newPaid,
-          status: newStatus,
-          paid_date: newPaid >= targetAmount ? paymentDate : null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", installmentId);
+    const newPaid = existingInstAlloc ? currentPaid : currentPaid + allocAmount;
+    const today = new Date().toISOString().split("T")[0];
+
+    let newStatus = "Pending";
+    if (newPaid >= targetAmount) {
+      newStatus = "Paid in full";
+    } else if (newPaid > 0) {
+      newStatus = schedule.due_date < today ? "Overdue" : "Partially Paid";
+    } else if (schedule.due_date < today) {
+      newStatus = "Overdue";
+    }
+
+    const { error: schedUpdateError } = await supabase
+      .from("payment_schedules")
+      .update({
+        amount_paid: newPaid,
+        status: newStatus,
+        paid_date: newPaid >= targetAmount ? paymentDate : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", installmentId);
+
+    if (schedUpdateError) {
+      return { error: `Failed to update installment schedule: ${schedUpdateError.message}` };
     }
   }
 
@@ -713,6 +742,32 @@ export async function deleteInstallmentAction(installmentId: string, clientId: s
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Authentication required." };
 
+  // Protect installments with payment history
+  const { data: schedule, error: fetchErr } = await supabase
+    .from("payment_schedules")
+    .select("id, amount_paid")
+    .eq("id", installmentId)
+    .single();
+
+  if (fetchErr || !schedule) {
+    return { error: fetchErr?.message || "Installment schedule not found." };
+  }
+
+  const { count: allocCount, error: allocErr } = await supabase
+    .from("installment_payment_allocations")
+    .select("id", { count: "exact", head: true })
+    .eq("installment_id", installmentId);
+
+  if (allocErr) {
+    return { error: `Failed to verify installment payment history: ${allocErr.message}` };
+  }
+
+  if ((Number(schedule.amount_paid) || 0) > 0 || (allocCount || 0) > 0) {
+    return {
+      error: "Cannot delete an installment with payment history. Please cancel it instead to preserve financial records.",
+    };
+  }
+
   const { error } = await supabase
     .from("payment_schedules")
     .delete()
@@ -745,7 +800,7 @@ export async function cancelInstallmentAction(
     .eq("id", user.id)
     .single();
 
-  if (profile?.role !== "admin") {
+  if (profile?.role?.toLowerCase() !== "admin") {
     return { error: "Only administrators can cancel installment schedules." };
   }
 
@@ -1241,9 +1296,16 @@ export async function allocatePaymentToInvoicesAction(
               })
               .eq("id", inst.id);
 
-            // Record installment allocation entry if table exists
-            try {
-              await supabase
+            // Record installment allocation entry (prevent duplicate inserts on retry)
+            const { data: existingInstAlloc } = await supabase
+              .from("installment_payment_allocations")
+              .select("id")
+              .eq("installment_id", inst.id)
+              .eq("payment_id", paymentId)
+              .maybeSingle();
+
+            if (!existingInstAlloc) {
+              const { error: instAllocError } = await supabase
                 .from("installment_payment_allocations")
                 .insert({
                   installment_id: inst.id,
@@ -1251,8 +1313,13 @@ export async function allocatePaymentToInvoicesAction(
                   invoice_allocation_id: insertedAlloc.id,
                   allocated_amount: take,
                 });
-            } catch (err: any) {
-              console.warn("Could not insert installment_payment_allocations record:", err);
+
+              if (instAllocError) {
+                return {
+                  success: false,
+                  error: `Failed to record installment allocation: ${instAllocError.message}`,
+                };
+              }
             }
 
             unallocatedRem -= take;
@@ -1360,7 +1427,7 @@ export async function editPaymentAction(params: EditPaymentParams): Promise<Paym
     .eq("id", user.id)
     .single();
 
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = profile?.role?.toLowerCase() === "admin";
   const clientData: any = existingPayment.client;
   const isAssigned =
     clientData &&
@@ -1529,7 +1596,7 @@ export async function reversePaymentAction(params: ReversePaymentParams): Promis
     .eq("id", user.id)
     .single();
 
-  const isAdmin = profile?.role === "admin";
+  const isAdmin = profile?.role?.toLowerCase() === "admin";
   const clientData: any = payment.client;
 
   if (!isAdmin) {
@@ -1581,14 +1648,7 @@ export async function reversePaymentAction(params: ReversePaymentParams): Promis
     // Delete invoice payment allocations
     await supabase.from("invoice_payment_allocations").delete().eq("payment_id", params.paymentId);
 
-    // Delete installment allocations if table exists
-    try {
-      await supabase.from("installment_payment_allocations").delete().eq("payment_id", params.paymentId);
-    } catch {
-      // Table may not be active
-    }
-
-    // Mark payment as Reversed
+    // Mark payment as Reversed (preserving historical installment_payment_allocations for audit)
     const { error: revErr } = await supabase
       .from("payments")
       .update({
@@ -1603,6 +1663,74 @@ export async function reversePaymentAction(params: ReversePaymentParams): Promis
 
     if (revErr) {
       return { success: false, error: revErr.message || "Failed to reverse payment." };
+    }
+
+    // Recalculate affected installment schedules from remaining valid allocations
+    const { data: affectedInstAllocs, error: instFetchErr } = await supabase
+      .from("installment_payment_allocations")
+      .select("installment_id")
+      .eq("payment_id", params.paymentId);
+
+    if (instFetchErr) {
+      return { success: false, error: `Payment reversed, but failed to fetch affected installments: ${instFetchErr.message}` };
+    }
+
+    const affectedInstallmentIds = Array.from(
+      new Set((affectedInstAllocs || []).map((a: any) => a.installment_id).filter(Boolean))
+    );
+
+    if (affectedInstallmentIds.length > 0) {
+      const today = new Date().toISOString().split("T")[0];
+      const validStatuses = ["Verified", "Completed", "Received", "Approved"];
+
+      for (const instId of affectedInstallmentIds) {
+        const { data: instRow } = await supabase
+          .from("payment_schedules")
+          .select("id, amount, due_date, status")
+          .eq("id", instId)
+          .single();
+
+        if (!instRow || instRow.status === "Cancelled") continue;
+
+        const { data: validAllocs } = await supabase
+          .from("installment_payment_allocations")
+          .select("allocated_amount, payment:payments!payment_id(status)")
+          .eq("installment_id", instId);
+
+        const validPaid = (validAllocs || []).reduce((sum: number, row: any) => {
+          const pStatus = Array.isArray(row.payment) ? row.payment[0]?.status : row.payment?.status;
+          if (validStatuses.includes(pStatus)) {
+            return sum + (Number(row.allocated_amount) || 0);
+          }
+          return sum;
+        }, 0);
+
+        const targetAmount = Number(instRow.amount) || 0;
+        let newInstStatus = "Upcoming";
+        if (validPaid >= targetAmount && targetAmount > 0) {
+          newInstStatus = "Paid in full";
+        } else if (validPaid > 0) {
+          newInstStatus = instRow.due_date < today ? "Overdue" : "Partially Paid";
+        } else if (instRow.due_date < today) {
+          newInstStatus = "Overdue";
+        } else if (instRow.due_date === today) {
+          newInstStatus = "Due";
+        }
+
+        const { error: instUpdateErr } = await supabase
+          .from("payment_schedules")
+          .update({
+            amount_paid: validPaid,
+            status: newInstStatus,
+            paid_date: validPaid >= targetAmount && targetAmount > 0 ? today : null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", instId);
+
+        if (instUpdateErr) {
+          return { success: false, error: `Failed to recalculate installment ${instId}: ${instUpdateErr.message}` };
+        }
+      }
     }
   }
 

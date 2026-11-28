@@ -142,6 +142,7 @@ export async function fetchAllInstallmentsAction() {
     .select(`
       id,
       client_id,
+      client_service_id,
       invoice_id,
       title,
       installment_number,
@@ -171,6 +172,10 @@ export async function fetchAllInstallmentsAction() {
         amount_paid,
         balance_due,
         status
+      ),
+      client_service:client_services!client_service_id (
+        id,
+        service_name
       ),
       installment_allocations:installment_payment_allocations (
         id,
@@ -307,8 +312,11 @@ export async function fetchAllInstallmentsAction() {
     return {
       id: s.id,
       clientId: s.client?.id || s.client_id,
+      clientName: s.client?.company_name || "Unknown Company",
       companyName: s.client?.company_name || "Unknown Company",
       clientCode: s.client?.client_code || "B360-1000",
+      clientServiceId: s.client_service_id || null,
+      serviceName: (Array.isArray(s.client_service) ? s.client_service[0]?.service_name : s.client_service?.service_name) || null,
       invoiceId: s.invoice?.id || s.invoice_id || null,
       invoiceNumber: s.invoice?.invoice_number || null,
       invoiceTotal: s.invoice ? Number(s.invoice.total_amount) : null,
@@ -555,6 +563,7 @@ export async function createInstallmentAction(
   if (!user) return { error: "Authentication required." };
 
   const clientId = formData.get("client_id") as string;
+  const clientServiceId = (formData.get("client_service_id") as string) || null;
   const invoiceId = (formData.get("invoice_id") as string) || null;
   const title = (formData.get("title") as string)?.trim() || "Installment";
   const amount = parseFloat(formData.get("amount") as string);
@@ -565,11 +574,18 @@ export async function createInstallmentAction(
     return { error: "Please provide valid installment title, positive amount, and due date." };
   }
 
-  // Count existing schedules for installment_number
-  const { count } = await supabase
+  // Count existing schedules for this service (or client if no service) for installment_number
+  let countQuery = supabase
     .from("payment_schedules")
     .select("id", { count: "exact", head: true })
-    .eq("client_id", clientId);
+    .eq("client_id", clientId)
+    .neq("status", "Cancelled");
+
+  if (clientServiceId) {
+    countQuery = countQuery.eq("client_service_id", clientServiceId);
+  }
+
+  const { count } = await countQuery;
 
   const installmentNumber = (count || 0) + 1;
   const today = new Date().toISOString().split("T")[0];
@@ -579,6 +595,7 @@ export async function createInstallmentAction(
     .from("payment_schedules")
     .insert({
       client_id: clientId,
+      client_service_id: clientServiceId,
       invoice_id: invoiceId,
       title,
       installment_number: installmentNumber,

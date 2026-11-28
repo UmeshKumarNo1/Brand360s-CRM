@@ -13,6 +13,7 @@ import {
 import { formatINR } from "@/lib/utils";
 
 interface PaymentStatsCardsProps {
+  totalInvoiced?: number;
   totalVerifiedPayments: number;
   paymentsCount: number;
   totalAllocated: number;
@@ -25,6 +26,7 @@ interface PaymentStatsCardsProps {
 }
 
 export function PaymentStatsCards({
+  totalInvoiced = 0,
   totalVerifiedPayments,
   paymentsCount,
   totalAllocated,
@@ -37,21 +39,28 @@ export function PaymentStatsCards({
 }: PaymentStatsCardsProps) {
   const cards = [
     {
-      label: "Verified Receipts",
+      label: "Total Invoiced (Incl. GST)",
+      value: formatINR(totalInvoiced),
+      icon: Layers,
+      iconBg: "bg-[#243E76]",
+      iconColor: "text-white",
+    },
+    {
+      label: "Amount Collected",
       value: formatINR(totalVerifiedPayments),
       icon: Receipt,
       iconBg: "bg-[#E0F3F7]",
       iconColor: "text-[#0481A2]",
     },
     {
-      label: "Allocated to Invoices",
-      value: formatINR(totalAllocated),
-      icon: Layers,
-      iconBg: "bg-[#243E76]",
-      iconColor: "text-white",
+      label: "Outstanding Receivable",
+      value: formatINR(totalInstallmentRemaining),
+      icon: CircleCheck,
+      iconBg: "bg-[#E0F3F7]",
+      iconColor: "text-[#0481A2]",
     },
     {
-      label: "Unallocated Pool",
+      label: "Unallocated Payments",
       value: formatINR(totalUnallocated),
       icon: Wallet,
       iconBg: "bg-[#0481A2]",
@@ -77,13 +86,6 @@ export function PaymentStatsCards({
       icon: AlertTriangle,
       iconBg: overdueCount > 0 ? "bg-rose-500" : "bg-[#243E76]",
       iconColor: "text-white",
-    },
-    {
-      label: "Outstanding Balance",
-      value: formatINR(totalInstallmentRemaining),
-      icon: CircleCheck,
-      iconBg: "bg-[#E0F3F7]",
-      iconColor: "text-[#0481A2]",
     },
     {
       label: "Total Transactions",

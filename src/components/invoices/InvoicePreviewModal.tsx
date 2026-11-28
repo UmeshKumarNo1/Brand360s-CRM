@@ -340,13 +340,12 @@ export function InvoicePreviewModal({
 
   const isInterState = Boolean(client?.state && !client.state.toLowerCase().includes("tamil nadu"));
   const subtotal = Number(invoice?.subtotal) || 0;
-  const discount = Number(invoice?.discountAmount || invoice?.discount_amount) || 0;
-  const taxable = Math.max(0, subtotal - discount);
+  const discountAmount = Number(invoice?.discountAmount || invoice?.discount_amount) || 0;
+  const negotiatedServiceAmount = subtotal;
+  const originalServiceAmount = discountAmount > 0 ? subtotal + discountAmount : subtotal;
   const taxRate = Number(invoice?.taxRate || invoice?.tax_rate) || 18;
   const taxAmount = Number(invoice?.taxAmount || invoice?.tax_amount) || 0;
   const totalAmount = Number(invoice?.totalAmount || invoice?.total_amount) || 0;
-  const discountAmount = Number(invoice?.discountAmount || invoice?.discount_amount) || 0;
-  const originalServiceAmount = discountAmount > 0 ? taxable + discountAmount : taxable;
   const discountPct =
     discountAmount > 0 && originalServiceAmount > 0
       ? Math.round((discountAmount / originalServiceAmount) * 10000) / 100
@@ -605,18 +604,6 @@ export function InvoicePreviewModal({
 
               {/* Financial Calculation Column */}
               <div className="space-y-2 text-xs">
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-600">Subtotal:</span>
-                  <span className="font-semibold text-slate-800">{formatINR(subtotal)}</span>
-                </div>
-
-                {discount > 0 && (
-                  <div className="flex justify-between py-1 border-b border-slate-100 text-emerald-700">
-                    <span>Discount:</span>
-                    <span className="font-semibold">-{formatINR(discount)}</span>
-                  </div>
-                )}
-
                 {discountAmount > 0 && (
                   <>
                     <div className="flex justify-between py-1 border-b border-slate-100">
@@ -631,8 +618,8 @@ export function InvoicePreviewModal({
                 )}
 
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-600">{discountAmount > 0 ? "Revised Taxable Amount:" : "Taxable Amount:"}</span>
-                  <span className="font-semibold text-slate-800">{formatINR(taxable)}</span>
+                  <span className="text-slate-600">{discountAmount > 0 ? "Negotiated Service Amount:" : "Taxable Amount:"}</span>
+                  <span className="font-semibold text-slate-800">{formatINR(negotiatedServiceAmount)}</span>
                 </div>
 
                 {/* GST Breakdown (CGST/SGST or IGST) */}

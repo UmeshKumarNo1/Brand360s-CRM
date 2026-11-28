@@ -8,6 +8,8 @@ import {
   deleteInstallmentAction,
 } from "@/app/actions/payments";
 import { getCurrentUserProfileAction } from "@/app/actions/profile";
+import { fetchOverallFinancialSummaryAction, OverallFinancialSummary } from "@/app/actions/overall-financials";
+import { fetchClientsAction } from "@/app/actions/clients";
 import { PaymentsHeader } from "@/components/payments/PaymentsHeader";
 import { PaymentStatsCards } from "@/components/payments/PaymentStatsCards";
 import { PaymentFilters } from "@/components/payments/PaymentFilters";
@@ -57,6 +59,14 @@ export default function PaymentsPage() {
   const [reversingPayment, setReversingPayment] = useState<any | null>(null);
   const [viewingReceiptPayment, setViewingReceiptPayment] = useState<any | null>(null);
   const [previewInvoiceId, setPreviewInvoiceId] = useState<string | null>(null);
+  const [installmentDefaultClientId, setInstallmentDefaultClientId] = useState<string>("");
+  const [installmentDefaultServiceId, setInstallmentDefaultServiceId] = useState<string | null>(null);
+  const [overallSummary, setOverallSummary] = useState<OverallFinancialSummary | null>(null);
+  const [clientTotals, setClientTotals] = useState<{
+    contractValue: number;
+    collected: number;
+    outstanding: number;
+  } | null>(null);
 
   // Installment Table Filters
   const [installmentClientFilter, setInstallmentClientFilter] = useState("All");
@@ -76,6 +86,12 @@ export default function PaymentsPage() {
     clientName: string;
     installmentId: string;
     remaining: number;
+    invoiceId?: string | null;
+    serviceName?: string | null;
+    title?: string;
+    installmentNumber?: number;
+    amount?: number;
+    amountPaid?: number;
   } | null>(null);
 
   const { success, error: toastError } = useToast();
@@ -83,6 +99,22 @@ export default function PaymentsPage() {
 
   const loadData = useCallback(async () => {
     const currentReqId = ++requestIdRef.current;
+    fetchOverallFinancialSummaryAction()
+      .then((summary) => {
+        if (currentReqId === requestIdRef.current) setOverallSummary(summary);
+      })
+      .catch(() => {});
+    fetchClientsAction()
+      .then((clientsList) => {
+        if (currentReqId !== requestIdRef.current) return;
+        const active = (clientsList || []).filter((c: any) => c.clientStatus !== "Archived");
+        setClientTotals({
+          contractValue: active.reduce((acc: number, c: any) => acc + (c.contractValue || 0), 0),
+          collected: active.reduce((acc: number, c: any) => acc + (c.paymentsReceived || 0), 0),
+          outstanding: active.reduce((acc: number, c: any) => acc + (c.balanceReceivable || 0), 0),
+        });
+      })
+      .catch(() => {});
     setIsPaymentsLoading(true);
     setIsInstallmentsLoading(true);
     setErrorMessage(null);
@@ -337,15 +369,16 @@ export default function PaymentsPage() {
 
       {/* 2. 8 Summary KPI Cards in 2 rows of 4 cards on desktop */}
       <PaymentStatsCards
-        totalVerifiedPayments={totalVerifiedPayments}
+        totalInvoiced={overallSummary?.totalInvoiced ?? 0}
+        totalVerifiedPayments={overallSummary?.totalVerifiedPayments ?? totalVerifiedPayments}
         paymentsCount={payments.length}
-        totalAllocated={totalAllocated}
-        totalUnallocated={totalUnallocated}
+        totalAllocated={overallSummary?.totalReceived ?? totalAllocated}
+        totalUnallocated={overallSummary?.unallocatedPayments ?? totalUnallocated}
         totalScheduled={totalScheduled}
         activeMilestonesCount={activeInstallments.length}
         upcomingCount={upcomingCount}
         overdueCount={overdueCount}
-        totalInstallmentRemaining={totalInstallmentRemaining}
+        totalInstallmentRemaining={overallSummary?.outstandingReceivable ?? 0}
       />
 
       {/* 3. Navigation Tabs matching reference UI (Teal active indicator & underline) */}
@@ -495,9 +528,15 @@ export default function PaymentsPage() {
             onPayInstallment={(inst) => {
               setPayForInstallment({
                 clientId: inst.clientId,
-                clientName: inst.companyName,
+                clientName: inst.clientName || inst.companyName,
                 installmentId: inst.id,
                 remaining: inst.remaining,
+                invoiceId: inst.invoiceId || null,
+                serviceName: inst.serviceName || null,
+                title: inst.title,
+                installmentNumber: inst.installmentNumber,
+                amount: inst.amount,
+                amountPaid: inst.amountPaid,
               });
               setIsRecordPaymentModalOpen(true);
             }}
@@ -506,6 +545,11 @@ export default function PaymentsPage() {
             onDeleteInstallment={handleDeleteInstallment}
             onPreviewInvoice={(invId) => setPreviewInvoiceId(invId)}
             onGenerateInvoice={(inst) => setGeneratingInvoiceInstallment(inst)}
+            onAddNextInstallment={(cId, sId) => {
+              setInstallmentDefaultClientId(cId);
+              setInstallmentDefaultServiceId(sId || null);
+              setIsCreateInstallmentModalOpen(true);
+            }}
           />
 
           {!isInstallmentsLoading && filteredInstallments.length > 0 && (
@@ -558,6 +602,19 @@ export default function PaymentsPage() {
         defaultClientName={payForInstallment?.clientName}
         defaultInstallmentId={payForInstallment?.installmentId}
         defaultAmount={payForInstallment?.remaining}
+        defaultInvoiceId={payForInstallment?.invoiceId}
+        installmentContext={
+          payForInstallment
+            ? {
+                serviceName: payForInstallment.serviceName || undefined,
+                title: payForInstallment.title,
+                installmentNumber: payForInstallment.installmentNumber,
+                amount: payForInstallment.amount,
+                amountPaid: payForInstallment.amountPaid,
+                remaining: payForInstallment.remaining,
+              }
+            : null
+        }
         availableInstallments={
           payForInstallment
             ? installments

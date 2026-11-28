@@ -23,6 +23,15 @@ interface RecordPaymentModalProps {
   defaultClientName?: string;
   defaultInstallmentId?: string;
   defaultAmount?: number;
+  defaultInvoiceId?: string | null;
+  installmentContext?: {
+    serviceName?: string;
+    title?: string;
+    installmentNumber?: number;
+    amount?: number;
+    amountPaid?: number;
+    remaining?: number;
+  } | null;
   availableInstallments?: Array<{
     id: string;
     title: string;
@@ -42,6 +51,8 @@ export function RecordPaymentModal({
   defaultClientName,
   defaultInstallmentId,
   defaultAmount,
+  defaultInvoiceId,
+  installmentContext,
   availableInstallments = [],
 }: RecordPaymentModalProps) {
   const [state, formAction, isPending] = useActionState(recordPaymentAction, null);
@@ -107,7 +118,7 @@ export function RecordPaymentModal({
         if (summary) {
           const eligibleBal = summary.maximumPermittedPayment ?? summary.remainingInvoiceBalance ?? 0;
           // Auto-fill amount if not manually edited by user, or if client changed
-          if (!isUserEditedAmountRef.current && allocationLines.length === 0) {
+          if (!isUserEditedAmountRef.current && allocationLines.length === 0 && !defaultAmount) {
             setAmountValue(eligibleBal > 0 ? String(eligibleBal) : "0");
           }
         }
@@ -138,6 +149,13 @@ export function RecordPaymentModal({
             (Number(inv.balanceDue) || 0) > 0.009
         );
         setClientInvoices(openInvoices);
+        if (defaultInvoiceId && defaultAmount && defaultAmount > 0) {
+          const matched = openInvoices.find((inv) => inv.id === defaultInvoiceId);
+          if (matched) {
+            const allocAmt = Math.min(defaultAmount, Number(matched.balanceDue) || defaultAmount);
+            setAllocationLines([{ id: "inst-auto", invoiceId: matched.id, amount: allocAmt }]);
+          }
+        }
       })
       .catch((err) => {
         console.error("Error loading client invoices:", err);

@@ -173,14 +173,14 @@ export function ClientFollowupsTab({
       {/* Top Header & Actions */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-200/80">
         <div>
-          <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <span>Customer Follow-up &amp; Interaction Timeline</span>
+          <h4 className="text-sm sm:text-base font-bold text-slate-900 flex items-center gap-2">
+            <span>Customer Follow-up History &amp; Activity Timeline</span>
             <span className="text-[11px] font-semibold px-2 py-0.5 bg-[#0481A2]/10 text-[#0481A2] rounded-full">
-              {totalCount} Total
+              {totalCount} Total Records
             </span>
           </h4>
           <p className="text-xs text-slate-500 mt-0.5">
-            Log calls, record customer discussion notes, schedule next actions, and preserve complete relationship history
+            Complete interaction history: logged calls, discussion notes, outcomes, and scheduled next actions
           </p>
         </div>
 

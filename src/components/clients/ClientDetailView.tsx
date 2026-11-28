@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
+  ArrowRight,
   Building2,
   Phone,
   Mail,
@@ -572,8 +573,8 @@ export function ClientDetailView({
               : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
             }`}
         >
-          <Calendar size={15} />
-          <span>Follow-ups</span>
+          <History size={15} />
+          <span>Follow-up History</span>
         </button>
 
         <button
@@ -1056,6 +1057,40 @@ export function ClientDetailView({
                 <p className="text-slate-600 leading-relaxed whitespace-pre-line pl-6">{client.notes}</p>
               </div>
             )}
+
+            {/* Follow-up History Section inside Overview */}
+            <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <History size={18} className="text-[#0481A2]" />
+                  <div>
+                    <h3 className="font-bold text-sm text-slate-900 font-sans">
+                      Follow-up History &amp; Client Activity
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Chronological history of interactions, calls, discussion notes, and scheduled follow-ups
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleTabChange("followups")}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 transition-colors cursor-pointer"
+                >
+                  <span>Open Full Follow-up Tab</span>
+                  <ArrowRight size={12} />
+                </button>
+              </div>
+
+              <ClientFollowupsTab
+                clientId={client.id}
+                clientName={client.companyName}
+                clientContactPerson={client.contactPerson}
+                clientPhone={client.phone}
+                clientAssignedSalespersonId={client.assignedSalespersonId}
+                isAdmin={isAdmin}
+              />
+            </div>
           </div>
         )}
 

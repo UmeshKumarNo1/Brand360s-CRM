@@ -846,12 +846,21 @@ export async function deleteFollowupAction(
 }
 
 /**
- * Fetch follow-ups for a specific client
+ * Fetch follow-ups for a specific client.
+ * Unifies client_follow_ups, converted follow_ups (by converted_client_id and company_name),
+ * and extracts all past conversation history into a unified chronological timeline.
  */
 export async function fetchClientFollowupsAction(clientId: string) {
   const supabase = await createClient();
 
-  const [res1, res2] = await Promise.all([
+  // First fetch the client to check company_name
+  const { data: clientInfo } = await supabase
+    .from("clients")
+    .select("id, company_name, phone")
+    .eq("id", clientId)
+    .maybeSingle();
+
+  const queries: any[] = [
     supabase
       .from("client_follow_ups")
       .select(`
@@ -868,20 +877,36 @@ export async function fetchClientFollowupsAction(clientId: string) {
       `)
       .eq("converted_client_id", clientId)
       .order("due_date", { ascending: false }),
-  ]);
+  ];
 
-  const list1 = res1.data || [];
-  const list2 = res2.data || [];
+  if (clientInfo?.company_name) {
+    queries.push(
+      supabase
+        .from("follow_ups")
+        .select(`
+          *,
+          assigned_profile:profiles!assigned_to (id, full_name, email)
+        `)
+        .ilike("company_name", clientInfo.company_name)
+        .order("due_date", { ascending: false })
+    );
+  }
+
+  const results = await Promise.all(queries);
+  const list1 = results[0]?.data || [];
+  const list2 = results[1]?.data || [];
+  const list3 = results[2]?.data || [];
 
   const map = new Map();
-  for (const item of [...list1, ...list2]) {
+  for (const item of [...list1, ...list2, ...list3]) {
     map.set(item.id, item);
   }
   const merged = Array.from(map.values());
 
   const todayStr = new Date().toISOString().split("T")[0];
+  const timelineItems: any[] = [];
 
-  return merged.map((f: any) => {
+  for (const f of merged) {
     let parsedNotes: any = null;
     let userNotes = "";
     if (f.notes && typeof f.notes === "string" && f.notes.startsWith("{")) {
@@ -912,12 +937,12 @@ export async function fetchClientFollowupsAction(clientId: string) {
       f.completed_at ||
       parsedNotes?.completedAt ||
       (parsedNotes?.history && parsedNotes.history[0]?.date) ||
-      null;
+      (f.status === "Completed" ? (f.updated_at || f.due_date) : null);
 
     const isOverdue =
       f.status !== "Completed" && f.status !== "Cancelled" && f.due_date < todayStr;
 
-    return {
+    timelineItems.push({
       ...f,
       clientId: f.client_id || f.converted_client_id || clientId,
       type: f.follow_up_type || "Call",
@@ -932,8 +957,47 @@ export async function fetchClientFollowupsAction(clientId: string) {
       assignedToName: f.assigned_name || f.assigned_profile?.full_name || "Assigned Staff",
       assignedToId: f.assigned_to,
       isOverdue,
-    };
+    });
+
+    // If this record has a history trail inside parsedNotes.history (e.g. from lead conversions or chained completions)
+    if (Array.isArray(parsedNotes?.history) && parsedNotes.history.length > 0) {
+      parsedNotes.history.forEach((h: any, idx: number) => {
+        // Skip first entry if it matches the current completed record
+        if (f.status === "Completed" && idx === 0 && h.outcome === outcome && h.notes === discussionNotes) {
+          return;
+        }
+
+        timelineItems.push({
+          id: `${f.id}-hist-${idx}`,
+          clientId: f.client_id || f.converted_client_id || clientId,
+          title: h.followupTitle || `Completed Follow-up: ${h.outcome || "Interaction"}`,
+          type: h.followupType || f.follow_up_type || "Call",
+          followUpType: h.followupType || f.follow_up_type || "Call",
+          due_date: h.date ? h.date.split("T")[0] : f.due_date,
+          dueDate: h.date ? h.date.split("T")[0] : f.due_date,
+          dueTime: null,
+          priority: "Medium",
+          status: "Completed",
+          outcome: h.outcome || "Completed",
+          discussionNotes: h.notes || null,
+          description: h.notes || h.followupTitle || "Customer discussion notes",
+          actualCompletedAt: h.date,
+          assignedToName: h.recordedBy || f.assigned_name || f.assigned_profile?.full_name || "Assigned Staff",
+          isOverdue: false,
+          isHistoricalSnapshot: true,
+        });
+      });
+    }
+  }
+
+  // Sort timeline with newest activity first
+  timelineItems.sort((a, b) => {
+    const dateA = a.actualCompletedAt || a.due_date || a.created_at || "";
+    const dateB = b.actualCompletedAt || b.due_date || b.created_at || "";
+    return dateB.localeCompare(dateA);
   });
+
+  return timelineItems;
 }
 
 /**

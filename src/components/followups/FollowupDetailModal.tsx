@@ -196,20 +196,20 @@ export function FollowupDetailModal({
           </div>
         </div>
 
-        {/* Tab Navigation (when lead data exists) */}
-        {leadData && (
-          <div className="px-5 border-b border-slate-200 flex gap-4 text-xs font-semibold bg-white">
-            <button
-              onClick={() => setActiveTab("overview")}
-              className={`py-2.5 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
-                activeTab === "overview"
-                  ? "border-[#0481A2] text-[#0481A2]"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <FileText size={14} />
-              <span>Company & Task</span>
-            </button>
+        {/* Tab Navigation */}
+        <div className="px-5 border-b border-slate-200 flex gap-4 text-xs font-semibold bg-white">
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`py-2.5 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
+              activeTab === "overview"
+                ? "border-[#0481A2] text-[#0481A2]"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <FileText size={14} />
+            <span>Task Details</span>
+          </button>
+          {directors.length > 0 && (
             <button
               onClick={() => setActiveTab("directors")}
               className={`py-2.5 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
@@ -221,23 +221,23 @@ export function FollowupDetailModal({
               <Users size={14} />
               <span>Directors ({directors.length})</span>
             </button>
-            <button
-              onClick={() => setActiveTab("history")}
-              className={`py-2.5 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
-                activeTab === "history"
-                  ? "border-[#0481A2] text-[#0481A2]"
-                  : "border-transparent text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              <History size={14} />
-              <span>Activity History ({history.length})</span>
-            </button>
-          </div>
-        )}
+          )}
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`py-2.5 border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
+              activeTab === "history"
+                ? "border-[#0481A2] text-[#0481A2]"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <History size={14} />
+            <span>Follow-up History ({history.length + (followup.status === "Completed" ? 1 : 0)})</span>
+          </button>
+        </div>
 
         {/* Tab Content */}
         <div className="p-5 overflow-y-auto space-y-4 text-xs flex-1">
-          {(!leadData || activeTab === "overview") && (
+          {activeTab === "overview" && (
             <>
               {/* Key metadata grid */}
               <div className="grid grid-cols-2 gap-3 p-3.5 bg-white border border-slate-200 rounded-xl">
@@ -458,8 +458,8 @@ export function FollowupDetailModal({
             </div>
           )}
 
-          {/* Activity History Tab */}
-          {leadData && activeTab === "history" && (
+          {/* Activity / Follow-up History Tab */}
+          {activeTab === "history" && (
             <div className="space-y-3">
               {/* Current follow-up task card */}
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1.5 shadow-2xs">

@@ -25,12 +25,14 @@ import { useToast } from "@/components/common/ToastProvider";
 
 const OUTCOMES = [
   { value: "Interested", label: "Interested", color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  { value: "Proposal Requested", label: "Proposal Requested", color: "bg-blue-50 text-blue-700 border-blue-200" },
-  { value: "Meeting Scheduled", label: "Meeting Scheduled", color: "bg-purple-50 text-purple-700 border-purple-200" },
-  { value: "Call Back Requested", label: "Call Back Requested", color: "bg-amber-50 text-amber-700 border-amber-200" },
-  { value: "No Answer", label: "No Answer / Unreachable", color: "bg-slate-100 text-slate-700 border-slate-200" },
+  { value: "Requested Callback", label: "Requested Callback", color: "bg-amber-50 text-amber-700 border-amber-200" },
+  { value: "No Response", label: "No Response", color: "bg-slate-100 text-slate-700 border-slate-200" },
   { value: "Not Interested", label: "Not Interested", color: "bg-rose-50 text-rose-700 border-rose-200" },
-  { value: "Other", label: "Other Outcome", color: "bg-slate-50 text-slate-600 border-slate-200" },
+  { value: "Quotation Requested", label: "Quotation Requested", color: "bg-blue-50 text-blue-700 border-blue-200" },
+  { value: "Negotiation", label: "Negotiation", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  { value: "Converted", label: "Converted", color: "bg-teal-50 text-teal-700 border-teal-200" },
+  { value: "Meeting Scheduled", label: "Meeting Scheduled", color: "bg-purple-50 text-purple-700 border-purple-200" },
+  { value: "Other", label: "Other", color: "bg-slate-50 text-slate-600 border-slate-200" },
 ];
 
 const NEXT_FOLLOWUP_TYPES = [
@@ -79,7 +81,10 @@ interface CompleteFollowupModalProps {
     dueTime?: string | null;
     isLead?: boolean;
     clientId?: string | null;
-  };
+    description?: string | null;
+    notes?: string | null;
+    contactPerson?: string | null;
+  } | null;
   isAdmin?: boolean;
 }
 
@@ -269,6 +274,16 @@ export function CompleteFollowupModal({
                 <span>Rep: <strong>{followup.assignedToName || "You"}</strong></span>
               </div>
             </div>
+
+            {/* Previous Description */}
+            {(followup.description || (followup.notes && !followup.notes.startsWith("{"))) && (
+              <div className="p-2.5 bg-white border border-slate-200/90 rounded-lg text-slate-600">
+                <span className="font-semibold text-slate-800 text-[11px] block mb-0.5">Previous Task / Description:</span>
+                <p className="text-xs text-slate-600 italic">
+                  {followup.description || followup.notes}
+                </p>
+              </div>
+            )}
 
             {/* Outcome Selection */}
             <div>

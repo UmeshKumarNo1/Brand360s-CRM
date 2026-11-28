@@ -478,13 +478,30 @@ export async function completeAndScheduleFollowupAction(
 
   const isAdmin = currentProfile?.role === "admin";
 
-  const { data: existing, error: fetchErr } = await supabase
+  let isClientFollowupTable = false;
+  let { data: existing, error: fetchErr } = await supabase
     .from("follow_ups")
     .select("*")
     .eq("id", input.followupId)
-    .single();
+    .maybeSingle();
 
-  if (fetchErr || !existing) return { error: "Follow-up record not found." };
+  if (!existing) {
+    const { data: cExisting } = await supabase
+      .from("client_follow_ups")
+      .select("*, client:clients(company_name)")
+      .eq("id", input.followupId)
+      .maybeSingle();
+    if (cExisting) {
+      existing = {
+        ...cExisting,
+        company_name: cExisting.client?.company_name || cExisting.company_name,
+        converted_client_id: cExisting.client_id,
+      };
+      isClientFollowupTable = true;
+    }
+  }
+
+  if (!existing) return { error: "Follow-up record not found." };
 
   if (!isAdmin && existing.assigned_to !== user.id) {
     return { error: "You are not authorized to complete this follow-up." };
@@ -535,14 +552,23 @@ export async function completeAndScheduleFollowupAction(
   }
 
   // 1. Update existing follow-up (Record 1: Completed)
+  const targetTable = isClientFollowupTable ? "client_follow_ups" : "follow_ups";
+  const updatePayload: Record<string, any> = {
+    status: "Completed",
+    notes: completedNotesStr,
+    last_follow_up: input.outcome || "Completed",
+    updated_at: new Date().toISOString(),
+  };
+
+  if (isClientFollowupTable) {
+    updatePayload.completed_at = recordedDate;
+    updatePayload.completed_by = user.id;
+    updatePayload.completion_notes = input.discussionNotes || null;
+  }
+
   const { error: updateErr } = await supabase
-    .from("follow_ups")
-    .update({
-      status: "Completed",
-      notes: completedNotesStr,
-      last_follow_up: input.outcome || "Completed",
-      updated_at: new Date().toISOString(),
-    })
+    .from(targetTable)
+    .update(updatePayload)
     .eq("id", input.followupId);
 
   if (updateErr) {
@@ -556,7 +582,7 @@ export async function completeAndScheduleFollowupAction(
     if (!input.nextDueDate) {
       // Revert completion
       await supabase
-        .from("follow_ups")
+        .from(targetTable)
         .update({
           status: existing.status,
           notes: existing.notes,
@@ -596,33 +622,49 @@ export async function completeAndScheduleFollowupAction(
         : `[Previous task: ${existing.title}]`;
     }
 
+    const insertPayload: Record<string, any> = isClientFollowupTable
+      ? {
+          client_id: existing.client_id || existing.converted_client_id,
+          assigned_to: targetAssignedTo,
+          title: input.nextTitle || `Follow-up - ${existing.company_name || existing.title}`,
+          follow_up_type: normalizeFollowupType(input.nextFollowUpType),
+          due_date: input.nextDueDate,
+          due_time: input.nextDueTime || null,
+          priority: normalizePriority(input.nextPriority),
+          status: "Pending",
+          notes: nextNotesStr,
+          contact_person: existing.contact_person,
+          created_by: user.id,
+        }
+      : {
+          company_name: existing.company_name,
+          contact_person: existing.contact_person,
+          phone: existing.phone,
+          service_interested: existing.service_interested,
+          converted_client_id: existing.converted_client_id || null,
+          assigned_to: targetAssignedTo,
+          assigned_name: targetAssignedName,
+          title: input.nextTitle || `Follow-up - ${existing.company_name || existing.title}`,
+          follow_up_type: normalizeFollowupType(input.nextFollowUpType),
+          due_date: input.nextDueDate,
+          due_time: input.nextDueTime || null,
+          priority: normalizePriority(input.nextPriority),
+          status: "Pending",
+          notes: nextNotesStr,
+          last_follow_up: "Scheduled",
+          created_by: user.id,
+        };
+
     const { data: newFollowup, error: insertErr } = await supabase
-      .from("follow_ups")
-      .insert({
-        company_name: existing.company_name,
-        contact_person: existing.contact_person,
-        phone: existing.phone,
-        service_interested: existing.service_interested,
-        converted_client_id: existing.converted_client_id || null,
-        assigned_to: targetAssignedTo,
-        assigned_name: targetAssignedName,
-        title: input.nextTitle || `Follow-up - ${existing.company_name || existing.title}`,
-        follow_up_type: normalizeFollowupType(input.nextFollowUpType),
-        due_date: input.nextDueDate,
-        due_time: input.nextDueTime || null,
-        priority: normalizePriority(input.nextPriority),
-        status: "Pending",
-        notes: nextNotesStr,
-        last_follow_up: "Scheduled",
-        created_by: user.id,
-      })
+      .from(targetTable)
+      .insert(insertPayload)
       .select("id")
       .single();
 
     if (insertErr) {
       // Revert completion of Record 1 for transactional integrity
       await supabase
-        .from("follow_ups")
+        .from(targetTable)
         .update({
           status: existing.status,
           notes: existing.notes,
@@ -809,26 +851,89 @@ export async function deleteFollowupAction(
 export async function fetchClientFollowupsAction(clientId: string) {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("client_follow_ups")
-    .select(`
-      *,
-      assigned_profile:profiles!assigned_to (id, full_name, email)
-    `)
-    .eq("converted_client_id", clientId)
-    .order("due_date", { ascending: true });
+  const [res1, res2] = await Promise.all([
+    supabase
+      .from("client_follow_ups")
+      .select(`
+        *,
+        assigned_profile:profiles!assigned_to (id, full_name, email)
+      `)
+      .eq("client_id", clientId)
+      .order("due_date", { ascending: false }),
+    supabase
+      .from("follow_ups")
+      .select(`
+        *,
+        assigned_profile:profiles!assigned_to (id, full_name, email)
+      `)
+      .eq("converted_client_id", clientId)
+      .order("due_date", { ascending: false }),
+  ]);
 
-  if (error) return [];
+  const list1 = res1.data || [];
+  const list2 = res2.data || [];
+
+  const map = new Map();
+  for (const item of [...list1, ...list2]) {
+    map.set(item.id, item);
+  }
+  const merged = Array.from(map.values());
+
   const todayStr = new Date().toISOString().split("T")[0];
 
-  return (data || []).map((f: any) => ({
-    ...f,
-    type: f.follow_up_type,
-    description: f.notes,
-    assignedToName: f.assigned_profile?.full_name || "Assigned Staff",
-    assignedToId: f.assigned_to,
-    isOverdue: f.status !== "Completed" && f.status !== "Cancelled" && f.due_date < todayStr,
-  }));
+  return merged.map((f: any) => {
+    let parsedNotes: any = null;
+    let userNotes = "";
+    if (f.notes && typeof f.notes === "string" && f.notes.startsWith("{")) {
+      try {
+        parsedNotes = JSON.parse(f.notes);
+        userNotes = parsedNotes.userNotes || parsedNotes.notes || "";
+      } catch {
+        userNotes = f.notes;
+      }
+    } else {
+      userNotes = f.notes || f.completion_notes || "";
+    }
+
+    const outcome =
+      f.outcome ||
+      parsedNotes?.lastOutcome ||
+      (parsedNotes?.history && parsedNotes.history[0]?.outcome) ||
+      (f.status === "Completed" ? (f.last_follow_up || "Completed") : null);
+
+    const discussionNotes =
+      f.completion_notes ||
+      parsedNotes?.userNotes ||
+      (parsedNotes?.history && parsedNotes.history[0]?.notes) ||
+      (f.status === "Completed" ? userNotes : null);
+
+    const actualCompletedAt =
+      f.actual_completed_at ||
+      f.completed_at ||
+      parsedNotes?.completedAt ||
+      (parsedNotes?.history && parsedNotes.history[0]?.date) ||
+      null;
+
+    const isOverdue =
+      f.status !== "Completed" && f.status !== "Cancelled" && f.due_date < todayStr;
+
+    return {
+      ...f,
+      clientId: f.client_id || f.converted_client_id || clientId,
+      type: f.follow_up_type || "Call",
+      followUpType: f.follow_up_type || "Call",
+      dueDate: f.due_date,
+      dueTime: f.due_time || null,
+      description: userNotes || f.title,
+      notes: f.notes,
+      discussionNotes,
+      outcome,
+      actualCompletedAt,
+      assignedToName: f.assigned_name || f.assigned_profile?.full_name || "Assigned Staff",
+      assignedToId: f.assigned_to,
+      isOverdue,
+    };
+  });
 }
 
 /**

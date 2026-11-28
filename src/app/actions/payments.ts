@@ -278,7 +278,23 @@ export async function fetchAllInstallmentsAction() {
 
   return (schedules || []).map((s: any) => {
     const amount = Number(s.amount) || 0;
-    const amountPaid = Number(s.amount_paid) || 0;
+    const allocations = (s.installment_allocations || []).map((ia: any) => ({
+      id: ia.id,
+      amount: Number(ia.allocated_amount) || 0,
+      createdAt: ia.created_at,
+      paymentId: ia.payment?.id,
+      paymentDate: ia.payment?.payment_date,
+      paymentMethod: ia.payment?.payment_method,
+      transactionRef: ia.payment?.transaction_ref,
+      status: ia.payment?.status,
+      recordedBy: ia.payment?.recorder?.full_name || "System",
+    }));
+
+    const validAllocPaid = allocations
+      .filter((a: any) => !a.status || ["Verified", "Completed", "Received", "Approved"].includes(a.status))
+      .reduce((sum: number, a: any) => sum + (Number(a.amount) || 0), 0);
+
+    const amountPaid = allocations.length > 0 ? validAllocPaid : (Number(s.amount_paid) || 0);
     const remaining = Math.max(0, amount - amountPaid);
     const isOverdue = s.due_date < today && s.status !== "Paid in full" && s.status !== "Cancelled" && remaining > 0;
 
@@ -296,18 +312,6 @@ export async function fetchAllInstallmentsAction() {
     } else {
       computedStatus = "Upcoming";
     }
-
-    const allocations = (s.installment_allocations || []).map((ia: any) => ({
-      id: ia.id,
-      amount: Number(ia.allocated_amount) || 0,
-      createdAt: ia.created_at,
-      paymentId: ia.payment?.id,
-      paymentDate: ia.payment?.payment_date,
-      paymentMethod: ia.payment?.payment_method,
-      transactionRef: ia.payment?.transaction_ref,
-      status: ia.payment?.status,
-      recordedBy: ia.payment?.recorder?.full_name || "System",
-    }));
 
     return {
       id: s.id,

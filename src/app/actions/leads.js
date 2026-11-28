@@ -455,37 +455,49 @@ export async function fetchUnconvertedLeadsAction() {
 
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("follow_ups")
-    .select(`
-      id,
-      company_name,
-      contact_person,
-      phone,
-      service_interested,
-      title,
-      follow_up_type,
-      priority,
-      status,
-      due_date,
-      due_time,
-      last_follow_up,
-      assigned_to,
-      assigned_name,
-      notes,
-      created_at,
-      converted_client_id
-    `)
-    .is("converted_client_id", null)
-    .neq("status", "Converted to Client")
-    .order("created_at", { ascending: false });
+  let allRows = [];
+  let from = 0;
+  const chunkSize = 1000;
 
-  if (error || !data) {
-    console.error("Error fetching unconverted leads:", error);
-    return [];
+  while (true) {
+    const { data, error } = await supabase
+      .from("follow_ups")
+      .select(`
+        id,
+        company_name,
+        contact_person,
+        phone,
+        service_interested,
+        title,
+        follow_up_type,
+        priority,
+        status,
+        due_date,
+        due_time,
+        last_follow_up,
+        assigned_to,
+        assigned_name,
+        notes,
+        created_at,
+        converted_client_id
+      `)
+      .is("converted_client_id", null)
+      .neq("status", "Converted to Client")
+      .order("created_at", { ascending: false })
+      .range(from, from + chunkSize - 1);
+
+    if (error) {
+      console.error("Error fetching unconverted leads chunk at", from, error);
+      break;
+    }
+    if (!data || data.length === 0) break;
+
+    allRows.push(...data);
+    if (data.length < chunkSize) break;
+    from += chunkSize;
   }
 
-  return data.map((item) => {
+  return allRows.map((item) => {
     let parsedNotes = {};
     try {
       if (item.notes && item.notes.startsWith("{")) {

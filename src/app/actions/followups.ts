@@ -79,19 +79,33 @@ export async function fetchFollowupsAction() {
 
   const supabase = await createClient();
 
-  const { data, error } = await supabase
-    .from("client_follow_ups")
-    .select(`
-      *,
-      assigned_profile:profiles!assigned_to (id, full_name, email)
-    `)
-    .order("due_date", { ascending: true })
-    .order("due_time", { ascending: true, nullsFirst: false });
+  let allRows: any[] = [];
+  let from = 0;
+  const chunkSize = 1000;
 
-  if (error) {
-    console.error("Error fetching follow-ups:", error);
-    return [];
+  while (true) {
+    const { data, error } = await supabase
+      .from("client_follow_ups")
+      .select(`
+        *,
+        assigned_profile:profiles!assigned_to (id, full_name, email)
+      `)
+      .order("due_date", { ascending: true })
+      .order("due_time", { ascending: true, nullsFirst: false })
+      .range(from, from + chunkSize - 1);
+
+    if (error) {
+      console.error("Error fetching follow-ups chunk at offset", from, error);
+      break;
+    }
+    if (!data || data.length === 0) break;
+
+    allRows.push(...data);
+    if (data.length < chunkSize) break;
+    from += chunkSize;
   }
+
+  const data = allRows;
 
   // Fetch completer names safely if any follow-up is completed
   const completerIds = Array.from(
